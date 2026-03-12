@@ -1,0 +1,29 @@
+# GreyWind 文档索引
+
+| 文件 | 类型 | 状态 | 作用 | 建议 |
+|------|------|------|------|------|
+| `spine-now.md` | 当前主文档 | 生效 | 冻结当前最小 Spine、边界、主链路 | 开工前先看 |
+| `greywind-implementation-spec.md` | 当前主文档 | 生效 | 当前最接近实施规格的文档 | 施工时常看 |
+| `architecture-v2.md` | 当前主文档 | 生效 | 定义系统中轴和三条轴 | 讨论方向时看 |
+| `context-runtime.md` | 当前主文档 | 生效 | 定义上下文运行时和 Context Packet | 设计连续性时看 |
+| `engineering-lessons.md` | 占位文档 | 非主文档 | 当前仅保留说明，避免和 `context-runtime.md` 重复 | 暂不作为规范引用 |
+| `archive/greywind-airi-borrowing-strategy.md` | 参考归档 | 回查 | AIRI / proj-airi 借鉴判断的 Markdown 版 | 优先看这份 |
+| `archive/greywind-airi-borrowing-strategy.docx` | 参考文档 | 回查 | AIRI / proj-airi 借鉴判断原始 Word 文件 | 只在需要原稿时看 |
+| `archive/ai-assistant-architecture.md` | 参考归档 | 回查 | 更早期的大而全远景架构 | 不作为当前规格 |
+| `archive/remote-chat-realtime-voice-notes.md` | 参考归档 | 回查 | Realtime voice、Qwen 分类、接入判断 | 做语音接入时看 |
+| `历史文档/greywind-spec.md` | 历史版本 | 归档 | 最早期规格稿 | 默认不引用 |
+| `历史文档/greywind-spec-v2.md` | 历史版本 | 归档 | 第二版规格稿 | 默认不引用 |
+| `历史文档/greywind-spec-v3.md` | 历史版本 | 归档 | 第三版规格稿 | 默认不引用 |
+| `历史文档/greywind-spec-final.md` | 历史版本 | 归档 | 旧版 final | 默认不引用 |
+| `历史文档/minimal-spine-plan.md` | 历史版本 | 归档 | 早期最小 Spine 计划 | 只做考古 |
+| `历史文档/推进经验.md` | 历史版本 | 归档 | 早期推进记录 | 只做考古 |
+| `历史文档/early-system-architecture.md` | 历史版本 | 归档 | 更早构想稿 | 只做考古 |
+| `历史文档/growth-spec-draft.md` | 历史版本 | 归档 | 更早设计稿 | 只做考古 |
+| `历史文档/GrayWind Personal Assistant.md` | 历史版本 | 归档 | 英文命名早期稿 | 只做考古 |
+
+## 推荐入口
+
+- 要开工：`spine-now.md` -> `greywind-implementation-spec.md`
+- 要看方向：`architecture-v2.md` -> `context-runtime.md`
+- 要看语音接入：`archive/remote-chat-realtime-voice-notes.md`
+- 要看历史演化：`历史文档/`

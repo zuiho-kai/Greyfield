@@ -282,6 +282,22 @@ tools/tool_manager/
 → TTS
 → 音频播放
 → Live2D 嘴型 / 表情
+补充理解：
+
+realtime voice 不会改变这条四层主链路。
+
+它改变的是执行方式：
+
+- 音频按 chunk 输入
+- ASR 输出 partial transcript
+- LLM 输出 token stream
+- TTS 输出 audio stream
+- 用户可在任意时点打断
+
+也就是说，GreyWind 后续如果升级 realtime，仍然是同一条 `VAD / ASR -> LLM -> TTS` 语音骨架，只是整条链路流式化。
+
+相关归档见：`archive/remote-chat-realtime-voice-notes.md`
+
 8.2 打断链路
 检测到新语音输入
 → 立即停止当前 TTS 播放
@@ -385,7 +401,7 @@ thread 和 session 不是一回事。
 conf.yaml 只放你当前真的会改的内容。
 这点和现有规格书一致。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 建议保留：
 
@@ -510,7 +526,7 @@ Live2D 相关核心
 
 这与你原规格书的搬运策略一致。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 Step 2：配置系统
 

@@ -6,7 +6,7 @@ docs/growth-spec.md
 
 内容基于你现有规格书的结构和原则重组而来。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 灰风（GreyWind）— 生长式系统规格书
 0. 文档定位
@@ -31,7 +31,7 @@ Growth Modules：未来可能长出的能力模块
 
 除 Spine 外，其余模块、目录、Agent、记忆层、任务系统均视为扩展位，不代表首期必须实现。这个原则与当前规格书里的 Minimal Spine → Module 渐进演化 一致。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 1. 产品定义
 
@@ -42,7 +42,7 @@ greywind-spec-final (1)
 对外，它表现为一个桌面常驻的 Live2D 角色。
 对内，它未来可以长成一个具备任务调度、记忆系统、工具执行和多 Agent 协作能力的个人 Agent OS。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 2. 设计原则
 2.1 先活，再强
@@ -71,7 +71,7 @@ WebSocket 协议尽量只增不改
 
 引擎层优先搬运而不是魔改 
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 2.3 模块延迟承诺
 
@@ -164,7 +164,7 @@ WebSocket 通信
 这和当前规格书中的 Spine 目标一致：
 单进程服务，皮套 Agent 直接调 LLM，没有独立主控，也没有蜂巢。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 4.3 Spine 不包含
 
@@ -304,7 +304,7 @@ WebSocket 协议从第一天开始就按“只增不改”设计。
 
 未来任务系统和工具执行，只在此基础上扩展字段与消息类型。这个设计和你原规格书保持一致。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 8. 当前记忆设计
 8.1 当前目标
@@ -373,7 +373,7 @@ memory.json 中的人设能影响回复
 
 这与现有规格书里的 Spine 验收标准一致。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 10. Growth Modules
 
@@ -409,7 +409,7 @@ Module B：屏幕感知
 
 这与规格书后来修订的方向一致。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 Module C：浏览器操控
 
@@ -460,7 +460,7 @@ Persona 不再直接承担全部决策
 这是一个能力压力触发模块：
 只有当 Persona 同时承担对话、工具调度、任务推进开始失控时，才应拆出 Conductor。原规格书把主控分离放在 G，这个顺序是合理的。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 Module H：任务频道
 
@@ -562,7 +562,7 @@ Module 不按预设路线强行推进。
 
 按现有规格书的方式搬运 OLV 引擎模块，保持内部逻辑不改，只改 import 路径。
 
-greywind-spec-final (1)
+greywind-implementation-spec.md
 
 第二步：实现 Spine
 
