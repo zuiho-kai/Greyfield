@@ -25,7 +25,16 @@ docs/
 ├── greywind-implementation-spec.md     # 当前可执行规格
 ├── architecture-v2.md                  # 系统中轴：Context Runtime / Session / Thread / Task
 ├── context-runtime.md                  # 上下文运行时设计
-├── engineering-lessons.md              # 当前不是独立主文档，作为占位说明保留
+├── engineering-lessons.md              # 错题本体系入口
+├── error-books/
+│   ├── _index.md                      # 速查索引（每次必读）
+│   ├── flow-rules.md                  # 流程子文件索引（每次必读）
+│   ├── flow-gate.md                   # 门控/流程执行
+│   ├── flow-code-habit.md             # 代码修改习惯
+│   ├── flow-design.md                 # 设计阶段
+│   ├── tool-rules.md                  # 工具使用
+│   ├── interface-rules.md             # 接口协作
+│   └── common-mistakes.md             # 跨角色通用错误
 ├── archive/
 │   ├── ai-assistant-architecture.md    # 更早的远景架构参考
 │   ├── greywind-airi-borrowing-strategy.md
@@ -191,9 +200,9 @@ GreyWind 不是凭空长出来的。
 
 ### D. 重复/占位文件
 
-`engineering-lessons.md` 当前不是独立主文档。
+`engineering-lessons.md` 是错题本体系的入口文件，指向 `error-books/` 目录下的各子文件。
 
-它原先和 `context-runtime.md` 完全重复，因此现在只保留为占位说明，避免继续误导。
+错题本体系从 bot_civ 项目复用通用条目，按模块拆分，用于在开发过程中避免重复踩坑。
 
 ---
 
