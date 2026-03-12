@@ -1,0 +1,250 @@
+<div align="center">
+
+<!-- TODO: logo / banner -->
+<!-- <img src="assets/banner.png" width="100%" alt="GreyWind Banner"> -->
+
+# 🐺 灰风 GreyWind
+
+**你桌面上的 AI。能看你的屏幕，能听你说话，能帮你干活，还能记住你。**
+
+[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)](https://python.org)
+[![Node](https://img.shields.io/badge/Node-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active_Development-orange)](https://github.com)
+<!-- [![Stars](https://img.shields.io/github/stars/YOUR_USERNAME/greywind?style=flat)](https://github.com/YOUR_USERNAME/greywind) -->
+<!-- [![Discord](https://img.shields.io/discord/YOUR_DISCORD_ID?label=Discord&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/YOUR_INVITE) -->
+
+[English](./README_EN.md) | **中文**
+
+</div>
+
+<br>
+
+<!-- TODO: 替换为真实 demo GIF / 视频截图 -->
+<!-- <p align="center"><img src="assets/demo.gif" width="75%" alt="GreyWind Demo"></p> -->
+<!-- <p align="center"><em>灰风在桌面上和你对话、看你的屏幕、帮你写代码</em></p> -->
+
+<p align="center">
+  <a href="#">🎥 演示视频</a> · <a href="#-快速开始">🚀 快速开始</a> · <a href="#-文档">📚 文档</a> · <a href="#-参与开发">🤝 参与开发</a> · <a href="#-社区">💬 社区</a>
+</p>
+
+---
+
+## 为什么做灰风
+
+我受够了每次打开 AI 都要重新介绍自己。
+
+ChatGPT 是一个网页标签。Claude 是一个对话框。Codex 是一个终端。用完关掉，下次再打开，它已经不认识你了。
+
+我想要的很简单：
+
+- **一个一直在桌面上的 AI**，我能看见它
+- **它能看我的屏幕**，知道我在干什么
+- **我可以直接对它说话**，它也能说话
+- **关掉再打开，它还是同一个人**
+- **需要时它能帮我操作电脑**，而不只是聊天
+
+所以我做了灰风。
+
+---
+
+## ✨ 它能做什么
+
+| | 能力 | 说明 |
+|:---:|------|------|
+| 👁️ | **看你的屏幕** | 截图 + Vision API · 窗口感知 · 知道你在做什么 |
+| 👂 | **听你说话** | 麦克风 · VAD · ASR · 说到一半可以打断它 |
+| 🗣️ | **对你说话** | TTS · Live2D 口型同步 · 表情联动 |
+| 🧠 | **记住你** | 跨会话上下文延续 · 不是每次从零开始 |
+| 🖥️ | **帮你干活** | 浏览器操控 · 桌面操作 · Shell · 文件管理 |
+| 🤖 | **调度多个 AI** | 底层按需调度 Claude Code / Codex / Gemini CLI，对你透明 |
+
+> 对外只有灰风。底层的模型和 CLI 全部隐藏。
+> 类似 [Cat Cafe](https://github.com/zts212653/cat-cafe-tutorials) 的思路：对外暴露角色，执行器不可见。
+
+---
+
+## 🤔 它和别的项目有什么不同
+
+| | ChatGPT | OpenClaw | MaiBot | Open Interpreter | **灰风** |
+|---|---|---|---|---|---|
+| **你看到的** | 网页对话框 | 消息里的文字 | QQ 群里的文字 | 终端 | **桌面 Live2D 角色** |
+| **它能看到你** | ❌ | ❌ | ❌ | ❌ | **截图 + Vision** |
+| **语音优先** | 后加的 | 后加的 | ❌ | ❌ | **Spine 自带** |
+| **角色感** | 弱 | 无 | 强 | 无 | **Live2D + 人格** |
+| **跨会话连续** | ❌ | Session | 部分 | ❌ | **Thread + Handoff** |
+| **桌面操作** | ❌ | ❌ | ❌ | ✅ | **✅** |
+| **多模型后端** | 单 | 单 | 单 | 单 | **多 CLI 协作** |
+
+一句话总结：
+
+- **OpenClaw** = 你消息里的 AI（WhatsApp / Telegram / Slack）
+- **MaiBot** = 你群聊里的 AI（QQ）
+- **灰风** = **你电脑里的 AI**（桌面常驻 · 能看能听能做）
+
+---
+
+## 🚀 快速开始
+
+> ⚠️ 项目处于早期开发阶段。当前正在实现最小骨架（Spine），还不是完整可用的产品。
+> 想参与早期开发？直接看 [参与开发](#-参与开发)。
+
+```bash
+# 克隆
+git clone https://github.com/YOUR_USERNAME/greywind.git
+cd greywind
+
+# 后端
+pip install -r requirements.txt
+cp conf.example.yaml conf.yaml   # 编辑填入 API Key
+python run.py
+
+# 前端（Electron）
+cd frontend/desktop && npm install && npm start
+```
+
+<!-- TODO: 真实安装步骤就绪后更新 -->
+
+---
+
+## 🏗️ 怎么跑的
+
+```
+你（语音 / 文字 / 屏幕）
+ ↓
+┌─────────────────────────────────────────┐
+│          灰风 · Persona Shell           │
+│   Live2D · 语音 · 口型 · 表情 · 打断    │
+└──────────────────┬──────────────────────┘
+                   ↓
+┌──────────────────────────────────────────┐
+│          Context Runtime                 │
+│   谁在说话 · 在哪条线 · 上次聊到哪       │
+└──────────────────┬───────────────────────┘
+                   ↓
+┌──────────────────────────────────────────┐
+│          执行层（对你不可见）              │
+│   Claude Code · Codex · Gemini CLI       │
+│   Browser · Desktop · Shell · File       │
+└──────────────────────────────────────────┘
+```
+
+灰风不重新发明 coding CLI。它用已有的最强 CLI 做执行，自己只做两件事：
+
+1. **感知层** — Live2D、语音、读屏，让你和 AI 的交互像面对一个"人"
+2. **上下文运行时** — 让 AI 在跨会话时还是同一个角色，而不是每次重来
+
+> 架构细节：[architecture-v2.md](./architecture-v2.md) · 上下文设计：[context-runtime.md](./context-runtime.md)
+
+---
+
+## 📍 Roadmap
+
+**Minimal Spine → Module 生长**：先活起来，再长出能力。
+
+### Phase 1 — 先活起来 `← 当前`
+
+- [ ] Live2D 桌面角色
+- [ ] 语音输入（VAD + ASR）
+- [ ] LLM 对话 + 流式 TTS
+- [ ] 口型同步 + 基础表情
+- [ ] 对话上下文连续性
+- [ ] 语音打断
+
+### Phase 2 — 能看能做
+
+- [ ] 屏幕感知（截图 + Vision）
+- [ ] 浏览器操控（Playwright）
+- [ ] 桌面操控（pyautogui）
+- [ ] 音色克隆（GPT-SoVITS）
+
+### Phase 3 — 长出系统
+
+- [ ] 主控 / 蜂巢多 Agent
+- [ ] 任务系统
+- [ ] 持久化记忆
+- [ ] Web Dashboard
+- [ ] Skill / 插件平台
+
+---
+
+## 🤝 参与开发
+
+**灰风现在是早期，正是参与的最好时机。**
+
+### 当前最需要的方向
+
+| 方向 | 说明 | 难度 |
+|------|------|:----:|
+| 🎨 **Live2D 前端** | Electron + pixi-live2d-display · 口型 · 表情 | ⭐⭐ |
+| 🎤 **语音管线** | VAD → ASR → LLM → TTS 全链路流式 | ⭐⭐⭐ |
+| 🖥️ **屏幕感知** | mss 截图 + Vision API → 结构化理解 | ⭐⭐ |
+| 🌐 **浏览器操控** | Playwright + function calling + 风险分级 | ⭐⭐⭐ |
+| 🧠 **Context Runtime** | Thread / Session 最小实现 | ⭐⭐⭐ |
+| 🔌 **Skill 系统** | 设计插件机制，让社区能贡献能力而不碰核心 | ⭐⭐ |
+| 📖 **文档 / 翻译** | README · 文档英文化 · 教程 | ⭐ |
+
+### 怎么开始
+
+```bash
+git clone https://github.com/YOUR_FORK/greywind.git
+git checkout -b feat/your-feature
+# 改完提 PR
+```
+
+> 不知道从哪下手？看 **[spine-now.md](./spine-now.md)** 了解当前阶段具体需求，或直接开 Issue 聊。
+>
+> 灰风的目标是做成 **OpenClaw 那样的开放生态** — 核心保持精简，能力通过 Skill / 插件长出来。
+
+---
+
+## 📚 文档
+
+| 文档 | 内容 |
+|------|------|
+| **[spine-now.md](./spine-now.md)** | 当前只做什么、不做什么 |
+| **[greywind-implementation-spec.md](./greywind-implementation-spec.md)** | 施工规格 · 目录 · 配置 · 协议 |
+| **[architecture-v2.md](./architecture-v2.md)** | 系统中轴 · 三条轴 |
+| **[context-runtime.md](./context-runtime.md)** | 上下文装配 · Thread / Session / Handoff |
+| **[MAP.md](./MAP.md)** | 文档地图 |
+
+---
+
+## 🧬 站在谁的肩上
+
+| 来源 | 吸收了什么 |
+|------|-----------|
+| [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber) | ASR / TTS / VAD / LLM / Live2D 引擎（MIT，直接搬运） |
+| [Cat Cafe](https://github.com/zts212653/cat-cafe-tutorials) | 多 CLI 角色化协作 · 对外只暴露角色 |
+| [OpenClaw](https://github.com/openclaw/openclaw) | Gateway / 分层记忆 · Skill 生态思路 |
+| Neuro | 桌面 AI 存在感 · 多模态陪伴 |
+
+---
+
+## 💬 社区
+
+<!-- TODO: 替换为真实链接 -->
+
+| 平台 | 链接 | 说明 |
+|------|------|------|
+| **QQ 群** | [加入](#) | 日常交流 · 问题答疑 |
+| **Discord** | [加入](#) | 英文社区 · 开发讨论 |
+| **Issues** | [GitHub](https://github.com/YOUR_USERNAME/greywind/issues) | Bug · 功能建议 |
+| **Discussions** | [GitHub](https://github.com/YOUR_USERNAME/greywind/discussions) | 开放讨论 |
+
+---
+
+## ⭐ Star History
+
+<!-- TODO: 替换 YOUR_USERNAME -->
+<!-- [![Star History Chart](https://api.star-history.com/svg?repos=YOUR_USERNAME/greywind&type=Date)](https://star-history.com/#YOUR_USERNAME/greywind&Date) -->
+
+---
+
+<div align="center">
+
+**大多数 AI 每次对话都是一个新的人。灰风不是。**
+
+如果你觉得这个方向有意思，⭐ 就是最大的支持。
+
+</div>
