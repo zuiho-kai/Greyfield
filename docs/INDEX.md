@@ -6,7 +6,8 @@
 | `greywind-implementation-spec.md` | 当前主文档 | 生效 | 当前最接近实施规格的文档 | 施工时常看 |
 | `architecture-v2.md` | 当前主文档 | 生效 | 定义系统中轴和三条轴 | 讨论方向时看 |
 | `context-runtime.md` | 当前主文档 | 生效 | 定义上下文运行时和 Context Packet | 设计连续性时看 |
-| `engineering-lessons.md` | 占位文档 | 非主文档 | 当前仅保留说明，避免和 `context-runtime.md` 重复 | 暂不作为规范引用 |
+| `engineering-lessons.md` | 工程文档 | 生效 | 错题本体系入口，指向 `error-books/` | 犯错/踩坑时看 |
+| `error-books/` | 工程文档 | 生效 | 错题本体系，按模块拆分的错误案例集 | 开工前读索引 |
 | `archive/greywind-airi-borrowing-strategy.md` | 参考归档 | 回查 | AIRI / proj-airi 借鉴判断的 Markdown 版 | 优先看这份 |
 | `archive/greywind-airi-borrowing-strategy.docx` | 参考文档 | 回查 | AIRI / proj-airi 借鉴判断原始 Word 文件 | 只在需要原稿时看 |
 | `archive/ai-assistant-architecture.md` | 参考归档 | 回查 | 更早期的大而全远景架构 | 不作为当前规格 |
@@ -26,4 +27,5 @@
 - 要开工：`spine-now.md` -> `greywind-implementation-spec.md`
 - 要看方向：`architecture-v2.md` -> `context-runtime.md`
 - 要看语音接入：`archive/remote-chat-realtime-voice-notes.md`
+- 要避坑：`engineering-lessons.md` -> `error-books/_index.md`
 - 要看历史演化：`历史文档/`
