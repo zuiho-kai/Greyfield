@@ -134,7 +134,7 @@ cd frontend/desktop && npm install && npm start
 1. **感知层** — Live2D、语音、读屏，让你和 AI 的交互像面对一个"人"
 2. **上下文运行时** — 让 AI 在跨会话时还是同一个角色，而不是每次重来
 
-> 架构细节：[architecture-v2.md](./architecture-v2.md) · 上下文设计：[context-runtime.md](./context-runtime.md)
+> 架构细节：[architecture-v2.md](./docs/architecture-v2.md) · 上下文设计：[context-runtime.md](./docs/context-runtime.md)
 
 ---
 
@@ -192,7 +192,7 @@ git checkout -b feat/your-feature
 # 改完提 PR
 ```
 
-> 不知道从哪下手？看 **[spine-now.md](./spine-now.md)** 了解当前阶段具体需求，或直接开 Issue 聊。
+> 不知道从哪下手？看 **[spine-now.md](./docs/spine-now.md)** 了解当前阶段具体需求，或直接开 Issue 聊。
 >
 > 灰风的目标是做成 **OpenClaw 那样的开放生态** — 核心保持精简，能力通过 Skill / 插件长出来。
 
@@ -202,11 +202,11 @@ git checkout -b feat/your-feature
 
 | 文档 | 内容 |
 |------|------|
-| **[spine-now.md](./spine-now.md)** | 当前只做什么、不做什么 |
-| **[greywind-implementation-spec.md](./greywind-implementation-spec.md)** | 施工规格 · 目录 · 配置 · 协议 |
-| **[architecture-v2.md](./architecture-v2.md)** | 系统中轴 · 三条轴 |
-| **[context-runtime.md](./context-runtime.md)** | 上下文装配 · Thread / Session / Handoff |
-| **[MAP.md](./MAP.md)** | 文档地图 |
+| **[spine-now.md](./docs/spine-now.md)** | 当前只做什么、不做什么 |
+| **[greywind-implementation-spec.md](./docs/greywind-implementation-spec.md)** | 施工规格 · 目录 · 配置 · 协议 |
+| **[architecture-v2.md](./docs/architecture-v2.md)** | 系统中轴 · 三条轴 |
+| **[context-runtime.md](./docs/context-runtime.md)** | 上下文装配 · Thread / Session / Handoff |
+| **[MAP.md](./docs/MAP.md)** | 文档地图 |
 
 ---
 
