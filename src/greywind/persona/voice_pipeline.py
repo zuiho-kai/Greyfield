@@ -161,6 +161,7 @@ class VoicePipeline:
 
     @staticmethod
     def _estimate_duration(path: str) -> int:
+        """粗估音频时长（ms）。按文件大小 / 16 估算，不同格式/码率下不准确，仅用于前端占位。"""
         try:
             return max(int(Path(path).stat().st_size / 16), 500)
         except Exception:

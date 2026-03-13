@@ -16,11 +16,13 @@ dependencies = [
     "edge-tts",
     "requests",
     "jinja2",
-    "playwright>=1.58.0",
     "torch>=2.10.0",
     "silero-vad>=6.2.1",
     "pydub>=0.25.1",
 ]
+
+[project.optional-dependencies]
+browser = ["playwright>=1.58.0"]
 
 [build-system]
 requires = ["hatchling"]

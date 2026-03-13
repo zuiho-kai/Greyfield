@@ -11,9 +11,9 @@ class ServerConfig(BaseModel):
 
 class LLMConfig(BaseModel):
     provider: str = "openai"
-    model: str = "claude-sonnet-4-20250514"
+    model: str = "stepfun-ai/Step-3.5-Flash"
     api_key: str = ""
-    base_url: Optional[str] = None
+    base_url: Optional[str] = "https://api.siliconflow.cn/v1"
 
 
 class ASRConfig(BaseModel):

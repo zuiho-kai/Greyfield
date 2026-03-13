@@ -1,5 +1,7 @@
 """FastAPI 应用 — HTTP + WebSocket 入口"""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
@@ -7,22 +9,24 @@ from loguru import logger
 from greywind.server.service_context import ServiceContext, create_service_context
 from greywind.server.ws_handler import handle_websocket
 
-app = FastAPI(title="GreyWind")
+_ctx: ServiceContext | None = None
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    global _ctx
+    _ctx = create_service_context()
+    logger.info(f"灰风后端启动: {_ctx.config.server.host}:{_ctx.config.server.port}")
+    yield
+
+
+app = FastAPI(title="GreyWind", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-_ctx: ServiceContext | None = None
-
-
-@app.on_event("startup")
-async def startup():
-    global _ctx
-    _ctx = create_service_context()
-    logger.info(f"灰风后端启动: {_ctx.config.server.host}:{_ctx.config.server.port}")
 
 
 @app.get("/health")

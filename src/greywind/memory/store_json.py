@@ -21,9 +21,12 @@ class JSONMemoryStore(MemoryInterface):
         if not self._path.exists():
             logger.warning(f"记忆文件 {self._path} 不存在，使用空记忆")
             return
-        with open(self._path, "r", encoding="utf-8") as f:
-            self._data = json.load(f)
-        logger.info(f"记忆加载完成: {len(self._data.get('persona_facts', []))} 条人格事实")
+        try:
+            with open(self._path, "r", encoding="utf-8") as f:
+                self._data = json.load(f)
+            logger.info(f"记忆加载完成: {len(self._data.get('persona_facts', []))} 条人格事实")
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"记忆文件损坏，使用空记忆: {e}")
 
     def save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
