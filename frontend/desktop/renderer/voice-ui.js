@@ -1,5 +1,5 @@
 /**
- * Voice UI: microphone capture, TTS playback, lip sync.
+ * 语音 UI — 麦克风录制 + TTS 音频播放 + 口型同步
  */
 const micBtn = document.getElementById("mic-btn");
 let mediaStream = null;
@@ -40,7 +40,7 @@ async function startRecording() {
     micBtn.classList.add("recording");
     micBtn.textContent = "STOP";
   } catch (err) {
-    console.error("\u9ea6\u514b\u98ce\u542f\u52a8\u5931\u8d25", err);
+    console.error("麦克风启动失败:", err);
   }
 }
 
@@ -107,7 +107,7 @@ function playNext() {
       startLipSync();
     },
     (err) => {
-      console.error("\u97f3\u9891\u89e3\u7801\u5931\u8d25:", err);
+      console.error("音频解码失败:", err);
       playNext();
     }
   );

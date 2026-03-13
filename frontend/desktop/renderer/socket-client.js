@@ -1,5 +1,5 @@
 /**
- * WebSocket client for the local GreyWind backend.
+ * WebSocket 客户端 — 连接灰风后端
  */
 const WS_URL = "ws://127.0.0.1:12393/ws";
 let ws = null;
@@ -27,7 +27,7 @@ function wsConnect() {
   ws.binaryType = "arraybuffer";
 
   ws.onopen = () => {
-    document.getElementById("status-bar").textContent = "\u5df2\u8fde\u63a5";
+    document.getElementById("status-bar").textContent = "已连接";
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -37,13 +37,13 @@ function wsConnect() {
       .then((data) => {
         const e = data.engines || {};
         const missing = [];
-        if (!e.vad) missing.push("VAD\uff08\u8bed\u97f3\u68c0\u6d4b\uff09");
-        if (!e.asr) missing.push("ASR\uff08\u8bed\u97f3\u8bc6\u522b\uff09");
-        if (!e.tts) missing.push("TTS\uff08\u8bed\u97f3\u5408\u6210\uff09");
+        if (!e.vad) missing.push("VAD（语音检测）");
+        if (!e.asr) missing.push("ASR（语音识别）");
+        if (!e.tts) missing.push("TTS（语音合成）");
         if (missing.length > 0) {
-          console.warn("\u5f15\u64ce\u672a\u52a0\u8f7d", missing.join(", "));
+          console.warn("引擎未加载:", missing.join(", "));
           document.getElementById("status-bar").textContent =
-            "\u5df2\u8fde\u63a5 | \u4e0d\u53ef\u7528: " + missing.join(", ");
+            "已连接 | 不可用: " + missing.join(", ");
         }
       })
       .catch(() => {});
@@ -52,7 +52,7 @@ function wsConnect() {
   ws.onclose = () => {
     pendingAudioMeta = null;
     document.getElementById("status-bar").textContent =
-      "\u5df2\u65ad\u5f00 - \u91cd\u8fde\u4e2d...";
+      "已断开 - 重连中...";
     reconnectTimer = setTimeout(wsConnect, 3000);
   };
 
@@ -79,7 +79,7 @@ function wsConnect() {
       }
       wsEmit(msg.type, msg.payload);
     } catch (err) {
-      console.error("\u6d88\u606f\u89e3\u6790\u5931\u8d25", err);
+      console.error("消息解析失败", err);
     }
   };
 }
