@@ -13,17 +13,32 @@ SENTENCE_DELIMITERS = re.compile(r"(?<=[。！？.!?\n])")
 
 class VoicePipeline:
     def __init__(self, ctx):
+        # 无状态引擎：共享
         self.asr = ctx.asr
         self.tts = ctx.tts
-        self.vad = ctx.vad
         self.llm = ctx.llm
         self.assembler = ctx.assembler
-        self.session = ctx.session
-        self.thread = ctx.thread
         self.memory = ctx.memory
         self.character = ctx.character
+        # 有状态组件：每连接独立
+        from greywind.context_runtime.session_manager import SessionManager
+        from greywind.context_runtime.thread_resolver import ThreadResolver
+        self.session = SessionManager()
+        self.thread = ThreadResolver()
+        self.vad = self._clone_vad(ctx.vad)
         self._interrupted = False
         self._response_task: asyncio.Task | None = None
+
+    @staticmethod
+    def _clone_vad(vad):
+        """为当前连接创建独立的 VAD 实例，避免状态串台"""
+        if vad is None:
+            return None
+        try:
+            from greywind.engines.vad.silero import VADEngine
+            return VADEngine()
+        except Exception:
+            return None
 
     async def feed_audio(self, audio_floats, send_fn):
         """音频 -> VAD -> ASR -> 响应"""

@@ -40,7 +40,11 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
             elif msg_type == "audio_chunk":
                 audio_b64 = payload.get("audio_base64", "")
                 if audio_b64:
-                    audio_bytes = base64.b64decode(audio_b64)
+                    try:
+                        audio_bytes = base64.b64decode(audio_b64)
+                    except Exception:
+                        await send_msg({"type": "error", "payload": {"message": "音频数据解码失败"}})
+                        continue
                     audio_floats = _pcm16_to_floats(audio_bytes)
                     chunk_count += 1
                     if chunk_count % 50 == 1:
