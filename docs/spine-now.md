@@ -577,7 +577,7 @@ vision
 
 task binding
 
-Step 5：Voice Pipeline ⏳（代码完成，待 API key 实测）
+Step 5：Voice Pipeline ✅
 
 实现：
 
