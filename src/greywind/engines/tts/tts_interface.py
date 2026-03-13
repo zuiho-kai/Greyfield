@@ -4,6 +4,7 @@
 import abc
 import os
 import asyncio
+import uuid
 
 from loguru import logger
 
@@ -78,7 +79,7 @@ class TTSInterface(metaclass=abc.ABCMeta):
             os.makedirs(cache_dir)
 
         if file_name_no_ext is None:
-            file_name_no_ext = "temp"
+            file_name_no_ext = f"temp_{uuid.uuid4().hex}"
 
         file_name = f"{file_name_no_ext}.{file_extension}"
         return os.path.join(cache_dir, file_name)

@@ -60,6 +60,10 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
 
     except WebSocketDisconnect:
         logger.info("WebSocket 连接断开")
+        try:
+            await pipeline.interrupt()
+        except Exception as e:
+            logger.debug(f"disconnect cleanup error: {e}")
     except Exception as e:
         logger.error(f"WebSocket 错误: {e}")
 
