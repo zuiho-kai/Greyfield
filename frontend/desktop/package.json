@@ -41,6 +41,10 @@
       {
         "from": "../../pyproject.toml",
         "to": "backend/pyproject.toml"
+      },
+      {
+        "from": "../../.venv",
+        "to": "backend/.venv"
       }
     ]
   },

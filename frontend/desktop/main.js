@@ -19,6 +19,29 @@ const HISTORY_SAVE_DEBOUNCE_MS = 500;
 let historyFilePath = null;
 let historySaveTimer = null;
 
+function resolvePythonExecutable() {
+  const isWin = process.platform === "win32";
+  const venvDir = path.join(PROJECT_ROOT, ".venv");
+  const candidates = [
+    path.join(venvDir, isWin ? "Scripts\\python.exe" : "bin/python"),
+    "python",
+  ];
+  for (const candidate of candidates) {
+    if (candidate === "python") return candidate;
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return "python";
+}
+
+function buildBackendEnv() {
+  const env = { ...process.env };
+  const srcPath = path.join(PROJECT_ROOT, "src");
+  env.PYTHONPATH = env.PYTHONPATH
+    ? `${srcPath}${path.delimiter}${env.PYTHONPATH}`
+    : srcPath;
+  return env;
+}
+
 function resolveHistoryFilePath() {
   const base = app.isPackaged ? app.getPath("userData") : PROJECT_ROOT;
   const dir = app.isPackaged
@@ -100,10 +123,11 @@ function appendHistory(entry) {
 }
 
 function startBackend() {
-  backendProcess = spawn("uv", ["run", "python", "-m", "greywind.run"], {
+  const pythonExe = resolvePythonExecutable();
+  backendProcess = spawn(pythonExe, ["-m", "greywind.run"], {
     cwd: PROJECT_ROOT,
     stdio: ["ignore", "pipe", "pipe"],
-    shell: true,
+    env: buildBackendEnv(),
     windowsHide: true,
   });
 
