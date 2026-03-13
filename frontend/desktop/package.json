@@ -11,6 +11,9 @@
   "build": {
     "appId": "com.greywind.desktop",
     "productName": "灰风",
+    "directories": {
+      "output": "../../dist"
+    },
     "win": {
       "target": "nsis",
       "icon": "renderer/icon.png"
