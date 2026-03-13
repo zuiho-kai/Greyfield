@@ -17,11 +17,14 @@ const { Live2DModel } = PIXI.live2d;
 Live2DModel.registerTicker(PIXI.Ticker);
 
 async function initLive2D() {
+  const dpr = window.devicePixelRatio || 1;
   const app = new PIXI.Application({
     view: canvas,
     resizeTo: canvas.parentElement,
     backgroundAlpha: 0,
     antialias: true,
+    resolution: dpr,
+    autoDensity: true,
   });
 
   try {
