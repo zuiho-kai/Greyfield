@@ -43,4 +43,8 @@ async def health():
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    if not _ctx:
+        await ws.accept()
+        await ws.close(code=1011, reason="后端未就绪")
+        return
     await handle_websocket(ws, _ctx)

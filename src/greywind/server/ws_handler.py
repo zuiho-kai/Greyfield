@@ -16,6 +16,7 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
     await ws.accept()
     pipeline = VoicePipeline(ctx)
     logger.info("WebSocket 连接已建立（独立 pipeline）")
+    chunk_count = 0
 
     async def send_msg(msg: dict):
         await ws.send_json(msg)
@@ -23,7 +24,11 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
     try:
         while True:
             raw = await ws.receive_text()
-            msg = json.loads(raw)
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError as e:
+                await send_msg({"type": "error", "payload": {"message": f"消息格式错误: {e}"}})
+                continue
             msg_type = msg.get("type", "")
             payload = msg.get("payload", {})
 
@@ -37,13 +42,10 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                 if audio_b64:
                     audio_bytes = base64.b64decode(audio_b64)
                     audio_floats = _pcm16_to_floats(audio_bytes)
-                    # 调试：每 50 个 chunk 打印一次音量
-                    if not hasattr(handle_websocket, '_chunk_count'):
-                        handle_websocket._chunk_count = 0
-                    handle_websocket._chunk_count += 1
-                    if handle_websocket._chunk_count % 50 == 1:
+                    chunk_count += 1
+                    if chunk_count % 50 == 1:
                         rms = np.sqrt(np.mean(np.array(audio_floats) ** 2))
-                        logger.debug(f"audio_chunk #{handle_websocket._chunk_count}, samples={len(audio_floats)}, rms={rms:.4f}")
+                        logger.debug(f"audio_chunk #{chunk_count}, samples={len(audio_floats)}, rms={rms:.4f}")
                     await pipeline.feed_audio(audio_floats, send_msg)
 
             elif msg_type == "interrupt":
