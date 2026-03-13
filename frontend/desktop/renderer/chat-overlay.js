@@ -13,6 +13,16 @@ const MERGE_WINDOW_MS = 1500;
 let lastMessageEl = null;
 let lastMessageRole = null;
 let lastMessageAt = 0;
+let scrollPending = false;
+
+function scheduleScrollToBottom() {
+  if (scrollPending) return;
+  scrollPending = true;
+  requestAnimationFrame(() => {
+    scrollPending = false;
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+}
 
 function scheduleAutoRemove(el) {
   if (el._fadeTimer) clearTimeout(el._fadeTimer);
@@ -44,6 +54,7 @@ function addMessage(role, text) {
     appendMessageText(lastMessageEl, text);
     lastMessageAt = now;
     scheduleAutoRemove(lastMessageEl);
+    scheduleScrollToBottom();
     window.greywind?.appendHistory?.({ role, text, ts: now });
     return;
   }
@@ -68,6 +79,7 @@ function addMessage(role, text) {
   lastMessageEl = el;
   lastMessageRole = role;
   lastMessageAt = now;
+  scheduleScrollToBottom();
   window.greywind?.addHistory?.({ role, text, ts: now });
 }
 
