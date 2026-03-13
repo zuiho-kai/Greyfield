@@ -595,7 +595,7 @@ TTS
 
 打断
 
-Step 6：Electron 壳 ⏳（代码完成，待启动实测）
+Step 6：Electron 壳 ✅
 
 实现：
 
