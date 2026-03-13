@@ -73,9 +73,9 @@ wsOn("reply_audio", (p) => {
   if (!isPlaying) playNext();
 });
 
-// 打断时清空队列
+// 用户打断时清空队列；idle 时让剩余 chunk 自然播完
 wsOn("status", (p) => {
-  if (p.state === "idle" || p.state === "listening") {
+  if (p.state === "listening") {
     audioQueue.length = 0;
   }
 });
