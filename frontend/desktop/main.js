@@ -2,7 +2,11 @@ const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 
-const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
+// 打包后 exe 在 dist/win-unpacked/，项目根目录通过 exe 位置向上找
+// 开发时 __dirname 是 frontend/desktop，向上两级
+const PROJECT_ROOT = app.isPackaged
+  ? path.resolve(path.dirname(app.getPath("exe")), "..", "..")
+  : path.resolve(__dirname, "..", "..");
 let backendProcess = null;
 let backendLogs = [];
 const MAX_LOG_LINES = 200;
