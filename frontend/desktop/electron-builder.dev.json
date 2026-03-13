@@ -1,0 +1,39 @@
+{
+  "appId": "com.greywind.desktop",
+  "productName": "灰风",
+  "directories": {
+    "output": "../../dist"
+  },
+  "win": {
+    "target": "dir",
+    "icon": "renderer/icon.png"
+  },
+  "nsis": {
+    "oneClick": true,
+    "allowToChangeInstallationDirectory": false,
+    "shortcutName": "灰风"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "preload-log.js",
+    "preload-history.js",
+    "renderer/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "../../src",
+      "to": "backend/src"
+    },
+    {
+      "from": "../../src/characters",
+      "to": "backend/characters"
+    },
+    {
+      "from": "../../pyproject.toml",
+      "to": "backend/pyproject.toml"
+    }
+  ],
+  "compression": "store",
+  "npmRebuild": false
+}

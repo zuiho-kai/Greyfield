@@ -29,7 +29,7 @@ async function initLive2D() {
 
   try {
     if (placeholder) {
-      placeholder.textContent = "模型下载中...";
+      placeholder.textContent = "模型加载中...";
     }
     const result = await window.greywind?.getLive2DModelUrl?.();
     if (!result?.ok || !result?.url) {
@@ -49,7 +49,8 @@ async function initLive2D() {
     console.log("Live2D 模型加载成功");
   } catch (e) {
     console.error("Live2D 模型加载失败:", e);
-    placeholder.textContent = "灰风 (模型加载失败)";
+    const msg = e?.message ? `Live2D: ${e.message}` : "Live2D 模型加载失败";
+    placeholder.textContent = msg;
   }
 }
 

@@ -1,0 +1,22 @@
+{
+  "appId": "com.greywind.desktop",
+  "productName": "灰风",
+  "directories": {
+    "output": "../../dist"
+  },
+  "win": {
+    "target": "dir",
+    "icon": "renderer/icon.png"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "preload-log.js",
+    "preload-history.js",
+    "renderer/**/*"
+  ],
+  "asar": false,
+  "extraResources": [],
+  "compression": "store",
+  "npmRebuild": false
+}
