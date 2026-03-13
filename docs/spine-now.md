@@ -502,7 +502,10 @@ memory.json 能影响回复
 不出现“说一句等很久才开始播”的明显卡顿
 
 13. 当前开发顺序
-Step 1：搬运引擎
+
+状态标记：⏳ 进行中 | ✅ 完成 | — 未开始
+
+Step 1：搬运引擎 ✅
 
 只搬：
 
@@ -528,7 +531,7 @@ Live2D 相关核心
 
 greywind-implementation-spec.md
 
-Step 2：配置系统
+Step 2：配置系统 ✅
 
 实现：
 
@@ -540,7 +543,7 @@ characters/greywind.yaml
 
 Pydantic 校验
 
-Step 3：JSON 记忆
+Step 3：JSON 记忆 ✅
 
 实现：
 
@@ -552,7 +555,7 @@ Step 3：JSON 记忆
 
 当前不要做自动抽取长期记忆。
 
-Step 4：最小 Context Runtime
+Step 4：最小 Context Runtime ✅
 
 实现：
 
@@ -574,7 +577,7 @@ vision
 
 task binding
 
-Step 5：Voice Pipeline
+Step 5：Voice Pipeline ⏳
 
 实现：
 
@@ -592,7 +595,7 @@ TTS
 
 打断
 
-Step 6：Electron 壳
+Step 6：Electron 壳 —
 
 实现：
 

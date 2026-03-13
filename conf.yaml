@@ -1,0 +1,22 @@
+server:
+  host: "127.0.0.1"
+  port: 12393
+
+llm:
+  provider: "openai"
+  model: "claude-sonnet-4-20250514"
+  api_key: "${ANTHROPIC_API_KEY}"
+  base_url: null
+
+asr:
+  engine: "whisper_api"
+  model: "whisper-1"
+
+tts:
+  engine: "edge_tts"
+  voice: "zh-CN-XiaoxiaoNeural"
+
+character: "greywind"
+
+memory:
+  backend: "json"
