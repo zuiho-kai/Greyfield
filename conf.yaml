@@ -1,0 +1,31 @@
+server:
+  host: "127.0.0.1"
+  port: 12393
+
+llm:
+  provider: "openai"
+  model: "stepfun-ai/Step-3.5-Flash"
+  api_key: "sk-grwccjhrbhgolrhohifbubfmsrqoerabbggctrjkwfzabjyv"
+  base_url: "https://api.siliconflow.cn/v1"
+
+asr:
+  engine: "whisper_api"
+  model: "FunAudioLLM/SenseVoiceSmall"
+  api_key: "sk-grwccjhrbhgolrhohifbubfmsrqoerabbggctrjkwfzabjyv"
+  base_url: "https://api.siliconflow.cn/v1"
+
+tts:
+  engine: "siliconflow_tts"
+  model: "FunAudioLLM/CosyVoice2-0.5B"
+  voice: "FunAudioLLM/CosyVoice2-0.5B:anna"
+  api_key: "sk-grwccjhrbhgolrhohifbubfmsrqoerabbggctrjkwfzabjyv"
+  api_url: "https://api.siliconflow.cn/v1/audio/speech"
+  response_format: "mp3"
+  sample_rate: 32000
+  speed: 1.0
+  gain: 0.0
+
+character: "greywind"
+
+memory:
+  backend: "json"

@@ -1,0 +1,9 @@
+@echo off
+title GreyWind - 灰风
+echo [灰风] 启动后端...
+start "GreyWind-Backend" cmd /c "cd /d %~dp0 && uv run python -m greywind.run"
+echo [灰风] 等待后端就绪...
+timeout /t 3 /nobreak >nul
+echo [灰风] 启动桌面端...
+cd /d "%~dp0frontend\desktop"
+npx electron .

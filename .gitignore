@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+cache/
+.env
+*.db
+conf.yaml
+node_modules/
+.claude/

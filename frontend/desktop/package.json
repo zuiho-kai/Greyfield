@@ -1,0 +1,12 @@
+{
+  "name": "greywind-desktop",
+  "version": "0.1.0",
+  "description": "灰风桌面端",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
