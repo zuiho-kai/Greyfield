@@ -103,23 +103,43 @@ L 星团深处，一个叫德萨努的文明创造了纳米机器人来建造星
 ## 快速开始
 
 > ⚠️ 项目处于早期开发阶段。当前正在实现最小骨架（Spine），还不是完整可用的产品。
-> 想参与早期开发？直接看 [参与开发](#-参与开发)。
+
+### 前置条件
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/)（Python 包管理）
+- Node.js 18+
+- 硅基流动 API Key（[注册](https://cloud.siliconflow.cn)，免费送额度）
+
+### 安装
 
 ```bash
 # 克隆
-git clone https://github.com/YOUR_USERNAME/greywind.git
-cd greywind
+git clone https://github.com/zuiho-kai/Greyfield.git
+cd Greyfield
 
-# 后端
-pip install -r requirements.txt
-cp conf.example.yaml conf.yaml   # 编辑填入 API Key
-python run.py
+# 后端依赖
+uv sync
 
-# 前端（Electron）
-cd frontend/desktop && npm install && npm start
+# 配置
+cp conf.example.yaml conf.yaml
+# 编辑 conf.yaml，填入你的硅基流动 API Key
+
+# 前端依赖
+cd frontend/desktop && npm install
 ```
 
-<!-- TODO: 真实安装步骤就绪后更新 -->
+### 启动
+
+```bash
+# 终端 1：启动后端
+uv run python -m greywind.run
+
+# 终端 2：启动 Electron 前端
+cd frontend/desktop && npm start
+```
+
+打开后在底部输入框打字，或点 MIC 按钮说话。
 
 ---
 
@@ -160,25 +180,30 @@ cd frontend/desktop && npm install && npm start
 
 ### Phase 1 — 先活起来 `← 当前`
 
-- [ ] Live2D 桌面角色
-- [ ] 语音输入（VAD + ASR）
-- [ ] LLM 对话 + 流式 TTS
+- [x] 配置系统（conf.yaml + Pydantic 校验）
+- [x] JSON 记忆存储
+- [x] Context Runtime（Session / Thread / Prompt 装配）
+- [x] LLM 对话（硅基流动 Step-3.5-Flash）
+- [x] 语音输入（VAD Silero + ASR 硅基流动 SenseVoiceSmall）
+- [x] 流式 TTS（硅基流动 CosyVoice2）
+- [x] WebSocket 消息管线（文字 + 语音）
+- [x] Electron 桌面壳（文字输入 + 麦克风 + 音频播放）
+- [x] 语音打断
+- [ ] Live2D 角色接入
 - [ ] 口型同步 + 基础表情
-- [ ] 对话上下文连续性
-- [ ] 语音打断
 
 ### Phase 2 — 能看能做
 
 - [ ] 屏幕感知（截图 + Vision）
 - [ ] 浏览器操控（Playwright）
 - [ ] 桌面操控（pyautogui）
-- [ ] 音色克隆（GPT-SoVITS）
+- [ ] 自定义音色克隆
 
 ### Phase 3 — 长出系统
 
 - [ ] 主控 / 蜂巢多 Agent
 - [ ] 任务系统
-- [ ] 持久化记忆
+- [ ] 持久化记忆（向量 + 图谱）
 - [ ] Web Dashboard
 - [ ] Skill / 插件平台
 
@@ -203,7 +228,7 @@ cd frontend/desktop && npm install && npm start
 ### 怎么开始
 
 ```bash
-git clone https://github.com/YOUR_FORK/greywind.git
+git clone https://github.com/zuiho-kai/Greyfield.git
 git checkout -b feat/your-feature
 # 改完提 PR
 ```

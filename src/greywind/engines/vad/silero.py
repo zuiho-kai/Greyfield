@@ -48,6 +48,12 @@ class VADEngine(VADInterface):
 
     def load_vad_model(self):
         logger.info("Loading Silero-VAD model...")
+        import os
+        # 中文路径下 torch.jit.load 会失败，优先从纯英文路径加载
+        fallback_path = "C:/greywind_models/silero_vad.jit"
+        if os.path.exists(fallback_path):
+            logger.info(f"从备用路径加载 VAD 模型: {fallback_path}")
+            return torch.jit.load(fallback_path)
         return load_silero_vad()
 
     def detect_speech(self, audio_data: list[float]):

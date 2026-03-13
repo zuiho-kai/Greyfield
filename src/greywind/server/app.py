@@ -1,0 +1,49 @@
+"""FastAPI 应用 — HTTP + WebSocket 入口"""
+
+from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
+
+from greywind.server.service_context import ServiceContext, create_service_context
+from greywind.server.ws_handler import handle_websocket
+from greywind.persona.voice_pipeline import VoicePipeline
+
+app = FastAPI(title="GreyWind")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+_ctx: ServiceContext | None = None
+_pipeline: VoicePipeline | None = None
+
+
+@app.on_event("startup")
+async def startup():
+    global _ctx, _pipeline
+    _ctx = create_service_context()
+    _pipeline = VoicePipeline(_ctx)
+    logger.info(f"灰风后端启动: {_ctx.config.server.host}:{_ctx.config.server.port}")
+
+
+@app.get("/health")
+async def health():
+    engines = {}
+    if _ctx:
+        engines = {
+            "vad": _ctx.vad is not None,
+            "asr": _ctx.asr is not None,
+            "tts": _ctx.tts is not None,
+        }
+    return {
+        "status": "ok",
+        "character": _ctx.character.name if _ctx else "unknown",
+        "engines": engines,
+    }
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await handle_websocket(ws, _pipeline)

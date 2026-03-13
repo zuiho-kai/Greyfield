@@ -577,7 +577,7 @@ vision
 
 task binding
 
-Step 5：Voice Pipeline ⏳
+Step 5：Voice Pipeline ⏳（代码完成，待 API key 实测）
 
 实现：
 
@@ -595,7 +595,7 @@ TTS
 
 打断
 
-Step 6：Electron 壳 —
+Step 6：Electron 壳 ⏳（代码完成，待启动实测）
 
 实现：
 

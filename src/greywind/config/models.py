@@ -19,11 +19,21 @@ class LLMConfig(BaseModel):
 class ASRConfig(BaseModel):
     engine: str = "whisper_api"
     model: str = "whisper-1"
+    api_key: str = ""
+    base_url: Optional[str] = None
 
 
 class TTSConfig(BaseModel):
     engine: str = "edge_tts"
     voice: str = "zh-CN-XiaoxiaoNeural"
+    api_key: Optional[str] = None
+    api_url: Optional[str] = None
+    model: Optional[str] = None
+    response_format: str = "mp3"
+    sample_rate: int = 32000
+    stream: bool = False
+    speed: float = 1.0
+    gain: float = 0.0
 
 
 class MemoryConfig(BaseModel):

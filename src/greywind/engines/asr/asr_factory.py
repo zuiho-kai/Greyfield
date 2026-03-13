@@ -54,6 +54,15 @@ class ASRFactory:
                 model=kwargs.get("model"),
                 lang=kwargs.get("lang"),
             )
+        elif system_name == "whisper_api":
+            from .openai_api_asr import VoiceRecognition as OpenAIWhisperASR
+
+            return OpenAIWhisperASR(
+                api_key=kwargs.get("api_key"),
+                model=kwargs.get("model", "whisper-1"),
+                lang=kwargs.get("lang", "zh"),
+                base_url=kwargs.get("base_url"),
+            )
         elif system_name == "sherpa_onnx_asr":
             from .sherpa_onnx_asr import VoiceRecognition as SherpaOnnxASR
 
