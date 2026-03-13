@@ -1,7 +1,9 @@
 const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
 const { spawn } = require("child_process");
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
+const { pathToFileURL } = require("url");
 
 // 打包后后端资源在 resources/backend/；开发时向上两级到项目根
 const PROJECT_ROOT = app.isPackaged
@@ -19,6 +21,111 @@ const HISTORY_SAVE_DEBOUNCE_MS = 500;
 let historyFilePath = null;
 let historySaveTimer = null;
 
+const LIVE2D_SAMPLE = {
+  id: "hiyori",
+  zipUrl: "https://storage.googleapis.com/nizima-apps/sample-models/hiyori.zip",
+  modelFileHint: "Hiyori.model3.json",
+  licenseUrl: "https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html",
+  termsUrl: "https://www.live2d.com/eula/live2d-sample-data-terms_en.html",
+};
+
+function live2dCacheBase() {
+  return app.isPackaged
+    ? path.join(app.getPath("userData"), "live2d")
+    : path.join(PROJECT_ROOT, "cache", "live2d");
+}
+
+function ensureDir(dirPath) {
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function downloadFile(url, destPath) {
+  return new Promise((resolve, reject) => {
+    ensureDir(path.dirname(destPath));
+    const file = fs.createWriteStream(destPath);
+    const request = https.get(url, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        file.close(() => fs.unlinkSync(destPath));
+        return resolve(downloadFile(res.headers.location, destPath));
+      }
+      if (res.statusCode !== 200) {
+        file.close(() => fs.unlinkSync(destPath));
+        return reject(new Error(`Download failed: ${res.statusCode}`));
+      }
+      res.pipe(file);
+      file.on("finish", () => file.close(resolve));
+    });
+    request.on("error", (err) => {
+      file.close(() => fs.unlinkSync(destPath));
+      reject(err);
+    });
+  });
+}
+
+function psEscapePath(input) {
+  return `'${String(input).replace(/'/g, "''")}'`;
+}
+
+function extractZip(zipPath, destDir) {
+  return new Promise((resolve, reject) => {
+    ensureDir(destDir);
+    const psArgs = [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `Expand-Archive -LiteralPath ${psEscapePath(zipPath)} -DestinationPath ${psEscapePath(destDir)} -Force`,
+    ];
+    const proc = spawn("powershell.exe", psArgs, { windowsHide: true });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`Expand-Archive failed with code ${code}`));
+    });
+  });
+}
+
+function findModelJson(rootDir) {
+  const stack = [rootDir];
+  while (stack.length) {
+    const dir = stack.pop();
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+      } else if (entry.isFile() && entry.name.endsWith(".model3.json")) {
+        return full;
+      }
+    }
+  }
+  return null;
+}
+
+async function ensureLive2DModel() {
+  const modelDir = path.join(live2dCacheBase(), LIVE2D_SAMPLE.id);
+  const hintedPath = path.join(modelDir, LIVE2D_SAMPLE.modelFileHint);
+  if (fs.existsSync(hintedPath)) return hintedPath;
+
+  if (fs.existsSync(modelDir)) {
+    fs.rmSync(modelDir, { recursive: true, force: true });
+  }
+  ensureDir(modelDir);
+
+  const zipPath = path.join(modelDir, "model.zip");
+  console.log(`Downloading Live2D sample model from ${LIVE2D_SAMPLE.zipUrl}`);
+  console.log(`License: ${LIVE2D_SAMPLE.licenseUrl}`);
+  console.log(`Terms: ${LIVE2D_SAMPLE.termsUrl}`);
+  await downloadFile(LIVE2D_SAMPLE.zipUrl, zipPath);
+  await extractZip(zipPath, modelDir);
+  fs.unlinkSync(zipPath);
+
+  const found = findModelJson(modelDir);
+  if (!found) {
+    throw new Error("Live2D model JSON not found after extraction.");
+  }
+  return found;
+}
+
 function resolvePythonExecutable() {
   const isWin = process.platform === "win32";
   const venvDir = path.join(PROJECT_ROOT, ".venv");
@@ -27,10 +134,12 @@ function resolvePythonExecutable() {
     "python",
   ];
   for (const candidate of candidates) {
-    if (candidate === "python") return candidate;
+    if (candidate === "python") {
+      return app.isPackaged ? null : candidate;
+    }
     if (fs.existsSync(candidate)) return candidate;
   }
-  return "python";
+  return app.isPackaged ? null : "python";
 }
 
 function buildBackendEnv() {
@@ -124,11 +233,16 @@ function appendHistory(entry) {
 
 function startBackend() {
   const pythonExe = resolvePythonExecutable();
+  if (!pythonExe) {
+    backendLogs.push("[ERROR] Missing bundled python runtime.");
+    return;
+  }
   backendProcess = spawn(pythonExe, ["-m", "greywind.run"], {
     cwd: PROJECT_ROOT,
     stdio: ["ignore", "pipe", "pipe"],
     env: buildBackendEnv(),
     windowsHide: true,
+    detached: true,
   });
 
   const onData = (data) => {
@@ -157,8 +271,32 @@ function startBackend() {
 
 function stopBackend() {
   if (backendProcess) {
-    backendProcess.kill();
+    const pid = backendProcess.pid;
+    if (pid) {
+      killProcessTree(pid);
+    } else {
+      backendProcess.kill();
+    }
     backendProcess = null;
+  }
+}
+
+function killProcessTree(pid) {
+  if (process.platform === "win32") {
+    spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    return;
+  }
+  try {
+    process.kill(-pid, "SIGTERM");
+  } catch (err) {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch (_) {
+      // Ignore if already exited.
+    }
   }
 }
 
@@ -246,6 +384,14 @@ function createWindow() {
   });
   ipcMain.on("chat-history:append", (_, entry) => {
     appendHistory(entry);
+  });
+  ipcMain.handle("live2d:get-model-url", async () => {
+    try {
+      const modelPath = await ensureLive2DModel();
+      return { ok: true, url: pathToFileURL(modelPath).href };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
   });
 
   // 系统托盘

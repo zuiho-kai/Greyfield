@@ -28,7 +28,14 @@ async function initLive2D() {
   });
 
   try {
-    const model = await Live2DModel.from("live2d-models/hiyori/Hiyori.model3.json");
+    if (placeholder) {
+      placeholder.textContent = "模型下载中...";
+    }
+    const result = await window.greywind?.getLive2DModelUrl?.();
+    if (!result?.ok || !result?.url) {
+      throw new Error(result?.error || "Live2D 模型不可用");
+    }
+    const model = await Live2DModel.from(result.url);
     live2dModel = model;
     modelBaseWidth = model.width;
     modelBaseHeight = model.height;

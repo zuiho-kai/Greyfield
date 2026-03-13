@@ -151,6 +151,12 @@ cd frontend/desktop && npm start
 
 打开后在底部输入框打字，或点 MIC 按钮说话。
 
+> 首次启动会自动下载 Live2D 示例模型（Hiyori Momose）到本地缓存目录。
+> 下载源：[nizima Sample Models - Hiyori](https://docs.nizima.com/en/my-live2d-model/using-sample-models/)。
+> 使用该模型需遵守
+> [Live2D Free Material License Agreement](https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html)
+> 与 [Live2D Sample Data Terms](https://www.live2d.com/eula/live2d-sample-data-terms_en.html)。
+
 ---
 
 ## 怎么跑的
