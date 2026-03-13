@@ -1,3 +1,6 @@
+# Original source: Open-LLM-VTuber (https://github.com/Open-LLM-VTuber/Open-LLM-VTuber)
+# Copyright (c) 2025 Yi-Ting Chiu, MIT License
+# Modified for GreyWind project
 """Description: This file contains the implementation of the `AsyncLLM` class for Claude API.
 This class is responsible for handling asynchronous interaction with Claude API endpoints
 for language generation.

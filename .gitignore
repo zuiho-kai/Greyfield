@@ -8,3 +8,4 @@ cache/
 *.db
 conf.yaml
 node_modules/
+.claude/

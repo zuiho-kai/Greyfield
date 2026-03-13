@@ -1,3 +1,6 @@
+# Original source: Open-LLM-VTuber (https://github.com/Open-LLM-VTuber/Open-LLM-VTuber)
+# Copyright (c) 2025 Yi-Ting Chiu, MIT License
+# Modified for GreyWind project
 import atexit
 import requests
 from loguru import logger
