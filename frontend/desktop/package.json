@@ -6,13 +6,14 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win",
-    "build:dir": "electron-builder --win --dir"
+    "build:dir": "electron-builder --win --dir",
+    "build:portable": "electron-builder --win portable"
   },
   "build": {
     "appId": "com.greywind.desktop",
     "productName": "灰风",
     "directories": {
-      "output": "../../dist"
+      "output": "../.."
     },
     "win": {
       "target": "nsis",
@@ -22,6 +23,9 @@
       "oneClick": true,
       "allowToChangeInstallationDirectory": false,
       "shortcutName": "灰风"
+    },
+    "portable": {
+      "artifactName": "灰风.exe"
     },
     "files": [
       "main.js",
@@ -49,6 +53,10 @@
       {
         "from": "../../.venv",
         "to": "backend/.venv"
+      },
+      {
+        "from": "../../models",
+        "to": "backend/models"
       }
     ]
   },

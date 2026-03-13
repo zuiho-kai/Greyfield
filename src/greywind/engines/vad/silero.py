@@ -1,17 +1,70 @@
-# Original source: Open-LLM-VTuber (https://github.com/Open-LLM-VTuber/Open-LLM-VTuber)
-# Copyright (c) 2025 Yi-Ting Chiu, MIT License
-# Modified for GreyWind project
+# VAD engine — Silero VAD via ONNX Runtime (pure numpy, no torch)
+# ONNX model: models/silero_vad.onnx (from silero-vad 6.2.1, MIT License)
 import asyncio
 from collections import deque
 from enum import Enum
+from pathlib import Path
 
 import numpy as np
-import torch
+import onnxruntime
 from loguru import logger
 from pydantic import BaseModel
-from silero_vad import load_silero_vad
 
 from .vad_interface import VADInterface
+
+_MODEL_PATH = Path(__file__).resolve().parents[4] / "models" / "silero_vad.onnx"
+
+
+class _SileroOnnxModel:
+    """纯 numpy 的 Silero VAD ONNX 推理封装，不依赖 torch。"""
+
+    def __init__(self, path: str | Path):
+        opts = onnxruntime.SessionOptions()
+        opts.inter_op_num_threads = 1
+        opts.intra_op_num_threads = 1
+        self.session = onnxruntime.InferenceSession(
+            str(path), providers=["CPUExecutionProvider"], sess_options=opts,
+        )
+        self.sample_rates = [8000, 16000]
+        self.reset_states()
+
+    def reset_states(self, batch_size: int = 1):
+        self._state = np.zeros((2, batch_size, 128), dtype=np.float32)
+        self._context = np.zeros((batch_size, 0), dtype=np.float32)
+        self._last_sr = 0
+        self._last_batch_size = 0
+
+    def __call__(self, x: np.ndarray, sr: int) -> float:
+        if x.ndim == 1:
+            x = x[np.newaxis, :]
+
+        batch_size = x.shape[0]
+        context_size = 64 if sr == 16000 else 32
+
+        if not self._last_batch_size:
+            self.reset_states(batch_size)
+        if self._last_sr and self._last_sr != sr:
+            self.reset_states(batch_size)
+        if self._last_batch_size and self._last_batch_size != batch_size:
+            self.reset_states(batch_size)
+
+        if self._context.shape[1] == 0:
+            self._context = np.zeros((batch_size, context_size), dtype=np.float32)
+
+        x = np.concatenate([self._context, x], axis=1)
+
+        ort_inputs = {
+            "input": x,
+            "state": self._state,
+            "sr": np.array(sr, dtype=np.int64),
+        }
+        out, state = self.session.run(None, ort_inputs)
+        self._state = state
+        self._context = x[:, -context_size:]
+        self._last_sr = sr
+        self._last_batch_size = batch_size
+
+        return float(out.squeeze())
 
 
 class SileroVADConfig(BaseModel):
@@ -44,20 +97,13 @@ class VADEngine(VADInterface):
             required_misses=required_misses,
             smoothing_window=smoothing_window,
         )
-        self.model = self.load_vad_model()
+        self.model = self._load_model()
         self.state = StateMachine(self.config)
         self.window_size_samples = 512 if self.config.target_sr == 16000 else 256
-        # 512 / 16000 = 0.032s
 
-    def load_vad_model(self):
-        logger.info("Loading Silero-VAD model...")
-        import os
-        # 中文路径下 torch.jit.load 会失败，优先从纯英文路径加载
-        fallback_path = "C:/greywind_models/silero_vad.jit"
-        if os.path.exists(fallback_path):
-            logger.info(f"从备用路径加载 VAD 模型: {fallback_path}")
-            return torch.jit.load(fallback_path)
-        return load_silero_vad()
+    def _load_model(self) -> _SileroOnnxModel:
+        logger.info(f"Loading Silero-VAD ONNX model from {_MODEL_PATH}")
+        return _SileroOnnxModel(_MODEL_PATH)
 
     def detect_speech(self, audio_data: list[float]):
         audio_np = np.array(audio_data, dtype=np.float32)
@@ -65,19 +111,11 @@ class VADEngine(VADInterface):
             chunk_np = audio_np[i : i + self.window_size_samples]
             if len(chunk_np) < self.window_size_samples:
                 break
-            chunk = torch.Tensor(chunk_np)
-
-            with torch.no_grad():
-                speech_prob = self.model(chunk, self.config.target_sr).item()
+            speech_prob = self.model(chunk_np, self.config.target_sr)
 
             if speech_prob:
-                # print(speech_prob)
                 iter = self.state.get_result(speech_prob, chunk_np)
-
-                for probs, dbs, chunk in iter:  # detected a sequence of voice bytes
-                    # rounded_probs = [round(x, 2) for x in probs]
-                    # rounded_dbs = [round(y, 2) for y in dbs]
-
+                for probs, dbs, chunk in iter:
                     audio_chunk = bytes(chunk)
                     yield audio_chunk
 
