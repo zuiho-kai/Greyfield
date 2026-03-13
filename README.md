@@ -256,6 +256,7 @@ git checkout -b feat/your-feature
 | 来源 | 吸收了什么 |
 |------|-----------|
 | [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber) | ASR / TTS / VAD / LLM / Live2D 引擎（MIT，直接搬运） |
+| [airi](https://github.com/moeru-ai/airi) | 自托管 AI 伴侣 · 实时语音 · 游戏交互思路 |
 | [Cat Cafe](https://github.com/zts212653/cat-cafe-tutorials) | 多 CLI 角色化协作 · 对外只暴露角色 |
 | [OpenClaw](https://github.com/openclaw/openclaw) | Gateway / 分层记忆 · Skill 生态思路 |
 | Neuro | 桌面 AI 存在感 · 多模态陪伴 |
