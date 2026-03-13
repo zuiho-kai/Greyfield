@@ -1,5 +1,5 @@
 /**
- * 语音 UI — 麦克风录制 + TTS 音频播放
+ * 语音 UI — 麦克风录制 + TTS 音频播放 + 口型同步
  */
 const micBtn = document.getElementById("mic-btn");
 let mediaStream = null;
@@ -61,21 +61,102 @@ function arrayBufferToBase64(buf) {
   return btoa(binary);
 }
 
-// --- TTS 音频播放 ---
+// --- TTS 音频播放 + 口型同步 ---
 const audioQueue = [];
 let isPlaying = false;
+let lipSyncCtx = null;
+let lipSyncAnalyser = null;
+let lipSyncAnimId = null;
 
 wsOn("reply_audio", (p) => {
   audioQueue.push({ b64: p.audio_base64, fmt: p.format || "mp3" });
   if (!isPlaying) playNext();
 });
 
+// 打断时清空队列
+wsOn("status", (p) => {
+  if (p.state === "idle" || p.state === "listening") {
+    audioQueue.length = 0;
+  }
+});
+
 function playNext() {
-  if (audioQueue.length === 0) { isPlaying = false; return; }
+  if (audioQueue.length === 0) {
+    isPlaying = false;
+    stopLipSync();
+    return;
+  }
   isPlaying = true;
   const { b64, fmt } = audioQueue.shift();
-  const audio = new Audio("data:audio/" + fmt + ";base64," + b64);
-  audio.onended = playNext;
-  audio.onerror = playNext;
-  audio.play().catch(playNext);
+
+  // 用 AudioContext 播放以便接入 AnalyserNode
+  if (!lipSyncCtx) {
+    lipSyncCtx = new AudioContext();
+    lipSyncAnalyser = lipSyncCtx.createAnalyser();
+    lipSyncAnalyser.fftSize = 256;
+    lipSyncAnalyser.connect(lipSyncCtx.destination);
+  }
+
+  const raw = atob(b64);
+  const buf = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+
+  lipSyncCtx.decodeAudioData(buf.buffer.slice(0), (audioBuffer) => {
+    const source = lipSyncCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(lipSyncAnalyser);
+    source.onended = () => {
+      stopLipSync();
+      playNext();
+    };
+    source.start();
+    startLipSync();
+  }, (err) => {
+    console.error("音频解码失败:", err);
+    playNext();
+  });
+}
+
+function startLipSync() {
+  if (lipSyncAnimId) return;
+  const dataArray = new Uint8Array(lipSyncAnalyser.frequencyBinCount);
+
+  function tick() {
+    lipSyncAnalyser.getByteFrequencyData(dataArray);
+    // 取低频段平均值作为嘴巴张开度
+    let sum = 0;
+    const count = Math.min(16, dataArray.length);
+    for (let i = 0; i < count; i++) sum += dataArray[i];
+    const volume = sum / count / 255;
+    // 映射到 0~1，加一点增益
+    const mouthOpen = Math.min(1, volume * 2.5);
+
+    if (typeof live2dModel !== "undefined" && live2dModel) {
+      const core = live2dModel.internalModel?.coreModel;
+      if (core) {
+        try {
+          core.setParameterValueById("ParamMouthOpenY", mouthOpen);
+        } catch (_) {}
+      }
+    }
+
+    lipSyncAnimId = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function stopLipSync() {
+  if (lipSyncAnimId) {
+    cancelAnimationFrame(lipSyncAnimId);
+    lipSyncAnimId = null;
+  }
+  // 闭嘴
+  if (typeof live2dModel !== "undefined" && live2dModel) {
+    const core = live2dModel.internalModel?.coreModel;
+    if (core) {
+      try {
+        core.setParameterValueById("ParamMouthOpenY", 0);
+      } catch (_) {}
+    }
+  }
 }
