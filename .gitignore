@@ -9,3 +9,4 @@ cache/
 conf.yaml
 node_modules/
 .claude/
+*.lnk

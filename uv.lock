@@ -670,7 +670,6 @@ dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "openai" },
-    { name = "playwright" },
     { name = "pydantic" },
     { name = "pydub" },
     { name = "pyyaml" },
@@ -678,6 +677,11 @@ dependencies = [
     { name = "silero-vad" },
     { name = "torch" },
     { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+browser = [
+    { name = "playwright" },
 ]
 
 [package.metadata]
@@ -690,7 +694,7 @@ requires-dist = [
     { name = "loguru" },
     { name = "numpy" },
     { name = "openai" },
-    { name = "playwright", specifier = ">=1.58.0" },
+    { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.58.0" },
     { name = "pydantic" },
     { name = "pydub", specifier = ">=0.25.1" },
     { name = "pyyaml" },
@@ -699,6 +703,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.10.0" },
     { name = "uvicorn", extras = ["standard"] },
 ]
+provides-extras = ["browser"]
 
 [[package]]
 name = "h11"

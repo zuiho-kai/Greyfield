@@ -20,9 +20,12 @@
 
 <br>
 
-<!-- TODO: 替换为真实 demo GIF / 视频截图 -->
-<!-- <p align="center"><img src="assets/demo.gif" width="75%" alt="GreyWind Demo"></p> -->
-<!-- <p align="center"><em>灰风在桌面上和你对话、看你的屏幕、帮你写代码</em></p> -->
+<p align="center">
+  <img src="docs/screenshots/preview-idle.png" width="32%" alt="待机状态">
+  <img src="docs/screenshots/preview-chat.png" width="32%" alt="聊天对话">
+  <img src="docs/screenshots/preview-tray.png" width="15%" alt="系统托盘">
+</p>
+<p align="center"><em>待机 · 聊天 · 系统托盘</em></p>
 
 <p align="center">
   <a href="#-为什么叫灰风">名字由来</a> · <a href="#-快速开始">快速开始</a> · <a href="#-文档">文档</a> · <a href="#-参与开发">参与开发</a>
@@ -148,6 +151,12 @@ cd frontend/desktop && npm start
 
 打开后在底部输入框打字，或点 MIC 按钮说话。
 
+> 首次启动会自动下载 Live2D 示例模型（Hiyori Momose）到本地缓存目录。
+> 下载源：[nizima Sample Models - Hiyori](https://docs.nizima.com/en/my-live2d-model/using-sample-models/)。
+> 使用该模型需遵守
+> [Live2D Free Material License Agreement](https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html)
+> 与 [Live2D Sample Data Terms](https://www.live2d.com/eula/live2d-sample-data-terms_en.html)。
+
 ---
 
 ## 怎么跑的
@@ -196,8 +205,11 @@ cd frontend/desktop && npm start
 - [x] WebSocket 消息管线（文字 + 语音）
 - [x] Electron 桌面壳（文字输入 + 麦克风 + 音频播放）
 - [x] 语音打断
-- [ ] Live2D 角色接入
-- [ ] 口型同步 + 基础表情
+- [x] Live2D 角色接入
+- [x] 口型同步 + 基础表情
+- [x] Electron 打包（灰风.exe 一键启动）
+- [x] 系统托盘 + 后端日志窗口
+- [x] 高 DPI 清晰度 + 透明桌面宠物模式
 
 ### Phase 2 — 能看能做
 
@@ -206,16 +218,31 @@ cd frontend/desktop && npm start
 - [ ] 桌面操控（pyautogui）
 - [ ] 自定义音色克隆
 - [ ] Live2D 直播（OBS 推流 · 弹幕互动 · 自主直播）
+- [ ] 聊天历史清空按钮 / 菜单项
+- [ ] 聊天历史按日期分文件（天 / 周滚动）
 
 ### Phase 3 — 长出系统
 
 - [ ] 主控 / 蜂巢多 Agent
 - [ ] 任务系统
 - [ ] 持久化记忆（向量 + 图谱）
+- [ ] 历史存储抽象层（MongoDB / 向量库）
 - [ ] Web Dashboard
 - [ ] Skill / 插件平台
 
 ---
+
+## 遗留问题
+
+- 聊天历史清空按钮 / 菜单项
+- 聊天历史按日期分文件（天 / 周滚动）
+- 历史存储抽象层（MongoDB / 向量库）
+- PR #9：托盘功能是否纳入 Spine 阶段（待确认）
+- PR #9：后端日志窗口是否纳入 Spine 阶段（待确认）
+- PR #9：聊天历史写盘（`history.json`）是否仅限 UI 展示且不参与上下文（待确认）
+- PR #9：Live2D 示例模型自动下载的许可与分发说明是否需要补充（待确认）
+- PR #9：Electron 打包 / 自启相关改动是否提前进入 Spine 阶段（待确认）
+- PR #9：新增 `preload` / `renderer` 文件是否超出 `docs/spine-now.md` 允许范围（待确认）
 
 ## 参与开发
 
