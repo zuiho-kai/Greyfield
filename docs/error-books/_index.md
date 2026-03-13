@@ -15,7 +15,6 @@
 | DEV-63 | Review 评论不贴合现状时未做等价落地 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-53 | 问了用户但不等回答就自己执行 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-61 | 交付前不做开发自验证 | 通用/流程 | 🟢 | flow-gate.md |
-| DEV-62 | ?? dev ????/??? | ??/?? | ?? | flow-gate.md |
 | DEV-3 | 联调问题用双终端来回排查 | 通用/工具 | 🟢 | tool-rules.md |
 | DEV-8 | Write 工具调用反复失败 | 通用/工具 | 🔴×5 | tool-rules.md |
 | DEV-12 | 外部 CLI 跳过环境探针+串行试错 | 通用/工具 | 🟡×2 | tool-rules.md |
