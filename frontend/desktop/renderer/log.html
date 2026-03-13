@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>灰风 - 后端日志</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #c8d6e5; font-family: Consolas, monospace; font-size: 12px; }
+    #log { padding: 8px; white-space: pre-wrap; word-break: break-all; overflow-y: auto; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="log"></div>
+  <script>
+    const el = document.getElementById("log");
+    window.logAPI.onLog((data) => {
+      el.textContent += data + "\n";
+      el.scrollTop = el.scrollHeight;
+    });
+  </script>
+</body>
+</html>

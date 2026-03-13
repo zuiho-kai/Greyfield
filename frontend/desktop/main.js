@@ -2,22 +2,41 @@ const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 
-// 项目根目录（frontend/desktop 的上两级）
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 let backendProcess = null;
+let backendLogs = [];
+const MAX_LOG_LINES = 200;
 let tray = null;
+let logWin = null;
 
 function startBackend() {
   backendProcess = spawn("uv", ["run", "python", "-m", "greywind.run"], {
     cwd: PROJECT_ROOT,
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: true,
     windowsHide: true,
   });
+
+  const onData = (data) => {
+    const lines = data.toString("utf-8").split("\n").filter(Boolean);
+    backendLogs.push(...lines);
+    if (backendLogs.length > MAX_LOG_LINES) {
+      backendLogs = backendLogs.slice(-MAX_LOG_LINES);
+    }
+    // 实时推送到日志窗口
+    if (logWin && !logWin.isDestroyed()) {
+      logWin.webContents.send("backend-log", lines.join("\n"));
+    }
+  };
+
+  backendProcess.stdout.on("data", onData);
+  backendProcess.stderr.on("data", onData);
+
   backendProcess.on("error", (err) => {
-    console.error("后端启动失败:", err.message);
+    backendLogs.push("[ERROR] 后端启动失败: " + err.message);
   });
   backendProcess.on("exit", (code) => {
-    console.log("后端退出:", code);
+    backendLogs.push("[INFO] 后端退出: " + code);
     backendProcess = null;
   });
 }
@@ -27,6 +46,28 @@ function stopBackend() {
     backendProcess.kill();
     backendProcess = null;
   }
+}
+
+function showLogWindow() {
+  if (logWin && !logWin.isDestroyed()) {
+    logWin.focus();
+    return;
+  }
+  logWin = new BrowserWindow({
+    width: 600,
+    height: 400,
+    title: "灰风 - 后端日志",
+    webPreferences: {
+      preload: path.join(__dirname, "preload-log.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  logWin.loadFile(path.join(__dirname, "renderer", "log.html"));
+  logWin.webContents.on("did-finish-load", () => {
+    logWin.webContents.send("backend-log", backendLogs.join("\n"));
+  });
+  logWin.on("closed", () => { logWin = null; });
 }
 
 function createWindow() {
@@ -70,6 +111,7 @@ function createWindow() {
   tray.setToolTip("灰风 GreyWind");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "显示/隐藏", click: () => win.isVisible() ? win.hide() : win.show() },
+    { label: "后端日志", click: () => showLogWindow() },
     { label: "开发工具", click: () => win.webContents.openDevTools({ mode: "detach" }) },
     { type: "separator" },
     { label: "退出", click: () => app.quit() },
@@ -81,12 +123,10 @@ function createWindow() {
 
 app.whenReady().then(() => {
   startBackend();
-  // 等后端启动再打开窗口
   setTimeout(createWindow, 3000);
 });
 
 app.on("window-all-closed", (e) => {
-  // 不退出，保持托盘
   e?.preventDefault?.();
 });
 
