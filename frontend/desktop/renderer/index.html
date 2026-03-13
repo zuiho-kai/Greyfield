@@ -15,7 +15,7 @@
 
     #chat-box {
       position: absolute; bottom: 50px; left: 8px; right: 8px;
-      max-height: 35%; overflow-y: auto;
+      max-height: 35%; overflow: hidden;
       display: flex; flex-direction: column; gap: 4px;
       pointer-events: none;
     }
@@ -23,7 +23,11 @@
       padding: 5px 8px; border-radius: 8px; max-width: 80%;
       font-size: 13px; line-height: 1.3; pointer-events: auto;
       backdrop-filter: blur(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      white-space: pre-wrap; word-break: break-word;
     }
+    .msg.entering { opacity: 0; transform: translateY(6px); }
+    .msg.fade-out { opacity: 0; transform: translateY(-6px); }
     .msg.user { align-self: flex-end; background: rgba(58, 134, 255, 0.85); }
     .msg.assistant { align-self: flex-start; background: rgba(45, 45, 68, 0.85); }
 
