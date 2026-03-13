@@ -31,6 +31,10 @@
     ],
     "extraResources": [
       {
+        "from": "../../conf.yaml",
+        "to": "backend/conf.yaml"
+      },
+      {
         "from": "../../src",
         "to": "backend/src"
       },

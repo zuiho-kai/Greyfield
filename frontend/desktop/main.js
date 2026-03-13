@@ -15,6 +15,7 @@ const MAX_LOG_LINES = 200;
 let tray = null;
 let logWin = null;
 let historyWin = null;
+let isQuitting = false;
 let chatHistory = [];
 const MAX_HISTORY_ITEMS = 500;
 const HISTORY_SAVE_DEBOUNCE_MS = 500;
@@ -28,6 +29,40 @@ const LIVE2D_SAMPLE = {
   licenseUrl: "https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html",
   termsUrl: "https://www.live2d.com/eula/live2d-sample-data-terms_en.html",
 };
+const LIVE2D_ENV = {
+  autoDownload: null,
+  modelPath: process.env.GREYWIND_LIVE2D_MODEL || process.env.LIVE2D_MODEL_PATH || "",
+  downloadTimeoutMs: process.env.LIVE2D_DOWNLOAD_TIMEOUT_MS,
+};
+let live2dEnsurePromise = null;
+
+function parseBoolEnv(value, defaultValue) {
+  if (value == null || value === "") return defaultValue;
+  const normalized = String(value).trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return defaultValue;
+}
+
+function resolveAutoDownloadDefault() {
+  return app.isPackaged;
+}
+
+function resolveAutoDownload() {
+  if (LIVE2D_ENV.autoDownload !== null) return LIVE2D_ENV.autoDownload;
+  LIVE2D_ENV.autoDownload = parseBoolEnv(
+    process.env.LIVE2D_AUTO_DOWNLOAD,
+    resolveAutoDownloadDefault()
+  );
+  return LIVE2D_ENV.autoDownload;
+}
+
+function resolveDownloadTimeoutMs() {
+  const raw = LIVE2D_ENV.downloadTimeoutMs;
+  if (!raw) return 60000;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 60000;
+}
 
 function live2dCacheBase() {
   return app.isPackaged
@@ -54,6 +89,9 @@ function downloadFile(url, destPath) {
       }
       res.pipe(file);
       file.on("finish", () => file.close(resolve));
+    });
+    request.setTimeout(resolveDownloadTimeoutMs(), () => {
+      request.destroy(new Error("Download timeout"));
     });
     request.on("error", (err) => {
       file.close(() => fs.unlinkSync(destPath));
@@ -102,9 +140,31 @@ function findModelJson(rootDir) {
 }
 
 async function ensureLive2DModel() {
+  const autoDownload = resolveAutoDownload();
+  if (LIVE2D_ENV.modelPath) {
+    const candidate = LIVE2D_ENV.modelPath;
+    if (fs.existsSync(candidate)) {
+      const stats = fs.statSync(candidate);
+      if (stats.isFile()) return candidate;
+      if (stats.isDirectory()) {
+        const found = findModelJson(candidate);
+        if (found) return found;
+      }
+    }
+    throw new Error("LIVE2D_MODEL_PATH is set but invalid.");
+  }
+
   const modelDir = path.join(live2dCacheBase(), LIVE2D_SAMPLE.id);
   const hintedPath = path.join(modelDir, LIVE2D_SAMPLE.modelFileHint);
   if (fs.existsSync(hintedPath)) return hintedPath;
+  if (fs.existsSync(modelDir)) {
+    const found = findModelJson(modelDir);
+    if (found) return found;
+  }
+
+  if (!autoDownload) {
+    throw new Error("Live2D auto download disabled. Set LIVE2D_AUTO_DOWNLOAD=1 or provide LIVE2D_MODEL_PATH.");
+  }
 
   if (fs.existsSync(modelDir)) {
     fs.rmSync(modelDir, { recursive: true, force: true });
@@ -124,6 +184,14 @@ async function ensureLive2DModel() {
     throw new Error("Live2D model JSON not found after extraction.");
   }
   return found;
+}
+
+function ensureLive2DModelOnce() {
+  if (!live2dEnsurePromise) {
+    live2dEnsurePromise = ensureLive2DModel()
+      .finally(() => { live2dEnsurePromise = null; });
+  }
+  return live2dEnsurePromise;
 }
 
 function resolvePythonExecutable() {
@@ -387,7 +455,7 @@ function createWindow() {
   });
   ipcMain.handle("live2d:get-model-url", async () => {
     try {
-      const modelPath = await ensureLive2DModel();
+      const modelPath = await ensureLive2DModelOnce();
       return { ok: true, url: pathToFileURL(modelPath).href };
     } catch (err) {
       return { ok: false, error: err?.message || String(err) };
@@ -418,10 +486,13 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", (e) => {
-  e?.preventDefault?.();
+  if (!isQuitting) {
+    e?.preventDefault?.();
+  }
 });
 
 app.on("before-quit", () => {
+  isQuitting = true;
   saveHistoryToDisk();
   stopBackend();
 });
