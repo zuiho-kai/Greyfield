@@ -9,7 +9,7 @@ from .interface import MemoryInterface
 
 
 class JSONMemoryStore(MemoryInterface):
-    def __init__(self, path: str = "data/memory.json"):
+    def __init__(self, path: str = "src/data/memory.json"):
         self._path = Path(path)
         self._data: Dict[str, Any] = {
             "persona_facts": [],

@@ -47,7 +47,7 @@ def load_config(config_path: str = "conf.yaml") -> AppConfig:
 
 
 def load_character(
-    name: str, characters_dir: str = "characters"
+    name: str, characters_dir: str = "src/characters"
 ) -> CharacterConfig:
     """加载角色配置文件"""
     path = Path(characters_dir) / f"{name}.yaml"

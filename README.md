@@ -20,9 +20,12 @@
 
 <br>
 
-<!-- TODO: 替换为真实 demo GIF / 视频截图 -->
-<!-- <p align="center"><img src="assets/demo.gif" width="75%" alt="GreyWind Demo"></p> -->
-<!-- <p align="center"><em>灰风在桌面上和你对话、看你的屏幕、帮你写代码</em></p> -->
+<p align="center">
+  <img src="docs/screenshots/preview-idle.png" width="32%" alt="待机状态">
+  <img src="docs/screenshots/preview-chat.png" width="32%" alt="聊天对话">
+  <img src="docs/screenshots/preview-tray.png" width="15%" alt="系统托盘">
+</p>
+<p align="center"><em>待机 · 聊天 · 系统托盘</em></p>
 
 <p align="center">
   <a href="#-为什么叫灰风">名字由来</a> · <a href="#-快速开始">快速开始</a> · <a href="#-文档">文档</a> · <a href="#-参与开发">参与开发</a>
@@ -196,8 +199,11 @@ cd frontend/desktop && npm start
 - [x] WebSocket 消息管线（文字 + 语音）
 - [x] Electron 桌面壳（文字输入 + 麦克风 + 音频播放）
 - [x] 语音打断
-- [ ] Live2D 角色接入
-- [ ] 口型同步 + 基础表情
+- [x] Live2D 角色接入
+- [x] 口型同步 + 基础表情
+- [x] Electron 打包（灰风.exe 一键启动）
+- [x] 系统托盘 + 后端日志窗口
+- [x] 高 DPI 清晰度 + 透明桌面宠物模式
 
 ### Phase 2 — 能看能做
 

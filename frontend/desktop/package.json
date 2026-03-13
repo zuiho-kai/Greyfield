@@ -35,7 +35,7 @@
         "to": "backend/src"
       },
       {
-        "from": "../../characters",
+        "from": "../../src/characters",
         "to": "backend/characters"
       },
       {
