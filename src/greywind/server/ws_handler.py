@@ -9,11 +9,13 @@ from loguru import logger
 from fastapi import WebSocket, WebSocketDisconnect
 
 from greywind.persona.voice_pipeline import VoicePipeline
+from greywind.server.service_context import ServiceContext
 
 
-async def handle_websocket(ws: WebSocket, pipeline: VoicePipeline):
+async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
     await ws.accept()
-    logger.info("WebSocket 连接已建立")
+    pipeline = VoicePipeline(ctx)
+    logger.info("WebSocket 连接已建立（独立 pipeline）")
 
     async def send_msg(msg: dict):
         await ws.send_json(msg)

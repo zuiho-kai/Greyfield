@@ -133,21 +133,26 @@ class VoicePipeline:
         await send_fn(
             {"type": "reply_text", "payload": {"text": text, "emotion": "neutral"}}
         )
+        audio_path = None
         try:
             audio_path = await self.tts.async_generate_audio(text)
             if audio_path and not self._interrupted:
                 audio_b64 = self._audio_to_base64(audio_path)
                 duration_ms = self._estimate_duration(audio_path)
+                fmt = Path(audio_path).suffix.lstrip(".")  # mp3, wav, etc.
                 await send_fn({
                     "type": "reply_audio",
                     "payload": {
                         "audio_base64": audio_b64,
+                        "format": fmt,
                         "duration_ms": duration_ms,
                     },
                 })
-                self.tts.remove_file(audio_path)
         except Exception as e:
             logger.error(f"TTS 出错: {e}")
+        finally:
+            if audio_path:
+                self.tts.remove_file(audio_path)
 
     @staticmethod
     def _audio_to_base64(path: str) -> str:

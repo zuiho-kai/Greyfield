@@ -66,15 +66,15 @@ const audioQueue = [];
 let isPlaying = false;
 
 wsOn("reply_audio", (p) => {
-  audioQueue.push(p.audio_base64);
+  audioQueue.push({ b64: p.audio_base64, fmt: p.format || "mp3" });
   if (!isPlaying) playNext();
 });
 
 function playNext() {
   if (audioQueue.length === 0) { isPlaying = false; return; }
   isPlaying = true;
-  const b64 = audioQueue.shift();
-  const audio = new Audio("data:audio/mp3;base64," + b64);
+  const { b64, fmt } = audioQueue.shift();
+  const audio = new Audio("data:audio/" + fmt + ";base64," + b64);
   audio.onended = playNext;
   audio.onerror = playNext;
   audio.play().catch(playNext);

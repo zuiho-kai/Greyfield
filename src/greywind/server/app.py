@@ -6,7 +6,6 @@ from loguru import logger
 
 from greywind.server.service_context import ServiceContext, create_service_context
 from greywind.server.ws_handler import handle_websocket
-from greywind.persona.voice_pipeline import VoicePipeline
 
 app = FastAPI(title="GreyWind")
 app.add_middleware(
@@ -17,14 +16,12 @@ app.add_middleware(
 )
 
 _ctx: ServiceContext | None = None
-_pipeline: VoicePipeline | None = None
 
 
 @app.on_event("startup")
 async def startup():
-    global _ctx, _pipeline
+    global _ctx
     _ctx = create_service_context()
-    _pipeline = VoicePipeline(_ctx)
     logger.info(f"灰风后端启动: {_ctx.config.server.host}:{_ctx.config.server.port}")
 
 
@@ -46,4 +43,4 @@ async def health():
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
-    await handle_websocket(ws, _pipeline)
+    await handle_websocket(ws, _ctx)
