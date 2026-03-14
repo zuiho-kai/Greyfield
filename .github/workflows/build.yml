@@ -35,7 +35,7 @@ jobs:
 
       - name: 安装 Python 依赖
         if: steps.cache-venv.outputs.cache-hit != 'true'
-        run: uv sync --no-dev
+        run: uv sync --no-dev --frozen
 
       - name: 设置 Node.js
         uses: actions/setup-node@v4
