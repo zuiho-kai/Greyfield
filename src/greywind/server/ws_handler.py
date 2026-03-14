@@ -105,6 +105,9 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                 if pipeline.screen_sense:
                     pipeline.screen_sense.enabled = enabled
                     logger.info(f"ScreenSense 即时切换: enabled={enabled}")
+                    # 关闭时中断正在进行的主动说话，确保真正"立即静音"
+                    if not enabled:
+                        await pipeline.interrupt()
 
             elif msg_type == "interrupt":
                 await pipeline.interrupt()
