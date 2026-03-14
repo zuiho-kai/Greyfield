@@ -46,6 +46,9 @@ git push -u origin <分支名>
 PR 合并后清理：
 
 ```bash
+# 必须先回到主仓库目录，不能在 worktree 里执行 remove
+cd E:/a7/Greyfield
+
 # 删除 worktree
 git worktree remove ../Greyfield-<短名>
 
