@@ -32,16 +32,22 @@ app.add_middleware(
 @app.get("/health")
 async def health():
     engines = {}
+    screen_cfg = {}
     if _ctx:
         engines = {
             "vad": _ctx.vad is not None,
             "asr": _ctx.asr is not None,
             "tts": _ctx.tts is not None,
+            "screen_sense": _ctx.config.screen.enabled,
+        }
+        screen_cfg = {
+            "capture_interval": _ctx.config.screen.capture_interval,
         }
     return {
         "status": "ok",
         "character": _ctx.character.name if _ctx else "unknown",
         "engines": engines,
+        "screen": screen_cfg,
     }
 
 

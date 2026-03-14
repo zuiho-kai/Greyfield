@@ -15,7 +15,7 @@ _CONTROL_TOKEN_RE = re.compile(r"<\|[^|]*\|>")
 
 
 class VoicePipeline:
-    def __init__(self, ctx):
+    def __init__(self, ctx, screen_sense=None):
         # 无状态引擎：共享
         self.asr = ctx.asr
         self.tts = ctx.tts
@@ -23,7 +23,7 @@ class VoicePipeline:
         self.assembler = ctx.assembler
         self.memory = ctx.memory
         self.character = ctx.character
-        self.screen_sense = ctx.screen_sense
+        self.screen_sense = screen_sense  # 每连接独立，由 ws_handler 传入
         self._screen_detail = getattr(ctx.config.screen, "detail", "low") if ctx.config.screen else "low"
         # 有状态组件：每连接独立
         from greywind.context_runtime.session_manager import SessionManager

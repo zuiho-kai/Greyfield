@@ -33,7 +33,6 @@ class ServiceContext:
         self.tts = self._create_tts()
         self.asr = self._try_create("ASR", self._create_asr)
         self.vad = self._try_create("VAD", self._create_vad)
-        self.screen_sense = self._try_create("ScreenSense", self._create_screen_sense)
         logger.info("ServiceContext 初始化完成")
 
     @staticmethod
@@ -83,19 +82,6 @@ class ServiceContext:
     def _create_vad(self):
         from greywind.engines.vad.silero import VADEngine
         return VADEngine()
-
-    def _create_screen_sense(self):
-        cfg = self.config.screen
-        if not cfg.enabled:
-            return None
-        from greywind.persona.screen_sense import ScreenSense
-        return ScreenSense(
-            buffer_size=cfg.buffer_size,
-            trigger_frames=cfg.trigger_frames,
-            diff_threshold=cfg.diff_threshold,
-            cooldown=cfg.cooldown,
-            active_window_filter=cfg.active_window_filter,
-        )
 
 
 def create_service_context(config_path: str = "conf.yaml") -> ServiceContext:

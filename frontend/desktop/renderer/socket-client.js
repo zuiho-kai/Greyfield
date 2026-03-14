@@ -49,7 +49,6 @@ function wsConnect() {
       reconnectTimer = null;
     }
     flushSendQueue();
-    startScreenCapture();
     fetch("http://127.0.0.1:12393/health")
       .then((r) => r.json())
       .then((data) => {
@@ -63,8 +62,18 @@ function wsConnect() {
           document.getElementById("status-bar").textContent =
             "已连接 | 不可用: " + missing.join(", ");
         }
+        // 根据后端配置决定是否启动截屏
+        if (e.screen_sense) {
+          const interval = (data.screen && data.screen.capture_interval)
+            ? data.screen.capture_interval * 1000
+            : SCREEN_CAPTURE_INTERVAL_MS;
+          startScreenCapture(interval);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        // health 请求失败时用默认值启动截屏
+        startScreenCapture(SCREEN_CAPTURE_INTERVAL_MS);
+      });
   };
 
   ws.onclose = () => {
@@ -110,10 +119,11 @@ wsConnect();
  */
 let screenCaptureTimer = null;
 let screenCaptureEnabled = false;
-const SCREEN_CAPTURE_INTERVAL_MS = 3000;
+const SCREEN_CAPTURE_INTERVAL_MS = 3000; // fallback default
 
-function startScreenCapture() {
+function startScreenCapture(intervalMs) {
   if (screenCaptureTimer) return;
+  const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
   screenCaptureEnabled = true;
   screenCaptureTimer = setInterval(async () => {
     if (!screenCaptureEnabled) return;
@@ -132,7 +142,7 @@ function startScreenCapture() {
     } catch (err) {
       console.debug("截屏失败:", err);
     }
-  }, SCREEN_CAPTURE_INTERVAL_MS);
+  }, interval);
 }
 
 function stopScreenCapture() {

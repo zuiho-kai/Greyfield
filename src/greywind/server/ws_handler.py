@@ -10,12 +10,27 @@ from loguru import logger
 from fastapi import WebSocket, WebSocketDisconnect
 
 from greywind.persona.voice_pipeline import VoicePipeline
+from greywind.persona.screen_sense import ScreenSense
 from greywind.server.service_context import ServiceContext
 
 
 async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
     await ws.accept()
-    pipeline = VoicePipeline(ctx)
+    # 每连接独立创建 ScreenSense，避免跨连接共享脏状态
+    screen_sense = None
+    cfg = ctx.config.screen
+    if cfg.enabled:
+        try:
+            screen_sense = ScreenSense(
+                buffer_size=cfg.buffer_size,
+                trigger_frames=cfg.trigger_frames,
+                diff_threshold=cfg.diff_threshold,
+                cooldown=cfg.cooldown,
+                active_window_filter=cfg.active_window_filter,
+            )
+        except Exception as e:
+            logger.warning(f"ScreenSense 创建失败: {e}")
+    pipeline = VoicePipeline(ctx, screen_sense=screen_sense)
     logger.info("WebSocket 连接已建立（独立 pipeline）")
     chunk_count = 0
     proactive_task = None
