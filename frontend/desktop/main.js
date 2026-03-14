@@ -432,7 +432,8 @@ function createWindow() {
     },
   });
 
-  win.setIgnoreMouseEvents(false);
+  // 默认穿透，forward: true 让渲染进程仍能收到鼠标事件用于像素检测
+  win.setIgnoreMouseEvents(true, { forward: true });
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
   if (process.argv.includes("--dev")) {
@@ -442,6 +443,17 @@ function createWindow() {
   ipcMain.on("set-ignore-mouse", (_, ignore) => {
     win.setIgnoreMouseEvents(ignore, { forward: true });
   });
+
+  // 手动窗口拖拽：记录起始位置，渲染端发 delta 移动
+  let dragStartPos = null;
+  ipcMain.on("window-drag-start", () => {
+    dragStartPos = win.getPosition();
+  });
+  ipcMain.on("window-drag-move", (_, dx, dy) => {
+    if (!dragStartPos) return;
+    win.setPosition(dragStartPos[0] + dx, dragStartPos[1] + dy);
+  });
+
   ipcMain.on("chat-history:add", (_, entry) => {
     pushHistory(entry);
   });
