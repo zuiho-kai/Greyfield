@@ -14,6 +14,8 @@ const MERGE_WINDOW_MS = 1500;
 function cleanLLMText(text) {
   return text
     .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/<\/?(think|text|thought)>/gi, "")
+    .replace(/<\|[^|]*\|>/g, "")
     .replace(/^(think|text|thought)\s*[:：]\s*/gim, "")
     .trim();
 }
