@@ -15,7 +15,7 @@
 | DEV-63 | Review 评论不贴合现状时未做等价落地 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-64 | 构建脚本数据源与运行时环境不一致 | 通用/流程 | 🟡×3 | flow-code-habit.md |
 | DEV-67 | worktree 操作前未确认当前分支 | 通用/流程 | 🟢 | flow-code-habit.md |
-| DEV-68 | CR 处理只推代码不回复 review | 通用/流程 | 🟢 | flow-code-habit.md |
+| DEV-68 | CR 处理未完成闭环 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-65 | 跨平台路径拼接用了宿主机 path API | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-66 | 实时通道断线缓冲未区分消息时效性 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-69 | 文档中硬编码环境相关值（分支名、路径格式） | 通用/流程 | 🟢 | flow-code-habit.md |
