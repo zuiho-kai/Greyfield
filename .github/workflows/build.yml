@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          key: venv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
 
       - name: 安装 Python 依赖
         if: steps.cache-venv.outputs.cache-hit != 'true'

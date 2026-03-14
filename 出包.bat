@@ -29,14 +29,12 @@ if errorlevel 1 (
 
 echo [2/3] npm install ...
 pushd "%~dp0frontend\desktop"
-if not exist node_modules (
-    call npm install
-    if errorlevel 1 (
-        echo [ERR] npm install 失败
-        popd & popd
-        pause
-        exit /b 1
-    )
+call npm ci
+if errorlevel 1 (
+    echo [ERR] npm ci 失败
+    popd & popd
+    pause
+    exit /b 1
 )
 
 echo [3/3] electron-builder portable ...
