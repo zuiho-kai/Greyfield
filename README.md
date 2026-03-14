@@ -196,6 +196,8 @@ cd frontend/desktop && npm start
 
 **Minimal Spine → Module 生长**：先活起来，再长出能力。
 
+> 当前阶段以 [spine-now.md](./docs/spine-now.md) 为准，README 只做历史记录。
+
 ### Phase 1 — 先活起来 `✅ 完成`
 
 - [x] 配置系统（conf.yaml + Pydantic 校验）
@@ -214,7 +216,7 @@ cd frontend/desktop && npm start
 - [x] 高 DPI 清晰度 + 透明桌面宠物模式
 - [x] Live2D 窗口鼠标穿透 + 手动拖拽
 
-### Phase 2 — 能看能做 `← 当前`
+### Phase 2 — 能看能做
 
 - [x] 屏幕感知（截图 + Vision · 差异检测 · 主动播报）
 - [ ] 自定义音色克隆
