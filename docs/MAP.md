@@ -26,6 +26,8 @@ docs/
 ├── architecture-v2.md                  # 系统中轴：Context Runtime / Session / Thread / Task
 ├── context-runtime.md                  # 上下文运行时设计
 ├── engineering-lessons.md              # 错题本体系入口
+├── worktree-workflow.md                # Worktree 工作流规范
+├── worktree-log.md                     # Worktree 跟踪记录表
 ├── error-books/
 │   ├── _index.md                      # 速查索引（每次必读）
 │   ├── flow-rules.md                  # 流程子文件索引（每次必读）
