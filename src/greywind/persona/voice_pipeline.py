@@ -182,6 +182,9 @@ class VoicePipeline:
                             await self._speak(s.strip(), send_fn, send_audio_fn)
                     sentence_buffer = sentences[-1]
 
+            # 流结束：flush pending 中可能残留的非标签文本
+            if think_pending and not in_think_block:
+                sentence_buffer += think_pending
             if sentence_buffer.strip() and not self._interrupted:
                 await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
             if full_response and not self._interrupted:
