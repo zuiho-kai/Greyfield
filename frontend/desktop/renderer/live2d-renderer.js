@@ -61,16 +61,6 @@ async function initLive2D() {
     app.stage.addChild(model);
     placeholder.style.display = "none";
 
-    let resizeTimer = null;
-    window.addEventListener("resize", () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        if (isDragging) return;
-        app.renderer.resize(canvas.parentElement.clientWidth, canvas.parentElement.clientHeight);
-        fitModel(app, model);
-      }, 150);
-    });
-
     console.log("Live2D 模型加载成功");
   } catch (e) {
     console.error("Live2D 模型加载失败:", e);
