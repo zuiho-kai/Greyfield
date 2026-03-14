@@ -24,8 +24,8 @@
 ### DEV-77 文档引用外部链接未验证有效性 `🟢`
 
 ❌ 写 README 时直接写 Releases/外部链接，未验证链接是否真实存在，导致死链上线
-✅ 写文档前凡引用外部链接（Releases、外部服务、第三方页面）必须先验证：`gh release list` / `curl -I` / 实际访问确认
-> 归因 A：禁止脑补规则有，但写 README 时未将"外部链接"纳入需要验证的范围
+✅ 写文档前凡引用外部链接必须先验证：`gh release list`（Releases）/ `gh api repos/<owner>/<repo>`（仓库资源）/ WebFetch 实际访问确认
+> 归因 A：禁止脑补规则有，但写 README 时未将"外部链接"纳入需要验证的范围。注意：禁止用 curl/wget 验证，走 gh CLI 或 WebFetch
 
 ### DEV-78 流程文档 shell 命令未标注执行目录 `🟢`
 
