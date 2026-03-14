@@ -148,6 +148,7 @@ class VoicePipeline:
                     chat_messages.append(m)
 
             full_response = ""
+            clean_response = ""  # 过滤 think block 后的内容，用于持久化
             sentence_buffer = ""
             in_think_block = False  # 流式 think block 过滤状态
             think_pending = ""  # 跨 chunk 不完整标签缓冲
@@ -169,12 +170,13 @@ class VoicePipeline:
                     continue
                 full_response += text
                 # 流式过滤 think block：在句子拆分前剥离，防止跨片段泄漏
-                text, in_think_block, think_pending = _strip_think_streaming(
+                filtered_text, in_think_block, think_pending = _strip_think_streaming(
                     text, in_think_block, think_pending
                 )
-                if not text:
+                if not filtered_text:
                     continue
-                sentence_buffer += text
+                clean_response += filtered_text
+                sentence_buffer += filtered_text
                 sentences = SENTENCE_DELIMITERS.split(sentence_buffer)
                 if len(sentences) > 1:
                     for s in sentences[:-1]:
@@ -184,11 +186,12 @@ class VoicePipeline:
 
             # 流结束：flush pending 中可能残留的非标签文本
             if think_pending and not in_think_block:
+                clean_response += think_pending
                 sentence_buffer += think_pending
             if sentence_buffer.strip() and not self._interrupted:
                 await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
-            if full_response and not self._interrupted:
-                self.session.add_turn("assistant", full_response)
+            if clean_response and not self._interrupted:
+                self.session.add_turn("assistant", clean_response)
         except asyncio.CancelledError:
             logger.info("响应被打断")
         except Exception as e:
