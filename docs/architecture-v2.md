@@ -555,7 +555,7 @@ v1 Spine 只要求"灰风能说话"。
 | 阶段 | 目标 | 关键组件 |
 |------|------|---------|
 | **Phase 0** | 活起来 | Persona Shell、基础 Context Assembler、最近对话、memory.json、thread/session 标识 |
-| **Phase 1** | 会看 | Screen Awareness、窗口识别、事件触发截图、屏幕摘要 |
+| **Phase 1** | 会看 | Screen Awareness、窗口识别、定时截屏+差异检测、屏幕摘要、主动播报 |
 | **Phase 2** | 会做 | Browser tools、风险分级、操作日志 |
 | **Phase 3** | 有任务 | Task Store、任务状态机、thread/task 绑定 |
 | **Phase 4** | 会交接 | Handoff Manager、Session Chain、Resume/Recovery |

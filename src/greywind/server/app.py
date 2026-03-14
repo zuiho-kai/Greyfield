@@ -71,37 +71,18 @@ async def update_screen_settings(body: dict):
     if not _ctx:
         return {"error": "后端未就绪"}
     cfg = _ctx.config.screen
-    ss = _ctx.screen_sense
 
+    # ScreenSense 是每连接创建的，这里只更新全局配置，下次连接生效
     if "diff_threshold" in body:
-        val = float(body["diff_threshold"])
-        cfg.diff_threshold = val
-        if ss:
-            ss._diff_threshold = val
-
+        cfg.diff_threshold = float(body["diff_threshold"])
     if "active_window_filter" in body:
-        val = bool(body["active_window_filter"])
-        cfg.active_window_filter = val
-        if ss:
-            ss._active_window_filter = val
-
+        cfg.active_window_filter = bool(body["active_window_filter"])
     if "monitor" in body:
         cfg.monitor = str(body["monitor"])
-
     if "cooldown" in body:
-        val = float(body["cooldown"])
-        cfg.cooldown = val
-        if ss:
-            ss._cooldown = val
-
+        cfg.cooldown = float(body["cooldown"])
     if "enabled" in body:
-        val = bool(body["enabled"])
-        cfg.enabled = val
-        if ss:
-            ss.enabled = val
-
-    # 注意：enabled 的实际生效需要重新连接 WebSocket，
-    # 因为 ScreenSense 是每连接创建的，这里只更新配置供下次连接使用
+        cfg.enabled = bool(body["enabled"])
 
     return {"ok": True}
 

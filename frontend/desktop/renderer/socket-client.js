@@ -133,14 +133,18 @@ function startScreenCapture(intervalMs, monitor) {
     if (!window.greywind?.captureScreen) return;
     try {
       const result = await window.greywind.captureScreen({ monitor: screenMonitorMode });
-      if (result.ok && result.image_base64) {
-        wsSend({
-          type: "screen_capture",
-          payload: {
-            image_base64: result.image_base64,
-            window_title: result.window_title || "",
-          },
-        });
+      if (result.ok) {
+        // 多屏模式：逐个发送每块屏幕的截图
+        const screens = result.all_screens || (result.image_base64 ? [result.image_base64] : []);
+        for (const img of screens) {
+          wsSend({
+            type: "screen_capture",
+            payload: {
+              image_base64: img,
+              window_title: result.window_title || "",
+            },
+          });
+        }
       }
     } catch (err) {
       console.debug("截屏失败:", err);

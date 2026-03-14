@@ -527,6 +527,11 @@ function createWindow() {
         selectedSources = [found || sources[0]];
       }
 
+      if (selectedSources.length > 1) {
+        // 多屏模式：返回所有屏幕截图数组，由 renderer 逐个发送
+        const allImages = selectedSources.map((s) => s.thumbnail.toJPEG(60).toString("base64"));
+        return { ok: true, image_base64: allImages[0], all_screens: allImages, window_title: cachedForegroundTitle };
+      }
       const b64 = selectedSources[0].thumbnail.toJPEG(60).toString("base64");
       return { ok: true, image_base64: b64, window_title: cachedForegroundTitle };
     } catch (err) {
