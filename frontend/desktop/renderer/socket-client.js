@@ -8,7 +8,7 @@ let pendingAudioMeta = null;
 const listeners = {};
 const sendQueue = [];
 // 实时流消息不缓冲，断线时直接丢弃
-const REALTIME_TYPES = new Set(["audio_chunk"]);
+const REALTIME_TYPES = new Set(["audio_chunk", "screen_capture"]);
 const SEND_QUEUE_MAX = 50;
 
 function wsOn(type, fn) {
@@ -62,12 +62,24 @@ function wsConnect() {
           document.getElementById("status-bar").textContent =
             "已连接 | 不可用: " + missing.join(", ");
         }
+        // 根据后端配置决定是否启动截屏
+        if (e.screen_sense) {
+          const interval = (data.screen && data.screen.capture_interval)
+            ? data.screen.capture_interval * 1000
+            : SCREEN_CAPTURE_INTERVAL_MS;
+          const monitor = (data.screen && data.screen.monitor) || "active";
+          startScreenCapture(interval, monitor);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        // health 请求失败时用默认值启动截屏
+        startScreenCapture(SCREEN_CAPTURE_INTERVAL_MS);
+      });
   };
 
   ws.onclose = () => {
     pendingAudioMeta = null;
+    stopScreenCapture();
     document.getElementById("status-bar").textContent =
       "已断开 - 重连中...";
     reconnectTimer = setTimeout(wsConnect, 3000);
@@ -102,3 +114,77 @@ function wsConnect() {
 }
 
 wsConnect();
+
+/**
+ * 屏幕截图定时器 — 每 N 秒截屏并通过 WebSocket 发给后端
+ */
+let screenCaptureTimer = null;
+let screenCaptureEnabled = false;
+let screenMonitorMode = "active";
+const SCREEN_CAPTURE_INTERVAL_MS = 3000; // fallback default
+
+function startScreenCapture(intervalMs, monitor) {
+  if (screenCaptureTimer) return;
+  const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
+  if (monitor) screenMonitorMode = monitor;
+  screenCaptureEnabled = true;
+  screenCaptureTimer = setInterval(async () => {
+    if (!screenCaptureEnabled) return;
+    if (!window.greywind?.captureScreen) return;
+    try {
+      const result = await window.greywind.captureScreen({ monitor: screenMonitorMode });
+      if (result.ok) {
+        // 多屏模式：逐个发送每块屏幕的截图，带 screen_index 区分
+        const screens = result.all_screens || (result.image_base64 ? [result.image_base64] : []);
+        for (let i = 0; i < screens.length; i++) {
+          wsSend({
+            type: "screen_capture",
+            payload: {
+              image_base64: screens[i],
+              window_title: result.window_title || "",
+              screen_index: i,
+            },
+          });
+        }
+      }
+    } catch (err) {
+      console.debug("截屏失败:", err);
+    }
+  }, interval);
+}
+
+function stopScreenCapture() {
+  screenCaptureEnabled = false;
+  if (screenCaptureTimer) {
+    clearInterval(screenCaptureTimer);
+    screenCaptureTimer = null;
+  }
+}
+
+// 监听设置页面变更，即时响应 enabled 开关
+if (window.greywind?.onScreenSettingsChanged) {
+  window.greywind.onScreenSettingsChanged((data) => {
+    if (data.enabled === false) {
+      stopScreenCapture();
+      // 通知后端当前连接的 ScreenSense 也立即停止
+      wsSend({ type: "screen_sense_toggle", payload: { enabled: false } });
+    } else if (data.enabled === true && !screenCaptureTimer) {
+      // 通知后端当前连接的 ScreenSense 重新启用
+      wsSend({ type: "screen_sense_toggle", payload: { enabled: true } });
+      // 重新从 health API 获取配置启动截屏
+      fetch("http://127.0.0.1:12393/health")
+        .then((r) => r.json())
+        .then((h) => {
+          const interval = (h.screen && h.screen.capture_interval)
+            ? h.screen.capture_interval * 1000
+            : SCREEN_CAPTURE_INTERVAL_MS;
+          const monitor = (h.screen && h.screen.monitor) || "active";
+          startScreenCapture(interval, monitor);
+        })
+        .catch(() => startScreenCapture(SCREEN_CAPTURE_INTERVAL_MS));
+    }
+    if (data.monitor) {
+      screenMonitorMode = data.monitor;
+    }
+  });
+}

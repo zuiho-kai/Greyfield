@@ -32,17 +32,60 @@ app.add_middleware(
 @app.get("/health")
 async def health():
     engines = {}
+    screen_cfg = {}
     if _ctx:
         engines = {
             "vad": _ctx.vad is not None,
             "asr": _ctx.asr is not None,
             "tts": _ctx.tts is not None,
+            "screen_sense": _ctx.config.screen.enabled,
+        }
+        screen_cfg = {
+            "capture_interval": _ctx.config.screen.capture_interval,
+            "monitor": _ctx.config.screen.monitor,
         }
     return {
         "status": "ok",
         "character": _ctx.character.name if _ctx else "unknown",
         "engines": engines,
+        "screen": screen_cfg,
     }
+
+
+@app.get("/api/screen-settings")
+async def get_screen_settings():
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    cfg = _ctx.config.screen
+    return {
+        "diff_threshold": cfg.diff_threshold,
+        "active_window_filter": cfg.active_window_filter,
+        "monitor": cfg.monitor,
+        "cooldown": cfg.cooldown,
+        "enabled": cfg.enabled,
+    }
+
+
+@app.post("/api/screen-settings")
+async def update_screen_settings(body: dict):
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    cfg = _ctx.config.screen
+
+    # ScreenSense 是每连接创建的，这里更新全局配置。
+    # enabled 的即时生效通过前端 WebSocket 发送 screen_sense_toggle 消息实现。
+    if "diff_threshold" in body:
+        cfg.diff_threshold = float(body["diff_threshold"])
+    if "active_window_filter" in body:
+        cfg.active_window_filter = bool(body["active_window_filter"])
+    if "monitor" in body:
+        cfg.monitor = str(body["monitor"])
+    if "cooldown" in body:
+        cfg.cooldown = float(body["cooldown"])
+    if "enabled" in body:
+        cfg.enabled = bool(body["enabled"])
+
+    return {"ok": True}
 
 
 @app.websocket("/ws")

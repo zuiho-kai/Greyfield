@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, desktopCapturer } = require("electron");
 const { spawn } = require("child_process");
 const https = require("https");
 const fs = require("fs");
@@ -18,12 +18,15 @@ const MAX_LOG_LINES = 200;
 let tray = null;
 let logWin = null;
 let historyWin = null;
+let settingsWin = null;
 let isQuitting = false;
 let chatHistory = [];
 const MAX_HISTORY_ITEMS = 500;
 const HISTORY_SAVE_DEBOUNCE_MS = 500;
 let historyFilePath = null;
 let historySaveTimer = null;
+let cachedForegroundTitle = "";
+let foregroundTitleTimer = null;
 
 const LIVE2D_SAMPLE = {
   id: "hiyori",
@@ -254,6 +257,31 @@ function scheduleSaveHistory() {
   }, HISTORY_SAVE_DEBOUNCE_MS);
 }
 
+function refreshForegroundTitle() {
+  try {
+    const { execSync } = require("child_process");
+    cachedForegroundTitle = execSync(
+      'powershell.exe -NoProfile -NonInteractive -Command "(Get-Process | Where-Object {$_.MainWindowHandle -eq (Add-Type -MemberDefinition \'[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow();\' -Name W -Namespace U -PassThru)::GetForegroundWindow()}).MainWindowTitle"',
+      { timeout: 1000, windowsHide: true, encoding: "utf-8" }
+    ).trim();
+  } catch (_) {
+    // 失败时保留上次值
+  }
+}
+
+function startForegroundTitlePolling() {
+  if (foregroundTitleTimer) return;
+  refreshForegroundTitle();
+  foregroundTitleTimer = setInterval(refreshForegroundTitle, 2000);
+}
+
+function stopForegroundTitlePolling() {
+  if (foregroundTitleTimer) {
+    clearInterval(foregroundTitleTimer);
+    foregroundTitleTimer = null;
+  }
+}
+
 function normalizeEntry(entry) {
   const role = entry?.role === "user" ? "user" : "assistant";
   const text = typeof entry?.text === "string" ? entry.text : String(entry?.text ?? "");
@@ -407,6 +435,25 @@ function showHistoryWindow() {
   historyWin.on("closed", () => { historyWin = null; });
 }
 
+function showSettingsWindow() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.focus();
+    return;
+  }
+  settingsWin = new BrowserWindow({
+    width: 480,
+    height: 520,
+    title: "灰风 - 屏幕感知设置",
+    webPreferences: {
+      preload: path.join(__dirname, "preload-settings.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  settingsWin.loadFile(path.join(__dirname, "renderer", "settings.html"));
+  settingsWin.on("closed", () => { settingsWin = null; });
+}
+
 function createWindow() {
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
   const winW = 400;
@@ -467,6 +514,50 @@ function createWindow() {
   ipcMain.on("chat-history:append", (_, entry) => {
     appendHistory(entry);
   });
+  ipcMain.handle("screen:capture", async (_, opts) => {
+    try {
+      const monitorMode = (opts && opts.monitor) || "active";
+
+      // 隐藏灰风窗口避免截到自己
+      const wasVisible = win.isVisible();
+      if (wasVisible) win.setOpacity(0);
+      // 等一帧让窗口透明生效
+      await new Promise((r) => setTimeout(r, 50));
+
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 1280, height: 720 },
+      });
+      if (wasVisible) win.setOpacity(1);
+      if (!sources.length) return { ok: false, error: "无法获取屏幕源" };
+
+      let selectedSources;
+      if (monitorMode === "all") {
+        selectedSources = sources;
+      } else if (monitorMode === "primary") {
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const found = sources.find((s) => s.display_id === String(primaryDisplay.id));
+        selectedSources = [found || sources[0]];
+      } else {
+        // active: 鼠标所在屏幕
+        const cursorPoint = screen.getCursorScreenPoint();
+        const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
+        const found = sources.find((s) => s.display_id === String(activeDisplay.id));
+        selectedSources = [found || sources[0]];
+      }
+
+      if (selectedSources.length > 1) {
+        // 多屏模式：返回所有屏幕截图数组，由 renderer 逐个发送
+        const allImages = selectedSources.map((s) => s.thumbnail.toJPEG(60).toString("base64"));
+        return { ok: true, image_base64: allImages[0], all_screens: allImages, window_title: cachedForegroundTitle };
+      }
+      const b64 = selectedSources[0].thumbnail.toJPEG(60).toString("base64");
+      return { ok: true, image_base64: b64, window_title: cachedForegroundTitle };
+    } catch (err) {
+      win.setOpacity(1);
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
   ipcMain.handle("live2d:get-model-url", async () => {
     try {
       const modelPath = await ensureLive2DModelOnce();
@@ -476,11 +567,39 @@ function createWindow() {
     }
   });
 
+  ipcMain.handle("settings:get-screen", async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:12393/api/screen-settings");
+      return await res.json();
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("settings:update-screen", async (_, data) => {
+    try {
+      const res = await fetch("http://127.0.0.1:12393/api/screen-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      // 通知主窗口 renderer 即时响应设置变更（尤其是 enabled 开关）
+      if (win && !win.isDestroyed()) {
+        win.webContents.send("screen-settings-changed", data);
+      }
+      return result;
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
   // 系统托盘
   tray = new Tray(path.join(__dirname, "renderer", "icon.png").replace(/\\/g, "/"));
   tray.setToolTip("灰风 GreyWind");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "显示/隐藏", click: () => win.isVisible() ? win.hide() : win.show() },
+    { label: "屏幕感知设置", click: () => showSettingsWindow() },
     { label: "后端日志", click: () => showLogWindow() },
     { label: "Chat History", click: () => showHistoryWindow() },
     { label: "开发工具", click: () => win.webContents.openDevTools({ mode: "detach" }) },
@@ -510,6 +629,7 @@ if (!gotLock) {
     historyFilePath = resolveHistoryFilePath();
     loadHistoryFromDisk();
     startBackend();
+    startForegroundTitlePolling();
     createWindow();
   });
 }
@@ -523,5 +643,6 @@ app.on("window-all-closed", (e) => {
 app.on("before-quit", () => {
   isQuitting = true;
   saveHistoryToDisk();
+  stopForegroundTitlePolling();
   stopBackend();
 });
