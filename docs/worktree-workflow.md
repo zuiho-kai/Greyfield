@@ -13,11 +13,11 @@
 ### 1. 开工：创建 worktree
 
 ```bash
-# 从主分支创建新 worktree（本仓库主分支为 master，按实际情况替换）
+# 从主分支创建新 worktree（<主分支> 按实际替换，如 master / main）
 git worktree add ../Greyfield-<短名> -b <分支名> <主分支>
 
 # 例：
-git worktree add ../Greyfield-voice -b feat/voice-spine master
+git worktree add ../Greyfield-voice -b feat/voice-spine <主分支>
 ```
 
 分支命名规范：
@@ -46,8 +46,8 @@ git push -u origin <分支名>
 PR 合并后清理：
 
 ```bash
-# 必须先回到主仓库目录，不能在 worktree 里执行 remove
-cd E:/a7/Greyfield
+# 必须先回到主仓库目录，不能在 worktree 里执行 remove（路径按实际替换）
+cd <主仓库路径>
 
 # 删除 worktree
 git worktree remove ../Greyfield-<短名>
