@@ -502,8 +502,16 @@ function createWindow() {
     },
   });
 
-  // transparent + frame:false 在 Windows 上 resizable:false 可能不生效，用事件兜底
+  // transparent + frame:false 在 Windows 上 resizable:false 和 will-resize 都不生效
+  // 用 resize 事件强制恢复到初始尺寸
+  const lockedSize = [winW, winH];
   win.on("will-resize", (e) => { e.preventDefault(); });
+  win.on("resize", () => {
+    const [cw, ch] = win.getSize();
+    if (cw !== lockedSize[0] || ch !== lockedSize[1]) {
+      win.setSize(lockedSize[0], lockedSize[1]);
+    }
+  });
 
   // forward 仅 win32/darwin 支持，Linux 不启用穿透避免死锁
   const supportsForward = process.platform === "win32" || process.platform === "darwin";
