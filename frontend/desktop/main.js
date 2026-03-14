@@ -532,14 +532,23 @@ function createWindow() {
     win.setIgnoreMouseEvents(ignore, { forward: true });
   });
 
-  // 手动窗口拖拽：记录起始位置，渲染端发 delta 移动
+  // 手动窗口拖拽：记录起始位置和尺寸，渲染端发 delta 移动
   let dragStartPos = null;
+  let dragLockedSize = null;
   ipcMain.on("window-drag-start", () => {
     dragStartPos = win.getPosition();
+    dragLockedSize = win.getSize();
   });
   ipcMain.on("window-drag-move", (_, dx, dy) => {
     if (!dragStartPos) return;
     win.setPosition(dragStartPos[0] + dx, dragStartPos[1] + dy);
+    // Windows transparent+frameless 拖动时窗口会被系统 resize，强制恢复
+    if (dragLockedSize) {
+      const [cw, ch] = win.getSize();
+      if (cw !== dragLockedSize[0] || ch !== dragLockedSize[1]) {
+        win.setSize(dragLockedSize[0], dragLockedSize[1]);
+      }
+    }
   });
 
   ipcMain.on("chat-history:add", (_, entry) => {
