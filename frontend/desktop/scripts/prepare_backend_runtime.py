@@ -78,14 +78,18 @@ def venv_python_version(venv_dir: Path) -> str:
 
 
 def venv_python_arch(venv_dir: Path) -> str:
-    """返回 .venv 解释器的架构标签（amd64/win32/arm64），用于选择嵌入式包。"""
-    import struct
+    """返回 .venv 解释器的架构标签（amd64/win32/arm64），用于选择嵌入式包。
 
-    bits = _query_venv_python(venv_dir, "import struct; print(struct.calcsize('P') * 8)")
-    machine = _query_venv_python(venv_dir, "import platform; print(platform.machine().lower())")
-    if machine in ("arm64", "aarch64"):
+    通过 sysconfig.get_platform() 读取解释器自身的平台标识，
+    避免在 ARM64 宿主机上使用 x64 仿真 Python 时误判架构。
+    """
+    plat = _query_venv_python(venv_dir, "import sysconfig; print(sysconfig.get_platform())")
+    # sysconfig.get_platform() 返回如 "win-amd64", "win-arm64", "win32"
+    if "arm64" in plat:
         return "arm64"
-    return "amd64" if bits == "64" else "win32"
+    if "amd64" in plat or "x86_64" in plat:
+        return "amd64"
+    return "win32"
 
 
 def build_metadata() -> dict[str, str]:
