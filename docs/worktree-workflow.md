@@ -13,8 +13,8 @@
 ### 1. 开工：创建 worktree
 
 ```bash
-# 从 master 创建新 worktree
-git worktree add ../Greyfield-<短名> -b <分支名> master
+# 从主分支创建新 worktree（本仓库主分支为 master，按实际情况替换）
+git worktree add ../Greyfield-<短名> -b <分支名> <主分支>
 
 # 例：
 git worktree add ../Greyfield-voice -b feat/voice-spine master
@@ -38,7 +38,7 @@ git worktree add ../Greyfield-voice -b feat/voice-spine master
 
 ```bash
 # 回到主仓库
-cd E:\a7\Greyfield
+cd E:/a7/Greyfield
 
 # 合并
 git merge <分支名>
@@ -54,6 +54,6 @@ git branch -d <分支名>
 
 ## 注意事项
 
-- worktree 目录统一放在 `E:\a7\` 下，与主仓库同级
+- worktree 目录统一放在 `E:/a7/` 下，与主仓库同级
 - 命名格式：`Greyfield-<短名>`，短名用英文、不带空格
 - 长期不用的 worktree 及时清理，避免磁盘浪费
