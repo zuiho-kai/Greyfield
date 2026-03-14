@@ -14,16 +14,18 @@ function resolvePythonExecutable({
   existsSync,
 }) {
   const isWin = platform === "win32";
-  const packagedPython = path.join(
+  const join = isWin ? path.win32.join : path.posix.join;
+  const packagedPython = join(
     resourcesPath || projectRoot,
     "backend",
     "python",
-    isWin ? "python.exe" : path.join("bin", "python3")
+    isWin ? "python.exe" : "bin/python3"
   );
-  const devPython = path.join(
+  const devPython = join(
     projectRoot,
     ".venv",
-    isWin ? path.join("Scripts", "python.exe") : path.join("bin", "python")
+    isWin ? "Scripts" : "bin",
+    isWin ? "python.exe" : "python"
   );
 
   if (isPackaged) {
