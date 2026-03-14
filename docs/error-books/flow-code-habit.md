@@ -35,3 +35,9 @@
 ❌ 为每个连接创建独立 Pipeline 对象，但构造函数里 `self.x = ctx.x` 直接引用全局单例（Session/VAD），等于隔离了壳没隔离内容
 ✅ 创建隔离对象时区分有状态 vs 无状态组件。无状态（ASR/TTS/LLM）可共享，有状态（Session/VAD/StateMachine）必须每实例独立创建。检查清单：组件内部有 list/dict/counter/buffer → 必须独立
 > 归因：只验证了"对象是否独立"，没追引用链验证"对象引用的组件是否也独立"
+
+### DEV-63 构建脚本数据源与运行时环境不一致 `🟢`
+
+❌ 打包脚本用 `platform.python_version()`（运行脚本的系统 Python）决定下载哪个嵌入式 runtime，但 site-packages 拷贝自 `.venv`，两者版本可能不同导致 ABI 不兼容
+✅ 构建脚本中凡是影响产物兼容性的元数据，必须从产物实际来源获取。拷谁的包就问谁的版本：调用 `.venv` 的解释器获取版本号
+> 归因：想当然认为"跑脚本的 Python = 项目的 Python"，没追数据源一致性

@@ -12,6 +12,7 @@
 | DEV-42 | 对话开头环境指令未执行就动手 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-47 | 批量/seed 幂等设计未考虑"部分成功" | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-60 | 隔离对象但共享有状态引用 | 通用/流程 | 🟢 | flow-code-habit.md |
+| DEV-63 | 构建脚本数据源与运行时环境不一致 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-53 | 问了用户但不等回答就自己执行 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-61 | 交付前不做开发自验证 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-62 | ?? dev ????/??? | ??/?? | ?? | flow-gate.md |
