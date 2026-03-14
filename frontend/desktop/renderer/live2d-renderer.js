@@ -130,12 +130,12 @@ initLive2D();
   // live2dModel 为 null 时（加载中或失败）返回 true，保持窗口可交互
   function isOpaqueAt(x, y) {
     if (!live2dModel) return true;
-    // 优先用模型 JSON 定义的 hitArea AABB
-    const hits = live2dModel.hitTest(x, y);
-    if (hits && hits.length > 0) return true;
-    // 兜底：模型无 hitArea 时用全局包围盒
-    const b = live2dModel.getBounds();
-    return x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+    // 用模型位置和缩放后尺寸算包围盒（比 getBounds() 稳定）
+    const mx = live2dModel.x;
+    const my = live2dModel.y;
+    const mw = modelBaseWidth * live2dModel.scale.x;
+    const mh = modelBaseHeight * live2dModel.scale.y;
+    return x >= mx && x <= mx + mw && y >= my && y <= my + mh;
   }
 
   // 检测是否在输入区域内
