@@ -38,6 +38,10 @@
 
 遇到新错误按格式追加到对应文件，同时更新 `_index.md`。
 
+**出错自动落盘**：满足以下任一条件时，无需用户提醒，自动执行 `docs/error-books/checklist-error-landing.md` 流程：
+- CR 发现 P0 / 测试失败 / 同一错误连续 2 次 / 用户指出流程违规 / 实现与设计不一致
+- 流程核心：归因分析（A/B/C/D 四条路径）→ 读记录规则 → 落盘 → 复盘
+
 ## 通用硬规则
 
 - **Write 强制分步**（DEV-8）：≤50 行可一次 Write；>50 行先 Write 骨架再 Edit 分段填充，每段 ≤50 行。Write 失败 1 次 → 切 Bash heredoc。禁止同一方式连续失败超过 2 次
@@ -49,6 +53,7 @@
 - **不做口头承诺**：教训/流程改进发现当下直接写入文件（COMMON-12）
 - **两次失败必须搜索**：连续猜方案失败两次后停下搜索根因（COMMON-9）
 - **CR 修复必须 worktree**：PR 收到 code review 反馈后，所有修复工作必须在独立 worktree 中进行（`git worktree add ../Greyfield-cr-<PR号> -b fix/pr<PR号>-cr <当前分支>`），修完合回原分支再推送。流程见 `docs/worktree-workflow.md`
+- **新开发必须 worktree**：所有新功能/新任务开发必须在独立 worktree 中进行（`git worktree add ../Greyfield-<功能名> -b feat/<功能名> master`），开发完成后合回目标分支再推送。禁止直接在主仓库目录开发新功能
 - **改前 grep**：改代码前 grep 全量引用 + grep 同类 pattern 复用（DEV-6）
 - **网络代理**：所有外网请求走 `http://127.0.0.1:7890`
 - **禁止脑补**：所有操作（写内容、做愿景、搜索、设计等）必须基于已确认的信息。抓取/搜索失败时不要用猜测的内容代替，必须先确认再写

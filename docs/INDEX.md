@@ -8,6 +8,8 @@
 | `context-runtime.md` | 当前主文档 | 生效 | 定义上下文运行时和 Context Packet | 设计连续性时看 |
 | `engineering-lessons.md` | 工程文档 | 生效 | 错题本体系入口，指向 `error-books/` | 犯错/踩坑时看 |
 | `error-books/` | 工程文档 | 生效 | 错题本体系，按模块拆分的错误案例集 | 开工前读索引 |
+| `worktree-workflow.md` | 工程文档 | 生效 | Worktree 工作流规范 | 开工前看 |
+| `worktree-log.md` | 工程文档 | 生效 | Worktree 跟踪记录表 | 开工时登记 |
 | `archive/greywind-airi-borrowing-strategy.md` | 参考归档 | 回查 | AIRI / proj-airi 借鉴判断的 Markdown 版 | 优先看这份 |
 | `archive/greywind-airi-borrowing-strategy.docx` | 参考文档 | 回查 | AIRI / proj-airi 借鉴判断原始 Word 文件 | 只在需要原稿时看 |
 | `archive/ai-assistant-architecture.md` | 参考归档 | 回查 | 更早期的大而全远景架构 | 不作为当前规格 |
