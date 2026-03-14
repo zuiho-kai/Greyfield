@@ -4,6 +4,7 @@
 const WS_URL = "ws://127.0.0.1:12393/ws";
 let ws = null;
 let reconnectTimer = null;
+let pendingAudioMeta = null;
 const listeners = {};
 
 function wsOn(type, fn) {
@@ -23,11 +24,14 @@ function wsSend(msg) {
 function wsConnect() {
   if (ws) ws.close();
   ws = new WebSocket(WS_URL);
+  ws.binaryType = "arraybuffer";
 
   ws.onopen = () => {
     document.getElementById("status-bar").textContent = "已连接";
-    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-    // 检查引擎状态
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
     fetch("http://127.0.0.1:12393/health")
       .then((r) => r.json())
       .then((data) => {
@@ -46,15 +50,33 @@ function wsConnect() {
   };
 
   ws.onclose = () => {
-    document.getElementById("status-bar").textContent = "已断开 - 重连中...";
+    pendingAudioMeta = null;
+    document.getElementById("status-bar").textContent =
+      "已断开 - 重连中...";
     reconnectTimer = setTimeout(wsConnect, 3000);
   };
 
   ws.onerror = () => ws.close();
 
   ws.onmessage = (e) => {
+    if (typeof e.data !== "string") {
+      if (!(e.data instanceof ArrayBuffer) || !pendingAudioMeta) {
+        console.warn("Unexpected binary WS message", e.data);
+        pendingAudioMeta = null;
+        return;
+      }
+      const payload = { ...pendingAudioMeta, audio_buffer: e.data };
+      pendingAudioMeta = null;
+      wsEmit("reply_audio", payload);
+      return;
+    }
+
     try {
       const msg = JSON.parse(e.data);
+      if (msg.type === "reply_audio_meta") {
+        pendingAudioMeta = msg.payload;
+        return;
+      }
       wsEmit(msg.type, msg.payload);
     } catch (err) {
       console.error("消息解析失败", err);

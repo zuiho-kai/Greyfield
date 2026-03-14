@@ -37,6 +37,18 @@ if errorlevel 1 (
     exit /b 1
 )
 
+if not exist "%~dp0conf.yaml" (
+    if exist "%~dp0conf.example.yaml" (
+        copy "%~dp0conf.example.yaml" "%~dp0conf.yaml" >nul
+        echo [INFO] conf.yaml 不存在，已从 conf.example.yaml 复制
+    ) else (
+        echo [ERR] conf.yaml 和 conf.example.yaml 均不存在
+        popd & popd
+        pause
+        exit /b 1
+    )
+)
+
 echo [3/3] electron-builder portable ...
 set ELECTRON_BUILDER_DISABLE_SIGN=true
 call npm run build:portable
