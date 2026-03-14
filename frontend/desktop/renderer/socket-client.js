@@ -7,6 +7,9 @@ let reconnectTimer = null;
 let pendingAudioMeta = null;
 const listeners = {};
 const sendQueue = [];
+// 实时流消息不缓冲，断线时直接丢弃
+const REALTIME_TYPES = new Set(["audio_chunk"]);
+const SEND_QUEUE_MAX = 50;
 
 function wsOn(type, fn) {
   (listeners[type] = listeners[type] || []).push(fn);
@@ -20,7 +23,11 @@ function wsSend(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
   } else {
-    sendQueue.push(msg);
+    // 实时流消息断线时丢弃，避免重连后重放过期数据
+    if (REALTIME_TYPES.has(msg.type)) return;
+    if (sendQueue.length < SEND_QUEUE_MAX) {
+      sendQueue.push(msg);
+    }
   }
 }
 
