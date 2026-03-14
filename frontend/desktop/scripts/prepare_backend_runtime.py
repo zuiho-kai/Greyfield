@@ -55,28 +55,44 @@ def validate_site_packages(site_packages: Path) -> None:
         )
 
 
-def venv_python_version(venv_dir: Path) -> str:
-    """从 .venv 的解释器获取 Python 版本，确保与 site-packages ABI 一致。"""
+def _query_venv_python(venv_dir: Path, expression: str) -> str:
+    """在 .venv 解释器中执行表达式并返回 stdout，确保元数据来自实际产物来源。"""
     import subprocess
 
     python_exe = venv_dir / "Scripts" / "python.exe"
     if not python_exe.exists():
         raise SystemExit(f"Missing python.exe in {venv_dir / 'Scripts'}. Run `uv sync` before packaging.")
     result = subprocess.run(
-        [str(python_exe), "-c", "import platform; print(platform.python_version())"],
+        [str(python_exe), "-c", expression],
         capture_output=True,
         text=True,
         timeout=10,
     )
     if result.returncode != 0:
-        raise SystemExit(f"Failed to get Python version from .venv: {result.stderr.strip()}")
+        raise SystemExit(f"Failed to query .venv python: {result.stderr.strip()}")
     return result.stdout.strip()
+
+
+def venv_python_version(venv_dir: Path) -> str:
+    return _query_venv_python(venv_dir, "import platform; print(platform.python_version())")
+
+
+def venv_python_arch(venv_dir: Path) -> str:
+    """返回 .venv 解释器的架构标签（amd64/win32/arm64），用于选择嵌入式包。"""
+    import struct
+
+    bits = _query_venv_python(venv_dir, "import struct; print(struct.calcsize('P') * 8)")
+    machine = _query_venv_python(venv_dir, "import platform; print(platform.machine().lower())")
+    if machine in ("arm64", "aarch64"):
+        return "arm64"
+    return "amd64" if bits == "64" else "win32"
 
 
 def build_metadata() -> dict[str, str]:
     venv_dir = source_venv_dir()
     return {
         "python_version": venv_python_version(venv_dir),
+        "python_arch": venv_python_arch(venv_dir),
         "lock_hash": file_sha256(REPO_ROOT / "uv.lock"),
     }
 
@@ -91,25 +107,25 @@ def copy_tree(src: Path, dst: Path) -> None:
     shutil.copytree(src, dst)
 
 
-def embedded_zip_name(python_version: str) -> str:
-    return f"python-{python_version}-embed-amd64.zip"
+def embedded_zip_name(python_version: str, arch: str) -> str:
+    return f"python-{python_version}-embed-{arch}.zip"
 
 
-def embedded_zip_url(python_version: str) -> str:
-    return f"https://www.python.org/ftp/python/{python_version}/{embedded_zip_name(python_version)}"
+def embedded_zip_url(python_version: str, arch: str) -> str:
+    return f"https://www.python.org/ftp/python/{python_version}/{embedded_zip_name(python_version, arch)}"
 
 
-def cached_zip_path(python_version: str) -> Path:
-    return CACHE_DIR / embedded_zip_name(python_version)
+def cached_zip_path(python_version: str, arch: str) -> Path:
+    return CACHE_DIR / embedded_zip_name(python_version, arch)
 
 
-def download_if_needed(python_version: str) -> Path:
+def download_if_needed(python_version: str, arch: str) -> Path:
     ensure_dir(CACHE_DIR)
-    zip_path = cached_zip_path(python_version)
+    zip_path = cached_zip_path(python_version, arch)
     if zip_path.exists():
         return zip_path
 
-    url = embedded_zip_url(python_version)
+    url = embedded_zip_url(python_version, arch)
     print(f"[GreyWind] Downloading embeddable Python runtime: {url}")
     with urllib.request.urlopen(url) as response, zip_path.open("wb") as output:
         shutil.copyfileobj(response, output)
@@ -160,7 +176,7 @@ def stage_python_runtime() -> None:
     if PYTHON_DIR.exists():
         shutil.rmtree(PYTHON_DIR)
 
-    zip_path = download_if_needed(metadata["python_version"])
+    zip_path = download_if_needed(metadata["python_version"], metadata["python_arch"])
     ensure_dir(PYTHON_DIR)
     with zipfile.ZipFile(zip_path) as archive:
         archive.extractall(PYTHON_DIR)
