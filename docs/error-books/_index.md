@@ -46,4 +46,5 @@
 | DEV-38 | 编码前跳过架构风险分析 | 通用/设计 | 🟢 | flow-design.md |
 | DEV-40 | 功能设计脱离基础设施现实 | 通用/设计 | 🟢 | flow-design.md |
 | DEV-44 | 设计文档与代码签名不同步 | 通用/设计 | 🟢 | flow-design.md |
+| DEV-76 | 口头承诺不落盘 | 门控/流程 | 🟢 | flow-gate.md |
 | REC-1~6 | 记录员典型错误（讨论没落盘等） | 通用/记录 | 🟢 | error-book-recorder.md |
