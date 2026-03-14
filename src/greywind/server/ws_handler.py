@@ -79,8 +79,9 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
 
             elif msg_type == "screen_capture":
                 image_b64 = payload.get("image_base64", "")
+                window_title = payload.get("window_title", "")
                 if image_b64 and pipeline.screen_sense:
-                    pipeline.screen_sense.receive_frame(image_b64)
+                    pipeline.screen_sense.receive_frame(image_b64, window_title)
 
             elif msg_type == "interrupt":
                 await pipeline.interrupt()

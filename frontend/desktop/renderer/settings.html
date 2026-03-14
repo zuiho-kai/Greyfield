@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>灰风 - 屏幕感知设置</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #c8d6e5; font-family: "Microsoft YaHei", sans-serif; font-size: 14px; padding: 20px; }
+    h2 { font-size: 16px; margin-bottom: 16px; color: #e2e8f0; }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; margin-bottom: 6px; font-size: 13px; color: #a0aec0; }
+    .field .hint { font-size: 11px; color: #718096; margin-top: 4px; line-height: 1.5; }
+    input[type="range"] { width: 100%; accent-color: #667eea; }
+    .range-row { display: flex; align-items: center; gap: 10px; }
+    .range-row input { flex: 1; }
+    .range-row .val { min-width: 40px; text-align: right; font-family: Consolas, monospace; font-size: 13px; }
+    select { background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 4px; padding: 6px 10px; font-size: 13px; width: 100%; }
+    .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle input { width: 18px; height: 18px; accent-color: #667eea; }
+    .ref-table { font-size: 11px; color: #718096; margin-top: 6px; border-collapse: collapse; width: 100%; }
+    .ref-table td { padding: 2px 8px 2px 0; }
+    .ref-table .skip { color: #fc8181; }
+    .ref-table .accept { color: #68d391; }
+    .status { margin-top: 16px; font-size: 12px; color: #68d391; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <h2>屏幕感知设置</h2>
+
+  <div class="field">
+    <label class="toggle">
+      <input type="checkbox" id="enabled" checked />
+      启用屏幕感知
+    </label>
+  </div>
+
+  <div class="field">
+    <label>画面变化阈值</label>
+    <div class="range-row">
+      <input type="range" id="diff_threshold" min="0.01" max="0.3" step="0.01" value="0.05" />
+      <span class="val" id="diff_val">0.05</span>
+    </div>
+    <div class="hint">值越大越不灵敏。参考场景差异值：</div>
+    <table class="ref-table">
+      <tr><td>鼠标移动</td><td>~0.008</td><td id="ref_mouse" class="skip">跳过</td></tr>
+      <tr><td>打字新增一行</td><td>~0.036</td><td id="ref_type" class="skip">跳过</td></tr>
+      <tr><td>通知弹窗</td><td>~0.043</td><td id="ref_notif" class="skip">跳过</td></tr>
+      <tr><td>浏览器滚动</td><td>~0.060</td><td id="ref_scroll" class="accept">采纳</td></tr>
+      <tr><td>游戏画面</td><td>~0.160</td><td id="ref_game" class="accept">采纳</td></tr>
+      <tr><td>切换应用</td><td>~0.825</td><td id="ref_switch" class="accept">采纳</td></tr>
+    </table>
+  </div>
+
+  <div class="field">
+    <label class="toggle">
+      <input type="checkbox" id="active_window_filter" checked />
+      前台窗口过滤
+    </label>
+    <div class="hint">开启后，前台窗口标题没变且画面差异低于阈值时跳过。可过滤动态壁纸等干扰。</div>
+  </div>
+
+  <div class="field">
+    <label>屏幕选择</label>
+    <select id="monitor">
+      <option value="active">鼠标所在屏幕</option>
+      <option value="primary">主屏幕</option>
+      <option value="all">全部屏幕</option>
+    </select>
+    <div class="hint">多屏幕时选择截取哪个屏幕。</div>
+  </div>
+
+  <div class="field">
+    <label>主动说话冷却时间（秒）</label>
+    <div class="range-row">
+      <input type="range" id="cooldown" min="10" max="120" step="5" value="30" />
+      <span class="val" id="cooldown_val">30</span>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <script>
+    const REF_VALS = { mouse: 0.008, type: 0.036, notif: 0.043, scroll: 0.060, game: 0.160, switch: 0.825 };
+
+    function updateRefTable(threshold) {
+      for (const [key, val] of Object.entries(REF_VALS)) {
+        const el = document.getElementById("ref_" + key);
+        if (val < threshold) {
+          el.textContent = "跳过";
+          el.className = "skip";
+        } else {
+          el.textContent = "采纳";
+          el.className = "accept";
+        }
+      }
+    }
+
+    const diffSlider = document.getElementById("diff_threshold");
+    const diffVal = document.getElementById("diff_val");
+    const cooldownSlider = document.getElementById("cooldown");
+    const cooldownVal = document.getElementById("cooldown_val");
+    const statusEl = document.getElementById("status");
+
+    diffSlider.addEventListener("input", () => {
+      diffVal.textContent = diffSlider.value;
+      updateRefTable(parseFloat(diffSlider.value));
+    });
+    cooldownSlider.addEventListener("input", () => {
+      cooldownVal.textContent = cooldownSlider.value;
+    });
+
+    let saveTimer = null;
+    function scheduleAutoSave() {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(doSave, 600);
+    }
+
+    async function doSave() {
+      const data = {
+        enabled: document.getElementById("enabled").checked,
+        diff_threshold: parseFloat(diffSlider.value),
+        active_window_filter: document.getElementById("active_window_filter").checked,
+        monitor: document.getElementById("monitor").value,
+        cooldown: parseFloat(cooldownSlider.value),
+      };
+      try {
+        await window.settingsAPI.updateScreenSettings(data);
+        statusEl.textContent = "已保存";
+        setTimeout(() => { statusEl.textContent = ""; }, 2000);
+      } catch (e) {
+        statusEl.textContent = "保存失败: " + e.message;
+        statusEl.style.color = "#fc8181";
+      }
+    }
+
+    // 所有控件变化时自动保存
+    for (const id of ["enabled", "diff_threshold", "active_window_filter", "monitor", "cooldown"]) {
+      document.getElementById(id).addEventListener("change", scheduleAutoSave);
+      document.getElementById(id).addEventListener("input", scheduleAutoSave);
+    }
+
+    // 加载当前设置
+    window.settingsAPI.getScreenSettings().then((cfg) => {
+      if (!cfg || cfg.error) return;
+      document.getElementById("enabled").checked = cfg.enabled;
+      diffSlider.value = cfg.diff_threshold;
+      diffVal.textContent = cfg.diff_threshold;
+      updateRefTable(cfg.diff_threshold);
+      document.getElementById("active_window_filter").checked = cfg.active_window_filter;
+      document.getElementById("monitor").value = cfg.monitor;
+      cooldownSlider.value = cfg.cooldown;
+      cooldownVal.textContent = cfg.cooldown;
+    });
+  </script>
+</body>
+</html>

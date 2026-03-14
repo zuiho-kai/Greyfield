@@ -21,29 +21,38 @@ class ScreenSense:
         self,
         buffer_size: int = 10,
         trigger_frames: int = 5,
-        diff_threshold: float = 0.02,
+        diff_threshold: float = 0.05,
         cooldown: float = 30.0,
+        active_window_filter: bool = True,
     ):
         self._buffer: deque[str] = deque(maxlen=buffer_size)
         self._trigger_frames = trigger_frames
         self._diff_threshold = diff_threshold
         self._cooldown = cooldown
+        self._active_window_filter = active_window_filter
         self._last_speak_time: float = 0.0
         self._frames_since_trigger: int = 0
         self._last_thumb = None  # 上一帧缩略图，用于差异检测
+        self._last_window_title: str = ""
         self._enabled = True
 
-    def receive_frame(self, image_b64: str) -> bool:
+    def receive_frame(self, image_b64: str, window_title: str = "") -> bool:
         """收到一帧截图，做差异检测，返回是否被采纳（非重复帧）"""
         if not self._enabled:
             return False
+
+        # 前台窗口标题过滤：标题没变 + 像素差异低 → 跳过（解决动态壁纸等）
+        title_changed = window_title != self._last_window_title
+        self._last_window_title = window_title
 
         if Image is not None:
             try:
                 thumb = self._make_thumbnail(image_b64)
                 if self._last_thumb is not None:
                     diff = self._pixel_diff(self._last_thumb, thumb)
-                    if diff < self._diff_threshold:
+                    if self._active_window_filter and not title_changed and diff < self._diff_threshold:
+                        return False
+                    if not self._active_window_filter and diff < self._diff_threshold:
                         return False
                 self._last_thumb = thumb
             except Exception as e:

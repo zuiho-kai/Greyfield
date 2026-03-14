@@ -94,6 +94,7 @@ class ServiceContext:
             trigger_frames=cfg.trigger_frames,
             diff_threshold=cfg.diff_threshold,
             cooldown=cfg.cooldown,
+            active_window_filter=cfg.active_window_filter,
         )
 
 

@@ -45,6 +45,57 @@ async def health():
     }
 
 
+@app.get("/api/screen-settings")
+async def get_screen_settings():
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    cfg = _ctx.config.screen
+    return {
+        "diff_threshold": cfg.diff_threshold,
+        "active_window_filter": cfg.active_window_filter,
+        "monitor": cfg.monitor,
+        "cooldown": cfg.cooldown,
+        "enabled": cfg.enabled,
+    }
+
+
+@app.post("/api/screen-settings")
+async def update_screen_settings(body: dict):
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    cfg = _ctx.config.screen
+    ss = _ctx.screen_sense
+
+    if "diff_threshold" in body:
+        val = float(body["diff_threshold"])
+        cfg.diff_threshold = val
+        if ss:
+            ss._diff_threshold = val
+
+    if "active_window_filter" in body:
+        val = bool(body["active_window_filter"])
+        cfg.active_window_filter = val
+        if ss:
+            ss._active_window_filter = val
+
+    if "monitor" in body:
+        cfg.monitor = str(body["monitor"])
+
+    if "cooldown" in body:
+        val = float(body["cooldown"])
+        cfg.cooldown = val
+        if ss:
+            ss._cooldown = val
+
+    if "enabled" in body:
+        val = bool(body["enabled"])
+        cfg.enabled = val
+        if ss:
+            ss.enabled = val
+
+    return {"ok": True}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     if not _ctx:

@@ -123,7 +123,10 @@ function startScreenCapture() {
       if (result.ok && result.image_base64) {
         wsSend({
           type: "screen_capture",
-          payload: { image_base64: result.image_base64 },
+          payload: {
+            image_base64: result.image_base64,
+            window_title: result.window_title || "",
+          },
         });
       }
     } catch (err) {
