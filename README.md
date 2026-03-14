@@ -251,6 +251,7 @@ cd frontend/desktop && npm start
 ```bash
 git clone https://github.com/zuiho-kai/Greyfield.git
 cd Greyfield
+git checkout -b feat/your-feature
 
 # 安装依赖
 uv sync
