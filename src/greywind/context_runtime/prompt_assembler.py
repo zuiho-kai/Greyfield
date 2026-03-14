@@ -1,6 +1,6 @@
 """Prompt 组装器 — 将角色、记忆、上下文、用户输入拼装为完整 prompt"""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from greywind.config.models import CharacterConfig
 
@@ -14,7 +14,9 @@ class PromptAssembler:
         session_id: str,
         recent_dialogue: List[Dict[str, Any]],
         user_input: str,
-    ) -> List[Dict[str, str]]:
+        screen_image_b64: Optional[str] = None,
+        screen_detail: str = "low",
+    ) -> List[Dict[str, Any]]:
         """组装完整的 messages 列表，供 LLM 调用"""
         system_parts = []
 
@@ -33,7 +35,7 @@ class PromptAssembler:
 
         system_message = "\n\n".join(system_parts)
 
-        messages = [{"role": "system", "content": system_message}]
+        messages: List[Dict[str, Any]] = [{"role": "system", "content": system_message}]
 
         # 最近对话
         for turn in recent_dialogue:
@@ -42,7 +44,22 @@ class PromptAssembler:
                 "content": turn["content"],
             })
 
-        # 当前用户输入
-        messages.append({"role": "user", "content": user_input})
+        # 当前用户输入（可能附带截图）
+        if screen_image_b64:
+            messages.append({
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{screen_image_b64}",
+                            "detail": screen_detail,
+                        },
+                    },
+                    {"type": "text", "text": user_input},
+                ],
+            })
+        else:
+            messages.append({"role": "user", "content": user_input})
 
         return messages

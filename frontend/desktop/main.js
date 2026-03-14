@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, desktopCapturer } = require("electron");
 const { spawn } = require("child_process");
 const https = require("https");
 const fs = require("fs");
@@ -447,6 +447,26 @@ function createWindow() {
   });
   ipcMain.on("chat-history:append", (_, entry) => {
     appendHistory(entry);
+  });
+  ipcMain.handle("screen:capture", async () => {
+    try {
+      // 隐藏灰风窗口避免截到自己
+      const wasVisible = win.isVisible();
+      if (wasVisible) win.setOpacity(0);
+      // 等一帧让窗口透明生效
+      await new Promise((r) => setTimeout(r, 50));
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 1280, height: 720 },
+      });
+      if (wasVisible) win.setOpacity(1);
+      if (!sources.length) return { ok: false, error: "无法获取屏幕源" };
+      const b64 = sources[0].thumbnail.toJPEG(60).toString("base64");
+      return { ok: true, image_base64: b64 };
+    } catch (err) {
+      win.setOpacity(1);
+      return { ok: false, error: err?.message || String(err) };
+    }
   });
   ipcMain.handle("live2d:get-model-url", async () => {
     try {

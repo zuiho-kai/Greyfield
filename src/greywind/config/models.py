@@ -47,10 +47,21 @@ class CharacterConfig(BaseModel):
     emotion_map: Dict[str, str] = {}
 
 
+class ScreenConfig(BaseModel):
+    enabled: bool = True
+    capture_interval: float = 3.0
+    trigger_frames: int = 5
+    diff_threshold: float = 0.02
+    cooldown: float = 30.0
+    detail: str = "low"
+    buffer_size: int = 10
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     llm: LLMConfig = LLMConfig()
     asr: ASRConfig = ASRConfig()
     tts: TTSConfig = TTSConfig()
     memory: MemoryConfig = MemoryConfig()
+    screen: ScreenConfig = ScreenConfig()
     character: str = "greywind"

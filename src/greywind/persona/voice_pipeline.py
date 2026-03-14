@@ -23,6 +23,8 @@ class VoicePipeline:
         self.assembler = ctx.assembler
         self.memory = ctx.memory
         self.character = ctx.character
+        self.screen_sense = ctx.screen_sense
+        self._screen_detail = getattr(ctx.config.screen, "detail", "low") if ctx.config.screen else "low"
         # 有状态组件：每连接独立
         from greywind.context_runtime.session_manager import SessionManager
         from greywind.context_runtime.thread_resolver import ThreadResolver
@@ -30,6 +32,7 @@ class VoicePipeline:
         self.thread = ThreadResolver()
         self.vad = self._clone_vad(ctx.vad)
         self._interrupted = False
+        self._responding = False
         self._response_task: asyncio.Task | None = None
 
     @staticmethod
@@ -88,8 +91,13 @@ class VoicePipeline:
 
     async def _respond(self, user_text, send_fn, send_audio_fn):
         self._interrupted = False
+        self._responding = True
         try:
             await send_fn({"type": "status", "payload": {"state": "thinking"}})
+            # 被动模式：用户说话时附上最近截图
+            screen_b64 = None
+            if self.screen_sense:
+                screen_b64 = self.screen_sense.get_latest_frame()
             messages = self.assembler.assemble(
                 character=self.character,
                 memory_prompt=self.memory.get_system_prompt(),
@@ -97,6 +105,8 @@ class VoicePipeline:
                 session_id=self.session.session_id,
                 recent_dialogue=self.session.get_recent_dialogue(),
                 user_input=user_text,
+                screen_image_b64=screen_b64,
+                screen_detail=self._screen_detail,
             )
             self.session.add_turn("user", user_text)
 
@@ -146,6 +156,7 @@ class VoicePipeline:
             logger.error(f"响应出错: {e}")
             await send_fn({"type": "error", "payload": {"message": str(e)}})
         finally:
+            self._responding = False
             if not self._interrupted:
                 await send_fn({"type": "status", "payload": {"state": "idle"}})
 
@@ -191,3 +202,75 @@ class VoicePipeline:
             return max(int(Path(path).stat().st_size / 16), 500)
         except Exception:
             return 1000
+
+    # ── 主动说话循环 ──
+
+    _PROACTIVE_SYSTEM_HINT = (
+        "你正在观看用户的屏幕。根据画面内容自然地反应——"
+        "如果画面有趣就评论，如果用户在工作就给建议，"
+        "如果没什么值得说的就回复空字符串。"
+        "保持简短自然，像朋友在旁边看一样。"
+    )
+
+    async def proactive_loop(self, send_fn, send_audio_fn):
+        """主动说话异步循环，由 ws_handler 启动"""
+        logger.info("主动说话循环已启动")
+        try:
+            while True:
+                await asyncio.sleep(3.0)
+                if not self.screen_sense or not self.screen_sense.enabled:
+                    continue
+                if self._responding:
+                    continue
+                if not self.screen_sense.should_trigger():
+                    continue
+
+                frames = self.screen_sense.get_recent_frames(5)
+                if not frames:
+                    continue
+
+                try:
+                    text = await self._proactive_judge(frames)
+                    if text and text.strip():
+                        self.screen_sense.mark_spoken()
+                        await send_fn({
+                            "type": "proactive_speak",
+                            "payload": {"text": text.strip(), "emotion": "neutral"},
+                        })
+                        await self._speak(text.strip(), send_fn, send_audio_fn)
+                        self.session.add_turn("assistant", text.strip())
+                except Exception as e:
+                    logger.error(f"主动说话出错: {e}")
+        except asyncio.CancelledError:
+            logger.info("主动说话循环已停止")
+
+    async def _proactive_judge(self, frames: list[str]) -> str:
+        """把截图发给 LLM，让它决定说不说"""
+        content = []
+        for b64 in frames:
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{b64}",
+                    "detail": self._screen_detail,
+                },
+            })
+        content.append({
+            "type": "text",
+            "text": self._PROACTIVE_SYSTEM_HINT,
+        })
+
+        system_parts = []
+        if self.character.persona:
+            system_parts.append(self.character.persona.strip())
+        system_prompt = "\n\n".join(system_parts) if system_parts else None
+
+        messages = [{"role": "user", "content": content}]
+
+        full = ""
+        async for chunk in self.llm.chat_completion(messages, system=system_prompt):
+            if isinstance(chunk, str):
+                full += chunk
+            elif isinstance(chunk, dict) and chunk.get("type") == "text_delta":
+                full += chunk.get("text", "")
+        return full.strip()

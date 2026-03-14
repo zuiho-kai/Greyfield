@@ -102,3 +102,46 @@ function wsConnect() {
 }
 
 wsConnect();
+
+/**
+ * 屏幕截图定时器 — 每 N 秒截屏并通过 WebSocket 发给后端
+ */
+let screenCaptureTimer = null;
+let screenCaptureEnabled = false;
+const SCREEN_CAPTURE_INTERVAL_MS = 3000;
+
+function startScreenCapture() {
+  if (screenCaptureTimer) return;
+  screenCaptureEnabled = true;
+  screenCaptureTimer = setInterval(async () => {
+    if (!screenCaptureEnabled) return;
+    if (!window.greywind?.captureScreen) return;
+    try {
+      const result = await window.greywind.captureScreen();
+      if (result.ok && result.image_base64) {
+        wsSend({
+          type: "screen_capture",
+          payload: { image_base64: result.image_base64 },
+        });
+      }
+    } catch (err) {
+      console.debug("截屏失败:", err);
+    }
+  }, SCREEN_CAPTURE_INTERVAL_MS);
+}
+
+function stopScreenCapture() {
+  screenCaptureEnabled = false;
+  if (screenCaptureTimer) {
+    clearInterval(screenCaptureTimer);
+    screenCaptureTimer = null;
+  }
+}
+
+// WebSocket 连接成功后自动开始截屏
+wsOn("status", (payload) => {
+  // 连接建立后启动截屏
+  if (!screenCaptureTimer && ws && ws.readyState === WebSocket.OPEN) {
+    startScreenCapture();
+  }
+});

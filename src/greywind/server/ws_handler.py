@@ -1,5 +1,6 @@
 """WebSocket 消息处理器 — 按协议路由消息到 Voice Pipeline"""
 
+import asyncio
 import json
 import base64
 import struct
@@ -17,6 +18,26 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
     pipeline = VoicePipeline(ctx)
     logger.info("WebSocket 连接已建立（独立 pipeline）")
     chunk_count = 0
+    proactive_task = None
+
+    # 如果屏幕感知已启用，启动主动说话循环
+    if pipeline.screen_sense and pipeline.screen_sense.enabled:
+        async def send_msg_safe(msg: dict):
+            try:
+                await ws.send_json(msg)
+            except Exception:
+                pass
+
+        async def send_audio_safe(audio_bytes: bytes, payload: dict):
+            try:
+                await ws.send_json({"type": "reply_audio_meta", "payload": payload})
+                await ws.send_bytes(audio_bytes)
+            except Exception:
+                pass
+
+        proactive_task = asyncio.create_task(
+            pipeline.proactive_loop(send_msg_safe, send_audio_safe)
+        )
 
     async def send_msg(msg: dict):
         await ws.send_json(msg)
@@ -56,6 +77,11 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                         logger.debug(f"audio_chunk #{chunk_count}, samples={len(audio_floats)}, rms={rms:.4f}")
                     await pipeline.feed_audio(audio_floats, send_msg, send_audio)
 
+            elif msg_type == "screen_capture":
+                image_b64 = payload.get("image_base64", "")
+                if image_b64 and pipeline.screen_sense:
+                    pipeline.screen_sense.receive_frame(image_b64)
+
             elif msg_type == "interrupt":
                 await pipeline.interrupt()
 
@@ -64,12 +90,16 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
 
     except WebSocketDisconnect:
         logger.info("WebSocket 连接断开")
+        if proactive_task:
+            proactive_task.cancel()
         try:
             await pipeline.interrupt()
         except Exception as e:
             logger.debug(f"disconnect cleanup error: {e}")
     except Exception as e:
         logger.error(f"WebSocket 错误: {e}")
+        if proactive_task:
+            proactive_task.cancel()
 
 
 def _pcm16_to_floats(data: bytes) -> list[float]:
