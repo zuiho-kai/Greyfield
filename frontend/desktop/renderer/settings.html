@@ -125,7 +125,8 @@
       };
       try {
         await window.settingsAPI.updateScreenSettings(data);
-        statusEl.textContent = "已保存";
+        statusEl.textContent = "已保存（即时生效）";
+        statusEl.style.color = "#68d391";
         setTimeout(() => { statusEl.textContent = ""; }, 2000);
       } catch (e) {
         statusEl.textContent = "保存失败: " + e.message;

@@ -32,11 +32,12 @@ class ScreenSense:
         self._active_window_filter = active_window_filter
         self._last_speak_time: float = 0.0
         self._frames_since_trigger: int = 0
-        self._last_thumb = None  # 上一帧缩略图，用于差异检测
+        # 按 screen_index 维护独立的差异检测状态，避免多屏交替污染
+        self._last_thumbs: dict[int, object] = {}
         self._last_window_title: str = ""
         self._enabled = True
 
-    def receive_frame(self, image_b64: str, window_title: str = "") -> bool:
+    def receive_frame(self, image_b64: str, window_title: str = "", screen_index: int = 0) -> bool:
         """收到一帧截图，做差异检测，返回是否被采纳（非重复帧）"""
         if not self._enabled:
             return False
@@ -48,13 +49,14 @@ class ScreenSense:
         if Image is not None:
             try:
                 thumb = self._make_thumbnail(image_b64)
-                if self._last_thumb is not None:
-                    diff = self._pixel_diff(self._last_thumb, thumb)
+                last_thumb = self._last_thumbs.get(screen_index)
+                if last_thumb is not None:
+                    diff = self._pixel_diff(last_thumb, thumb)
                     if self._active_window_filter and not title_changed and diff < self._diff_threshold:
                         return False
                     if not self._active_window_filter and diff < self._diff_threshold:
                         return False
-                self._last_thumb = thumb
+                self._last_thumbs[screen_index] = thumb
             except Exception as e:
                 logger.debug(f"截图差异检测失败，直接采纳: {e}")
 
@@ -90,7 +92,7 @@ class ScreenSense:
         """清空缓冲区"""
         self._buffer.clear()
         self._frames_since_trigger = 0
-        self._last_thumb = None
+        self._last_thumbs.clear()
 
     @property
     def enabled(self) -> bool:

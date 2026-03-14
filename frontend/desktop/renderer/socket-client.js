@@ -134,14 +134,15 @@ function startScreenCapture(intervalMs, monitor) {
     try {
       const result = await window.greywind.captureScreen({ monitor: screenMonitorMode });
       if (result.ok) {
-        // 多屏模式：逐个发送每块屏幕的截图
+        // 多屏模式：逐个发送每块屏幕的截图，带 screen_index 区分
         const screens = result.all_screens || (result.image_base64 ? [result.image_base64] : []);
-        for (const img of screens) {
+        for (let i = 0; i < screens.length; i++) {
           wsSend({
             type: "screen_capture",
             payload: {
-              image_base64: img,
+              image_base64: screens[i],
               window_title: result.window_title || "",
+              screen_index: i,
             },
           });
         }
@@ -158,4 +159,28 @@ function stopScreenCapture() {
     clearInterval(screenCaptureTimer);
     screenCaptureTimer = null;
   }
+}
+
+// 监听设置页面变更，即时响应 enabled 开关
+if (window.greywind?.onScreenSettingsChanged) {
+  window.greywind.onScreenSettingsChanged((data) => {
+    if (data.enabled === false) {
+      stopScreenCapture();
+    } else if (data.enabled === true && !screenCaptureTimer) {
+      // 重新从 health API 获取配置启动截屏
+      fetch("http://127.0.0.1:12393/health")
+        .then((r) => r.json())
+        .then((h) => {
+          const interval = (h.screen && h.screen.capture_interval)
+            ? h.screen.capture_interval * 1000
+            : SCREEN_CAPTURE_INTERVAL_MS;
+          const monitor = (h.screen && h.screen.monitor) || "active";
+          startScreenCapture(interval, monitor);
+        })
+        .catch(() => startScreenCapture(SCREEN_CAPTURE_INTERVAL_MS));
+    }
+    if (data.monitor) {
+      screenMonitorMode = data.monitor;
+    }
+  });
 }

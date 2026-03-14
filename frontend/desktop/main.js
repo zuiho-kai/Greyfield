@@ -564,7 +564,12 @@ function createWindow() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      return await res.json();
+      const result = await res.json();
+      // 通知主窗口 renderer 即时响应设置变更（尤其是 enabled 开关）
+      if (win && !win.isDestroyed()) {
+        win.webContents.send("screen-settings-changed", data);
+      }
+      return result;
     } catch (err) {
       return { error: err?.message || String(err) };
     }
