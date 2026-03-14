@@ -156,8 +156,14 @@ initLive2D();
     setIgnore(!isOpaqueAt(e.clientX, e.clientY));
   }, { passive: true });
 
-  document.addEventListener("mouseup", () => {
+  document.addEventListener("mouseup", (e) => {
     dragging = false;
+    // 松手后立即按当前位置重新判定穿透状态
+    if (isInInputArea(e.target) || isInChatMsg(e.target)) {
+      setIgnore(false);
+    } else {
+      setIgnore(!isOpaqueAt(e.clientX, e.clientY));
+    }
   });
 
   // 鼠标离开窗口时恢复穿透并停止拖拽

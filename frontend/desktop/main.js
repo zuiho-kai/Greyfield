@@ -432,8 +432,13 @@ function createWindow() {
     },
   });
 
-  // 默认穿透，forward: true 让渲染进程仍能收到鼠标事件用于像素检测
-  win.setIgnoreMouseEvents(true, { forward: true });
+  // forward 仅 win32/darwin 支持，Linux 不启用穿透避免死锁
+  const supportsForward = process.platform === "win32" || process.platform === "darwin";
+  if (supportsForward) {
+    win.setIgnoreMouseEvents(true, { forward: true });
+  } else {
+    win.setIgnoreMouseEvents(false);
+  }
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
   if (process.argv.includes("--dev")) {
