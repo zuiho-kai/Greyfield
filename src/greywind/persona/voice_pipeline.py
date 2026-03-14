@@ -14,29 +14,42 @@ _STRAY_TAG_RE = re.compile(r"</?(think|text|thought)>", re.IGNORECASE)
 _CONTROL_TOKEN_RE = re.compile(r"<\|[^|]*\|>")
 
 
-def _strip_think_streaming(text: str, inside: bool) -> tuple[str, bool]:
-    """流式过滤 think block，返回 (过滤后文本, 是否仍在 think block 内)。
+def _strip_think_streaming(
+    text: str, inside: bool, pending: str = ""
+) -> tuple[str, bool, str]:
+    """流式过滤 think block，返回 (过滤后文本, 是否仍在 think block 内, 待定缓冲)。
 
-    逐 chunk 调用，跨片段也能正确过滤 <think>...</think> 内容。
+    逐 chunk 调用，正确处理标签被 chunk 边界拆开的情况（如 ``</thi`` + ``nk>``）。
+    ``pending`` 保存上次 chunk 末尾可能是不完整标签的部分，下次调用时拼接继续解析。
     """
+    text = pending + text
     result: list[str] = []
     i = 0
     while i < len(text):
         if inside:
             end = text.find("</think>", i)
             if end == -1:
+                # 检查末尾是否有 </think> 的不完整前缀
+                for k in range(min(len("</think>") - 1, len(text) - i), 0, -1):
+                    if "</think>"[:k] == text[-k:]:
+                        return "".join(result), True, text[-k:]
                 break  # 整个 chunk 都在 think block 内，全部丢弃
             i = end + len("</think>")
             inside = False
         else:
             start = text.find("<think>", i)
             if start == -1:
+                # 检查末尾是否有 <think> 的不完整前缀
+                for k in range(min(len("<think>") - 1, len(text) - i), 0, -1):
+                    if "<think>"[:k] == text[-k:]:
+                        result.append(text[i:-k])
+                        return "".join(result), False, text[-k:]
                 result.append(text[i:])
                 break
             result.append(text[i:start])
             i = start + len("<think>")
             inside = True
-    return "".join(result), inside
+    return "".join(result), inside, ""
 
 
 class VoicePipeline:
@@ -137,6 +150,7 @@ class VoicePipeline:
             full_response = ""
             sentence_buffer = ""
             in_think_block = False  # 流式 think block 过滤状态
+            think_pending = ""  # 跨 chunk 不完整标签缓冲
             await send_fn({"type": "status", "payload": {"state": "speaking"}})
 
             async for chunk in self.llm.chat_completion(
@@ -155,8 +169,8 @@ class VoicePipeline:
                     continue
                 full_response += text
                 # 流式过滤 think block：在句子拆分前剥离，防止跨片段泄漏
-                text, in_think_block = _strip_think_streaming(
-                    text, in_think_block
+                text, in_think_block, think_pending = _strip_think_streaming(
+                    text, in_think_block, think_pending
                 )
                 if not text:
                     continue
