@@ -21,6 +21,10 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
     async def send_msg(msg: dict):
         await ws.send_json(msg)
 
+    async def send_audio(audio_bytes: bytes, payload: dict):
+        await ws.send_json({"type": "reply_audio_meta", "payload": payload})
+        await ws.send_bytes(audio_bytes)
+
     try:
         while True:
             raw = await ws.receive_text()
@@ -35,7 +39,7 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
             if msg_type == "text_input":
                 text = payload.get("text", "").strip()
                 if text:
-                    await pipeline.handle_text(text, send_msg)
+                    await pipeline.handle_text(text, send_msg, send_audio)
 
             elif msg_type == "audio_chunk":
                 audio_b64 = payload.get("audio_base64", "")
@@ -50,7 +54,7 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                     if chunk_count % 50 == 1:
                         rms = np.sqrt(np.mean(np.array(audio_floats) ** 2))
                         logger.debug(f"audio_chunk #{chunk_count}, samples={len(audio_floats)}, rms={rms:.4f}")
-                    await pipeline.feed_audio(audio_floats, send_msg)
+                    await pipeline.feed_audio(audio_floats, send_msg, send_audio)
 
             elif msg_type == "interrupt":
                 await pipeline.interrupt()
@@ -60,6 +64,10 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
 
     except WebSocketDisconnect:
         logger.info("WebSocket 连接断开")
+        try:
+            await pipeline.interrupt()
+        except Exception as e:
+            logger.debug(f"disconnect cleanup error: {e}")
     except Exception as e:
         logger.error(f"WebSocket 错误: {e}")
 

@@ -1,7 +1,6 @@
 """Voice Pipeline — VAD->ASR->LLM->TTS 流式语音管线"""
 
 import asyncio
-import base64
 import re
 from pathlib import Path
 
@@ -40,7 +39,7 @@ class VoicePipeline:
         except Exception:
             return None
 
-    async def feed_audio(self, audio_floats, send_fn):
+    async def feed_audio(self, audio_floats, send_fn, send_audio_fn):
         """音频 -> VAD -> ASR -> 响应"""
         if not self.vad or not self.asr:
             return
@@ -59,17 +58,19 @@ class VoicePipeline:
                 await send_fn(
                     {"type": "transcript", "payload": {"text": text, "is_final": True}}
                 )
-                self._start_response(text, send_fn)
+                self._start_response(text, send_fn, send_audio_fn)
 
-    async def handle_text(self, text: str, send_fn):
+    async def handle_text(self, text: str, send_fn, send_audio_fn):
         """文字 -> 响应"""
         await self.interrupt()
-        self._start_response(text, send_fn)
+        self._start_response(text, send_fn, send_audio_fn)
 
-    def _start_response(self, text, send_fn):
+    def _start_response(self, text, send_fn, send_audio_fn):
         if self._response_task and not self._response_task.done():
             self._response_task.cancel()
-        self._response_task = asyncio.create_task(self._respond(text, send_fn))
+        self._response_task = asyncio.create_task(
+            self._respond(text, send_fn, send_audio_fn)
+        )
 
     async def interrupt(self):
         self._interrupted = True
@@ -81,7 +82,7 @@ class VoicePipeline:
                 pass
         self._interrupted = False
 
-    async def _respond(self, user_text, send_fn):
+    async def _respond(self, user_text, send_fn, send_audio_fn):
         self._interrupted = False
         try:
             await send_fn({"type": "status", "payload": {"state": "thinking"}})
@@ -128,11 +129,11 @@ class VoicePipeline:
                 if len(sentences) > 1:
                     for s in sentences[:-1]:
                         if s.strip():
-                            await self._speak(s.strip(), send_fn)
+                            await self._speak(s.strip(), send_fn, send_audio_fn)
                     sentence_buffer = sentences[-1]
 
             if sentence_buffer.strip() and not self._interrupted:
-                await self._speak(sentence_buffer.strip(), send_fn)
+                await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
             if full_response and not self._interrupted:
                 self.session.add_turn("assistant", full_response)
         except asyncio.CancelledError:
@@ -144,7 +145,7 @@ class VoicePipeline:
             if not self._interrupted:
                 await send_fn({"type": "status", "payload": {"state": "idle"}})
 
-    async def _speak(self, text, send_fn):
+    async def _speak(self, text, send_fn, send_audio_fn):
         await send_fn(
             {"type": "reply_text", "payload": {"text": text, "emotion": "neutral"}}
         )
@@ -152,17 +153,16 @@ class VoicePipeline:
         try:
             audio_path = await self.tts.async_generate_audio(text)
             if audio_path and not self._interrupted:
-                audio_b64 = self._audio_to_base64(audio_path)
+                audio_bytes = self._read_audio_bytes(audio_path)
                 duration_ms = self._estimate_duration(audio_path)
                 fmt = Path(audio_path).suffix.lstrip(".")  # mp3, wav, etc.
-                await send_fn({
-                    "type": "reply_audio",
-                    "payload": {
-                        "audio_base64": audio_b64,
+                await send_audio_fn(
+                    audio_bytes,
+                    {
                         "format": fmt,
                         "duration_ms": duration_ms,
                     },
-                })
+                )
         except Exception as e:
             logger.error(f"TTS 出错: {e}")
         finally:
@@ -170,9 +170,9 @@ class VoicePipeline:
                 self.tts.remove_file(audio_path)
 
     @staticmethod
-    def _audio_to_base64(path: str) -> str:
+    def _read_audio_bytes(path: str) -> bytes:
         with open(path, "rb") as f:
-            return base64.b64encode(f.read()).decode("ascii")
+            return f.read()
 
     @staticmethod
     def _estimate_duration(path: str) -> int:
