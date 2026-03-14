@@ -66,13 +66,7 @@
 
 ❌ CLAUDE.md 定义了降级链（WebFetch → agent-browser → Scrapling → Playwright），失败后跳过中间步骤直接用 curl
 ✅ 严格按降级链顺序逐步降级，不跳步。curl 不在降级链里，任何时候都不该出现
-> DEV-31 变体：不只是"该用浏览器却用 curl"，而是无视已定义的降级顺序。
-
-**强制检查点（防复发）：**
-- WebFetch 失败的瞬间，下一步必须是 agent-browser，没有例外
-- curl / wget / requests 出现在脑子里 = 红灯，立刻停下，回到降级链
-- 根因：惯性执行——WebFetch 失败后大脑直接跳到"熟悉工具"，没有触发"查降级链"动作
-- 对策：把降级链顺序背下来作为条件反射：WebFetch → agent-browser → Scrapling → Playwright
+> DEV-31 变体：不只是"该用浏览器却用 curl"，而是无视已定义的降级顺序。WebFetch 失败 → 下一步必须是 agent-browser，没有例外
 
 ### DEV-59 抓取失败后编造内容 — "从 URL 推测" `🟢`
 

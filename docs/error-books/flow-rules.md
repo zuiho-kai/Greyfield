@@ -14,7 +14,7 @@
 
 | 文件 | 范围 | 何时读 | 条目 |
 |------|------|--------|------|
-| `flow-gate.md` | 门控/流程执行、用户交互 | 走门控链、等用户确认、准备环境 | DEV-4,5,53,61 |
+| `flow-gate.md` | 门控/流程执行、用户交互 | 走门控链、等用户确认、准备环境 | DEV-4,5,53,61,76 |
 | `flow-code-habit.md` | 代码修改习惯 | 改代码、改文档、修 P0/P1、批量操作 | DEV-6,24,29,47,63,69,72 |
 | `git-worktree.md` | git/worktree/CR 流程 | CR 处理、worktree 操作、分支管理 | DEV-42,67,68,74 |
 | `build-packaging.md` | 构建/打包 | 改构建脚本、electron-builder 打包 | DEV-64,65,75 |
