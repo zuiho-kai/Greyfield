@@ -9,6 +9,7 @@
 | DEV-42 | 对话开头环境指令未执行就动手 | git/CR | 🟢 | git-worktree.md |
 | DEV-53 | 问了用户但不等回答就自己执行 | 门控/流程 | 🟢 | flow-gate.md |
 | DEV-61 | 交付前不做开发自验证 | 门控/流程 | 🟢 | flow-gate.md |
+| DEV-80 | 实现前未横向对比同类项目方案 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-6 | 改代码不 grep 引用/不复用 pattern | 代码习惯 | 🟡×3 | flow-code-habit.md |
 | DEV-24 | 更新文档只改局部不扫全文 | 代码习惯 | 🟡×4 | flow-code-habit.md |
 | DEV-29 | P0/P1 修复列表漏项+执行碎片化 | 代码习惯 | 🟢 | flow-code-habit.md |

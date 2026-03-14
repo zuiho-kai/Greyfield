@@ -103,18 +103,15 @@ initLive2D();
     window.greywind?.setIgnoreMouse?.(shouldIgnore);
   }
 
-  // 检测 canvas 上 (x, y) 处像素是否不透明
+  // 检测 (x, y) 是否命中模型 — 用 Cubism hitTest 几何检测，避免 readPixels GPU 同步开销
   function isOpaqueAt(x, y) {
-    if (!canvas) return false;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const cx = Math.round((x - rect.left) * dpr);
-    const cy = Math.round((y - rect.top) * dpr);
-    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
-    if (!gl) return false;
-    const pixel = new Uint8Array(4);
-    gl.readPixels(cx, gl.drawingBufferHeight - cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-    return pixel[3] > ALPHA_THRESHOLD;
+    if (!live2dModel) return false;
+    // 优先用模型 JSON 定义的 hitArea AABB
+    const hits = live2dModel.hitTest(x, y);
+    if (hits && hits.length > 0) return true;
+    // 兜底：模型无 hitArea 时用全局包围盒
+    const b = live2dModel.getBounds();
+    return x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
   }
 
   // 检测是否在输入区域内
