@@ -250,8 +250,11 @@ cd frontend/desktop && npm start
 
 ```bash
 git clone https://github.com/zuiho-kai/Greyfield.git
-cd Greyfield
-git checkout -b feat/your-feature
+
+# 用 worktree 隔离开发（见 docs/worktree-workflow.md）
+git worktree add ../Greyfield-<短名> -b feat/your-feature master
+
+cd ../Greyfield-<短名>
 
 # 安装依赖
 uv sync
