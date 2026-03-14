@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import platform
 import shutil
 import sys
 import urllib.request
@@ -56,9 +55,28 @@ def validate_site_packages(site_packages: Path) -> None:
         )
 
 
+def venv_python_version(venv_dir: Path) -> str:
+    """从 .venv 的解释器获取 Python 版本，确保与 site-packages ABI 一致。"""
+    import subprocess
+
+    python_exe = venv_dir / "Scripts" / "python.exe"
+    if not python_exe.exists():
+        raise SystemExit(f"Missing python.exe in {venv_dir / 'Scripts'}. Run `uv sync` before packaging.")
+    result = subprocess.run(
+        [str(python_exe), "-c", "import platform; print(platform.python_version())"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"Failed to get Python version from .venv: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
 def build_metadata() -> dict[str, str]:
+    venv_dir = source_venv_dir()
     return {
-        "python_version": platform.python_version(),
+        "python_version": venv_python_version(venv_dir),
         "lock_hash": file_sha256(REPO_ROOT / "uv.lock"),
     }
 

@@ -18,12 +18,12 @@ function resolvePythonExecutable({
     resourcesPath || projectRoot,
     "backend",
     "python",
-    isWin ? "python.exe" : "bin/python3"
+    isWin ? "python.exe" : path.join("bin", "python3")
   );
   const devPython = path.join(
     projectRoot,
     ".venv",
-    isWin ? "Scripts\\python.exe" : "bin/python"
+    isWin ? path.join("Scripts", "python.exe") : path.join("bin", "python")
   );
 
   if (isPackaged) {
