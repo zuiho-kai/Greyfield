@@ -8,7 +8,7 @@ let pendingAudioMeta = null;
 const listeners = {};
 const sendQueue = [];
 // 实时流消息不缓冲，断线时直接丢弃
-const REALTIME_TYPES = new Set(["audio_chunk"]);
+const REALTIME_TYPES = new Set(["audio_chunk", "screen_capture"]);
 const SEND_QUEUE_MAX = 50;
 
 function wsOn(type, fn) {
@@ -49,6 +49,7 @@ function wsConnect() {
       reconnectTimer = null;
     }
     flushSendQueue();
+    startScreenCapture();
     fetch("http://127.0.0.1:12393/health")
       .then((r) => r.json())
       .then((data) => {
@@ -68,6 +69,7 @@ function wsConnect() {
 
   ws.onclose = () => {
     pendingAudioMeta = null;
+    stopScreenCapture();
     document.getElementById("status-bar").textContent =
       "已断开 - 重连中...";
     reconnectTimer = setTimeout(wsConnect, 3000);
@@ -137,11 +139,3 @@ function stopScreenCapture() {
     screenCaptureTimer = null;
   }
 }
-
-// WebSocket 连接成功后自动开始截屏
-wsOn("status", (payload) => {
-  // 连接建立后启动截屏
-  if (!screenCaptureTimer && ws && ws.readyState === WebSocket.OPEN) {
-    startScreenCapture();
-  }
-});

@@ -233,13 +233,23 @@ class VoicePipeline:
                     text = await self._proactive_judge(frames)
                     if text and text.strip():
                         self.screen_sense.mark_spoken()
-                        await send_fn({
-                            "type": "proactive_speak",
-                            "payload": {"text": text.strip(), "emotion": "neutral"},
-                        })
-                        await self._speak(text.strip(), send_fn, send_audio_fn)
-                        self.session.add_turn("assistant", text.strip())
+                        self._responding = True
+                        self._interrupted = False
+                        try:
+                            await send_fn({
+                                "type": "proactive_speak",
+                                "payload": {"text": text.strip(), "emotion": "neutral"},
+                            })
+                            if not self._interrupted:
+                                await self._speak(text.strip(), send_fn, send_audio_fn)
+                            if not self._interrupted:
+                                self.session.add_turn("assistant", text.strip())
+                        finally:
+                            self._responding = False
+                except asyncio.CancelledError:
+                    raise
                 except Exception as e:
+                    self._responding = False
                     logger.error(f"主动说话出错: {e}")
         except asyncio.CancelledError:
             logger.info("主动说话循环已停止")
