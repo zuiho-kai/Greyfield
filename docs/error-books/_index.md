@@ -4,7 +4,7 @@
 
 | 编号 | 一句话 | 标签 | 频率 | 文件 |
 |------|--------|------|------|------|
-| DEV-4 | 跳过流程门控直接编码 | 通用/流程 | 🔴×17 | flow-gate.md |
+| DEV-4 | 跳过流程门控直接编码 | 通用/流程 | 🔴×18 | flow-gate.md |
 | DEV-5 | 实施不遵循设计文档 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-6 | 改代码不 grep 引用/不复用 pattern | 通用/流程 | 🟡×3 | flow-code-habit.md |
 | DEV-24 | 更新文档只改局部不扫全文 | 通用/流程 | 🟡×2 | flow-code-habit.md |
@@ -13,9 +13,12 @@
 | DEV-47 | 批量/seed 幂等设计未考虑"部分成功" | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-60 | 隔离对象但共享有状态引用 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-63 | Review 评论不贴合现状时未做等价落地 | 通用/流程 | 🟢 | flow-code-habit.md |
-| DEV-64 | 构建脚本数据源与运行时环境不一致 | 通用/流程 | 🟡×2 | flow-code-habit.md |
+| DEV-64 | 构建脚本数据源与运行时环境不一致 | 通用/流程 | 🟡×3 | flow-code-habit.md |
+| DEV-67 | worktree 操作前未确认当前分支 | 通用/流程 | 🟢 | flow-code-habit.md |
+| DEV-68 | CR 处理只推代码不回复 review | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-65 | 跨平台路径拼接用了宿主机 path API | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-66 | 实时通道断线缓冲未区分消息时效性 | 通用/流程 | 🟢 | flow-code-habit.md |
+| DEV-69 | 文档中硬编码环境相关值（分支名、路径格式） | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-53 | 问了用户但不等回答就自己执行 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-61 | 交付前不做开发自验证 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-3 | 联调问题用双终端来回排查 | 通用/工具 | 🟢 | tool-rules.md |
