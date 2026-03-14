@@ -22,6 +22,7 @@
 | DEV-67 | worktree 操作前未确认当前分支 | git/CR | 🟢 | git-worktree.md |
 | DEV-74 | 主仓库里 checkout 切分支污染工作区 | git/CR | 🟢 | git-worktree.md |
 | DEV-68 | CR 处理未完成闭环 | git/CR | 🟢 | git-worktree.md |
+| DEV-79 | 操作 PR 前未确认 head branch | git/CR | 🟢 | git-worktree.md |
 | DEV-76 | worktree 改完直接本地 merge 跳过 PR | git/CR | 🟢 | git-worktree.md |
 | DEV-64 | 构建脚本数据源与运行时环境不一致 | 构建/打包 | 🟡×3 | build-packaging.md |
 | DEV-65 | 跨平台路径拼接用了宿主机 path API | 构建/打包 | 🟢 | build-packaging.md |
