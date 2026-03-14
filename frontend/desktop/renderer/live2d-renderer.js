@@ -36,7 +36,8 @@ async function initLive2D() {
   const dpr = renderCfg.hiDpi ? (window.devicePixelRatio || 1) : 1;
   const app = new PIXI.Application({
     view: canvas,
-    resizeTo: canvas.parentElement,
+    width: canvas.parentElement.clientWidth,
+    height: canvas.parentElement.clientHeight,
     backgroundAlpha: 0,
     antialias: false,
     resolution: dpr,
@@ -60,7 +61,10 @@ async function initLive2D() {
     app.stage.addChild(model);
     placeholder.style.display = "none";
 
-    window.addEventListener("resize", () => fitModel(app, model));
+    window.addEventListener("resize", () => {
+      app.renderer.resize(canvas.parentElement.clientWidth, canvas.parentElement.clientHeight);
+      fitModel(app, model);
+    });
 
     console.log("Live2D 模型加载成功");
   } catch (e) {
