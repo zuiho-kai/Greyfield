@@ -180,6 +180,9 @@ def stage_python_runtime() -> None:
 def stage_backend_files() -> None:
     ensure_dir(RUNTIME_ROOT)
     copy_tree(REPO_ROOT / "src", RUNTIME_ROOT / "src")
+    models_src = REPO_ROOT / "models"
+    if models_src.exists():
+        copy_tree(models_src, RUNTIME_ROOT / "models")
     shutil.copy2(REPO_ROOT / "pyproject.toml", RUNTIME_ROOT / "pyproject.toml")
 
     config_src = REPO_ROOT / "conf.yaml"

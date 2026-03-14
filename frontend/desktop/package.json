@@ -7,13 +7,14 @@
     "start": "electron .",
     "prepare:backend-runtime": "python scripts/prepare_backend_runtime.py",
     "build": "npm run prepare:backend-runtime && electron-builder --win",
-    "build:dir": "npm run prepare:backend-runtime && electron-builder --win --dir"
+    "build:dir": "npm run prepare:backend-runtime && electron-builder --win --dir",
+    "build:portable": "npm run prepare:backend-runtime && electron-builder --win portable"
   },
   "build": {
     "appId": "com.greywind.desktop",
     "productName": "灰风",
     "directories": {
-      "output": "../../dist"
+      "output": "../.."
     },
     "win": {
       "target": "nsis",
@@ -23,6 +24,9 @@
       "oneClick": true,
       "allowToChangeInstallationDirectory": false,
       "shortcutName": "灰风"
+    },
+    "portable": {
+      "artifactName": "灰风.exe"
     },
     "files": [
       "main.js",

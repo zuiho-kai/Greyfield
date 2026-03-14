@@ -3,6 +3,9 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+win-unpacked/
+灰风.exe
+灰风 Setup*.exe
 cache/
 .env
 *.db

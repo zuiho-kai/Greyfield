@@ -1,0 +1,84 @@
+name: 出包
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: '打包类型 (portable=单文件exe / installer=安装包 / dir=解压目录)'
+        required: false
+        default: 'portable'
+        type: choice
+        options:
+          - portable
+          - installer
+          - dir
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: 恢复 .venv 缓存
+        id: cache-venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: 安装 Python 依赖
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: uv sync --no-dev --frozen
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/desktop/package-lock.json
+
+      - name: npm install
+        working-directory: frontend/desktop
+        run: npm ci
+
+      - name: 准备 conf.yaml
+        run: cp conf.example.yaml conf.yaml
+
+      - name: 打包 (portable)
+        if: ${{ github.event.inputs.build_type == 'portable' || github.event.inputs.build_type == '' }}
+        working-directory: frontend/desktop
+        env:
+          ELECTRON_BUILDER_DISABLE_SIGN: true
+        run: npm run build:portable
+
+      - name: 打包 (installer)
+        if: ${{ github.event.inputs.build_type == 'installer' }}
+        working-directory: frontend/desktop
+        env:
+          ELECTRON_BUILDER_DISABLE_SIGN: true
+        run: npm run build
+
+      - name: 打包 (dir)
+        if: ${{ github.event.inputs.build_type == 'dir' }}
+        working-directory: frontend/desktop
+        env:
+          ELECTRON_BUILDER_DISABLE_SIGN: true
+        run: npm run build:dir
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: greywind-${{ github.sha }}
+          path: |
+            灰风.exe
+            灰风 Setup*.exe
+            win-unpacked/
+          if-no-files-found: warn
+          retention-days: 14
