@@ -246,6 +246,9 @@ class VoicePipeline:
                                 self.session.add_turn("assistant", text.strip())
                         finally:
                             self._responding = False
+                    else:
+                        # LLM 判断无需说话，重置计数器避免重复触发
+                        self.screen_sense._frames_since_trigger = 0
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:

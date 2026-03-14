@@ -67,7 +67,8 @@ function wsConnect() {
           const interval = (data.screen && data.screen.capture_interval)
             ? data.screen.capture_interval * 1000
             : SCREEN_CAPTURE_INTERVAL_MS;
-          startScreenCapture(interval);
+          const monitor = (data.screen && data.screen.monitor) || "active";
+          startScreenCapture(interval, monitor);
         }
       })
       .catch(() => {
@@ -119,17 +120,19 @@ wsConnect();
  */
 let screenCaptureTimer = null;
 let screenCaptureEnabled = false;
+let screenMonitorMode = "active";
 const SCREEN_CAPTURE_INTERVAL_MS = 3000; // fallback default
 
-function startScreenCapture(intervalMs) {
+function startScreenCapture(intervalMs, monitor) {
   if (screenCaptureTimer) return;
   const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
+  if (monitor) screenMonitorMode = monitor;
   screenCaptureEnabled = true;
   screenCaptureTimer = setInterval(async () => {
     if (!screenCaptureEnabled) return;
     if (!window.greywind?.captureScreen) return;
     try {
-      const result = await window.greywind.captureScreen();
+      const result = await window.greywind.captureScreen({ monitor: screenMonitorMode });
       if (result.ok && result.image_base64) {
         wsSend({
           type: "screen_capture",

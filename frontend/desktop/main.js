@@ -495,8 +495,10 @@ function createWindow() {
   ipcMain.on("chat-history:append", (_, entry) => {
     appendHistory(entry);
   });
-  ipcMain.handle("screen:capture", async () => {
+  ipcMain.handle("screen:capture", async (_, opts) => {
     try {
+      const monitorMode = (opts && opts.monitor) || "active";
+
       // 隐藏灰风窗口避免截到自己
       const wasVisible = win.isVisible();
       if (wasVisible) win.setOpacity(0);
@@ -510,18 +512,22 @@ function createWindow() {
       if (wasVisible) win.setOpacity(1);
       if (!sources.length) return { ok: false, error: "无法获取屏幕源" };
 
-      // 多屏幕：找鼠标所在屏幕对应的 source
-      const cursorPoint = screen.getCursorScreenPoint();
-      const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
-      let source = sources[0]; // fallback
-      for (const s of sources) {
-        if (s.display_id === String(activeDisplay.id)) {
-          source = s;
-          break;
-        }
+      let selectedSources;
+      if (monitorMode === "all") {
+        selectedSources = sources;
+      } else if (monitorMode === "primary") {
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const found = sources.find((s) => s.display_id === String(primaryDisplay.id));
+        selectedSources = [found || sources[0]];
+      } else {
+        // active: 鼠标所在屏幕
+        const cursorPoint = screen.getCursorScreenPoint();
+        const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
+        const found = sources.find((s) => s.display_id === String(activeDisplay.id));
+        selectedSources = [found || sources[0]];
       }
 
-      const b64 = source.thumbnail.toJPEG(60).toString("base64");
+      const b64 = selectedSources[0].thumbnail.toJPEG(60).toString("base64");
       return { ok: true, image_base64: b64, window_title: cachedForegroundTitle };
     } catch (err) {
       win.setOpacity(1);

@@ -42,6 +42,7 @@ async def health():
         }
         screen_cfg = {
             "capture_interval": _ctx.config.screen.capture_interval,
+            "monitor": _ctx.config.screen.monitor,
         }
     return {
         "status": "ok",
@@ -98,6 +99,9 @@ async def update_screen_settings(body: dict):
         cfg.enabled = val
         if ss:
             ss.enabled = val
+
+    # 注意：enabled 的实际生效需要重新连接 WebSocket，
+    # 因为 ScreenSense 是每连接创建的，这里只更新配置供下次连接使用
 
     return {"ok": True}
 
