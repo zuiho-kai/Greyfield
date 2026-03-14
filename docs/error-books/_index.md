@@ -15,6 +15,7 @@
 | DEV-63 | Review 评论不贴合现状时未做等价落地 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-64 | 构建脚本数据源与运行时环境不一致 | 通用/流程 | 🟡×2 | flow-code-habit.md |
 | DEV-65 | 跨平台路径拼接用了宿主机 path API | 通用/流程 | 🟢 | flow-code-habit.md |
+| DEV-66 | 实时通道断线缓冲未区分消息时效性 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-53 | 问了用户但不等回答就自己执行 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-61 | 交付前不做开发自验证 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-3 | 联调问题用双终端来回排查 | 通用/工具 | 🟢 | tool-rules.md |
