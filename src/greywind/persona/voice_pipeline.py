@@ -14,6 +14,31 @@ _STRAY_TAG_RE = re.compile(r"</?(think|text|thought)>", re.IGNORECASE)
 _CONTROL_TOKEN_RE = re.compile(r"<\|[^|]*\|>")
 
 
+def _strip_think_streaming(text: str, inside: bool) -> tuple[str, bool]:
+    """流式过滤 think block，返回 (过滤后文本, 是否仍在 think block 内)。
+
+    逐 chunk 调用，跨片段也能正确过滤 <think>...</think> 内容。
+    """
+    result: list[str] = []
+    i = 0
+    while i < len(text):
+        if inside:
+            end = text.find("</think>", i)
+            if end == -1:
+                break  # 整个 chunk 都在 think block 内，全部丢弃
+            i = end + len("</think>")
+            inside = False
+        else:
+            start = text.find("<think>", i)
+            if start == -1:
+                result.append(text[i:])
+                break
+            result.append(text[i:start])
+            i = start + len("<think>")
+            inside = True
+    return "".join(result), inside
+
+
 class VoicePipeline:
     def __init__(self, ctx):
         # 无状态引擎：共享
@@ -111,6 +136,7 @@ class VoicePipeline:
 
             full_response = ""
             sentence_buffer = ""
+            in_think_block = False  # 流式 think block 过滤状态
             await send_fn({"type": "status", "payload": {"state": "speaking"}})
 
             async for chunk in self.llm.chat_completion(
@@ -128,6 +154,12 @@ class VoicePipeline:
                 if not text:
                     continue
                 full_response += text
+                # 流式过滤 think block：在句子拆分前剥离，防止跨片段泄漏
+                text, in_think_block = _strip_think_streaming(
+                    text, in_think_block
+                )
+                if not text:
+                    continue
                 sentence_buffer += text
                 sentences = SENTENCE_DELIMITERS.split(sentence_buffer)
                 if len(sentences) > 1:
