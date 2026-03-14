@@ -219,6 +219,29 @@ function resolveHistoryFilePath() {
   return path.join(dir, "history.json");
 }
 
+function resolveRenderSettingsPath() {
+  const base = app.isPackaged ? app.getPath("userData") : PROJECT_ROOT;
+  return path.join(base, "cache", "render-settings.json");
+}
+
+const DEFAULT_RENDER_SETTINGS = { hiDpi: false, bubbleBlur: true };
+
+function loadRenderSettings() {
+  try {
+    const p = resolveRenderSettingsPath();
+    if (fs.existsSync(p)) return { ...DEFAULT_RENDER_SETTINGS, ...JSON.parse(fs.readFileSync(p, "utf8")) };
+  } catch (_) {}
+  return { ...DEFAULT_RENDER_SETTINGS };
+}
+
+function saveRenderSettings(data) {
+  try {
+    const p = resolveRenderSettingsPath();
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify(data, null, 2), "utf8");
+  } catch (_) {}
+}
+
 function ensureHistoryDir() {
   if (!historyFilePath) return;
   fs.mkdirSync(path.dirname(historyFilePath), { recursive: true });
@@ -592,6 +615,16 @@ function createWindow() {
     } catch (err) {
       return { error: err?.message || String(err) };
     }
+  });
+
+  ipcMain.handle("render-settings:get", () => loadRenderSettings());
+  ipcMain.handle("render-settings:update", (_, data) => {
+    const merged = { ...loadRenderSettings(), ...data };
+    saveRenderSettings(merged);
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("render-settings-changed", merged);
+    }
+    return merged;
   });
 
   // 系统托盘

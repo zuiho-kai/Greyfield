@@ -29,6 +29,22 @@
 
   <div class="field">
     <label class="toggle">
+      <input type="checkbox" id="hi_dpi" />
+      高清渲染（HiDPI）
+    </label>
+    <div class="hint">开启后在 2K/4K 屏幕上更清晰，但 GPU 占用更高。重启后生效。</div>
+  </div>
+
+  <div class="field">
+    <label class="toggle">
+      <input type="checkbox" id="bubble_blur" checked />
+      聊天气泡毛玻璃效果
+    </label>
+    <div class="hint">关闭后气泡改为纯色半透明，可降低 GPU 占用。即时生效。</div>
+  </div>
+
+  <div class="field">
+    <label class="toggle">
       <input type="checkbox" id="enabled" checked />
       启用屏幕感知
     </label>
@@ -151,6 +167,33 @@
       document.getElementById("monitor").value = cfg.monitor;
       cooldownSlider.value = cfg.cooldown;
       cooldownVal.textContent = cfg.cooldown;
+    });
+
+    // 渲染设置
+    async function saveRenderSettings() {
+      const data = {
+        hiDpi: document.getElementById("hi_dpi").checked,
+        bubbleBlur: document.getElementById("bubble_blur").checked,
+      };
+      try {
+        await window.settingsAPI.updateRenderSettings(data);
+        statusEl.textContent = "已保存";
+        statusEl.style.color = "#68d391";
+        setTimeout(() => { statusEl.textContent = ""; }, 2000);
+      } catch (e) {
+        statusEl.textContent = "保存失败: " + e.message;
+        statusEl.style.color = "#fc8181";
+      }
+    }
+
+    for (const id of ["hi_dpi", "bubble_blur"]) {
+      document.getElementById(id).addEventListener("change", saveRenderSettings);
+    }
+
+    window.settingsAPI.getRenderSettings().then((cfg) => {
+      if (!cfg) return;
+      document.getElementById("hi_dpi").checked = !!cfg.hiDpi;
+      document.getElementById("bubble_blur").checked = cfg.bubbleBlur !== false;
     });
   </script>
 </body>

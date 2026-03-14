@@ -16,13 +16,29 @@ const { Live2DModel } = PIXI.live2d;
 // pixi-live2d-display 需要注册 Ticker 才能驱动模型更新
 Live2DModel.registerTicker(PIXI.Ticker);
 
+// 应用渲染设置
+function applyRenderSettings(cfg) {
+  // 气泡毛玻璃
+  document.documentElement.style.setProperty(
+    "--msg-blur",
+    cfg.bubbleBlur !== false ? "blur(8px)" : "none"
+  );
+}
+
 async function initLive2D() {
-  const dpr = window.devicePixelRatio || 1;
+  // 读取渲染设置
+  const renderCfg = (await window.greywind?.getRenderSettings?.()) || {};
+  applyRenderSettings(renderCfg);
+
+  // 监听设置变更（即时生效）
+  window.greywind?.onRenderSettingsChanged?.((cfg) => applyRenderSettings(cfg));
+
+  const dpr = renderCfg.hiDpi ? (window.devicePixelRatio || 1) : 1;
   const app = new PIXI.Application({
     view: canvas,
     resizeTo: canvas.parentElement,
     backgroundAlpha: 0,
-    antialias: true,
+    antialias: false,
     resolution: dpr,
     autoDensity: true,
   });
