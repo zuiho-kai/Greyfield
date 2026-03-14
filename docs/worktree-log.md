@@ -4,3 +4,4 @@
 |------|------|----------|----------|------|
 | — | docs/add-error-books | 添加错题本体系和 CLAUDE.md | 2026-03-13 | 进行中 |
 | continue | feat/continue-dev | 独立开发 worktree | 2026-03-13 | 进行中 |
+| cr-32 | fix/pr32-cr | PR #32 CR 修复与流程闭环 | 2026-03-14 | 进行中 |

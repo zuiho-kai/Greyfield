@@ -12,6 +12,7 @@ let modelBaseWidth = 0;
 let modelBaseHeight = 0;
 
 const { Live2DModel } = PIXI.live2d;
+const interactionPolicy = window.GreywindLive2DInteractionPolicy;
 
 // pixi-live2d-display 需要注册 Ticker 才能驱动模型更新
 Live2DModel.registerTicker(PIXI.Ticker);
@@ -37,6 +38,7 @@ async function initLive2D() {
     }
     const model = await Live2DModel.from(result.url);
     live2dModel = model;
+    document.body.dataset.modelReady = "true";
     modelBaseWidth = model.width;
     modelBaseHeight = model.height;
 
@@ -51,6 +53,7 @@ async function initLive2D() {
     console.error("Live2D 模型加载失败:", e);
     const msg = e?.message ? `Live2D: ${e.message}` : "Live2D 模型加载失败";
     placeholder.textContent = msg;
+    document.body.dataset.modelReady = "false";
   }
 }
 
@@ -90,17 +93,43 @@ initLive2D();
 // ── 手动拖拽：在模型不透明区域按住拖动移动窗口 ──
 (function setupClickThrough() {
   const ALPHA_THRESHOLD = 10;
-  let ignoring = true; // 与主进程默认状态一致
+  let modelReady = document.body.dataset.modelReady === "true";
+  let ignoring = interactionPolicy.resolveIgnoreMouseRequest(
+    window.greywind?.platform,
+    true
+  );
 
   // 拖拽状态
   let dragging = false;
   let dragStartScreenX = 0;
   let dragStartScreenY = 0;
 
+  function hasHitTestBackend() {
+    if (!canvas) return false;
+    return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+  }
+
+  function syncFallbackDrag() {
+    modelReady = document.body.dataset.modelReady === "true";
+    const fallbackDrag = interactionPolicy.shouldEnableFallbackDrag({
+      modelReady,
+      hitTestAvailable: hasHitTestBackend(),
+    });
+    document.body.dataset.dragFallback = fallbackDrag ? "true" : "false";
+    if (fallbackDrag) {
+      setIgnore(false);
+    }
+    return fallbackDrag;
+  }
+
   function setIgnore(shouldIgnore) {
-    if (shouldIgnore === ignoring) return;
-    ignoring = shouldIgnore;
-    window.greywind?.setIgnoreMouse?.(shouldIgnore);
+    const nextIgnore = interactionPolicy.resolveIgnoreMouseRequest(
+      window.greywind?.platform,
+      shouldIgnore
+    );
+    if (nextIgnore === ignoring) return;
+    ignoring = nextIgnore;
+    window.greywind?.setIgnoreMouse?.(nextIgnore);
   }
 
   // 检测 canvas 上 (x, y) 处像素是否不透明
@@ -131,6 +160,7 @@ initLive2D();
   // 在模型不透明区域按下时开始拖拽
   document.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return; // 只响应左键
+    if (syncFallbackDrag()) return;
     if (isInInputArea(e.target) || isInChatMsg(e.target)) return;
     if (!isOpaqueAt(e.clientX, e.clientY)) return;
     dragging = true;
@@ -147,6 +177,7 @@ initLive2D();
       window.greywind?.dragMove?.(dx, dy);
       return;
     }
+    if (syncFallbackDrag()) return;
     // 输入区域和聊天气泡始终不穿透
     if (isInInputArea(e.target) || isInChatMsg(e.target)) {
       setIgnore(false);
@@ -158,6 +189,7 @@ initLive2D();
 
   document.addEventListener("mouseup", (e) => {
     dragging = false;
+    if (syncFallbackDrag()) return;
     // 松手后立即按当前位置重新判定穿透状态
     if (isInInputArea(e.target) || isInChatMsg(e.target)) {
       setIgnore(false);
@@ -169,6 +201,10 @@ initLive2D();
   // 鼠标离开窗口时恢复穿透并停止拖拽
   document.addEventListener("mouseleave", () => {
     dragging = false;
-    setIgnore(true);
+    if (!syncFallbackDrag()) {
+      setIgnore(true);
+    }
   }, { passive: true });
+
+  syncFallbackDrag();
 })();
