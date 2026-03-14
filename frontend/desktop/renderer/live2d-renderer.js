@@ -89,7 +89,6 @@ initLive2D();
 // ── 鼠标穿透：透明区域穿透，模型/输入区不穿透 ──
 // ── 手动拖拽：在模型不透明区域按住拖动移动窗口 ──
 (function setupClickThrough() {
-  const ALPHA_THRESHOLD = 10;
   let ignoring = true; // 与主进程默认状态一致
 
   // 拖拽状态
@@ -104,8 +103,9 @@ initLive2D();
   }
 
   // 检测 (x, y) 是否命中模型 — 用 Cubism hitTest 几何检测，避免 readPixels GPU 同步开销
+  // live2dModel 为 null 时（加载中或失败）返回 true，保持窗口可交互
   function isOpaqueAt(x, y) {
-    if (!live2dModel) return false;
+    if (!live2dModel) return true;
     // 优先用模型 JSON 定义的 hitArea AABB
     const hits = live2dModel.hitTest(x, y);
     if (hits && hits.length > 0) return true;
