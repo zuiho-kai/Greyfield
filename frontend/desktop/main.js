@@ -4,11 +4,14 @@ const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
+const { resolveProjectRoot, resolvePythonExecutable } = require("./runtime-paths");
 
 // 打包后后端资源在 resources/backend/；开发时向上两级到项目根
-const PROJECT_ROOT = app.isPackaged
-  ? path.join(process.resourcesPath, "backend")
-  : path.resolve(__dirname, "..", "..");
+const PROJECT_ROOT = resolveProjectRoot({
+  isPackaged: app.isPackaged,
+  resourcesPath: process.resourcesPath,
+  appDir: __dirname,
+});
 let backendProcess = null;
 let backendLogs = [];
 const MAX_LOG_LINES = 200;
@@ -194,22 +197,6 @@ function ensureLive2DModelOnce() {
   return live2dEnsurePromise;
 }
 
-function resolvePythonExecutable() {
-  const isWin = process.platform === "win32";
-  const venvDir = path.join(PROJECT_ROOT, ".venv");
-  const candidates = [
-    path.join(venvDir, isWin ? "Scripts\\python.exe" : "bin/python"),
-    "python",
-  ];
-  for (const candidate of candidates) {
-    if (candidate === "python") {
-      return app.isPackaged ? null : candidate;
-    }
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return app.isPackaged ? null : "python";
-}
-
 function buildBackendEnv() {
   const env = { ...process.env };
   const srcPath = path.join(PROJECT_ROOT, "src");
@@ -300,7 +287,13 @@ function appendHistory(entry) {
 }
 
 function startBackend() {
-  const pythonExe = resolvePythonExecutable();
+  const pythonExe = resolvePythonExecutable({
+    isPackaged: app.isPackaged,
+    projectRoot: PROJECT_ROOT,
+    resourcesPath: process.resourcesPath,
+    platform: process.platform,
+    existsSync: fs.existsSync,
+  });
   if (!pythonExe) {
     backendLogs.push("[ERROR] Missing bundled python runtime.");
     return;

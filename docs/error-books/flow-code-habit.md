@@ -40,3 +40,15 @@
 
 ❌ 只修字面上最容易对齐的 review 评论；评论和当前实现不完全贴合时，既不转译底层要求，也不明确驳回，结果漏掉真正要修的问题
 ✅ review 必须逐条核销。对不完全贴合现状的评论，先提炼底层要求，再选择等价修复或给出明确驳回理由，直到评论线程闭环
+
+### DEV-64 构建脚本数据源与运行时环境不一致 `🟢`
+
+❌ 打包脚本用 `platform.python_version()`（运行脚本的系统 Python）决定下载哪个嵌入式 runtime，但 site-packages 拷贝自 `.venv`，两者版本可能不同导致 ABI 不兼容
+✅ 构建脚本中凡是影响产物兼容性的元数据，必须从产物实际来源获取。拷谁的包就问谁的版本：调用 `.venv` 的解释器获取版本号
+> 归因：想当然认为"跑脚本的 Python = 项目的 Python"，没追数据源一致性
+
+### DEV-65 跨平台路径拼接用了宿主机 path API `🟢`
+
+❌ 函数按参数 `platform` 判断目标是 win32，但用宿主机的 `path.join` 拼路径。在 Linux CI 上构建 Windows 路径会产生混合分隔符（`C:\x\resources/backend/python`）
+✅ 路径拼接涉及目标平台时，用 `path.win32.join` / `path.posix.join` 显式选择，不依赖宿主机默认的 `path.join`。检查点：函数参数里有 `platform` → 路径 API 必须跟着走
+> 归因：`path.join` 的行为取决于 Node 运行的 OS 而非业务逻辑的目标 OS，混淆了"构建环境"与"目标环境"
