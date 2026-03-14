@@ -5,6 +5,10 @@ const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { resolveProjectRoot, resolvePythonExecutable } = require("./runtime-paths");
+const {
+  resolveIgnoreMouseRequest,
+  supportsMouseTransparency,
+} = require("./renderer/live2d-interaction-policy.js");
 
 // 打包后后端资源在 resources/backend/；开发时向上两级到项目根
 const PROJECT_ROOT = resolveProjectRoot({
@@ -479,12 +483,13 @@ function createWindow() {
     },
   });
 
-  // forward 仅 win32/darwin 支持，Linux 不启用穿透避免死锁
-  const supportsForward = process.platform === "win32" || process.platform === "darwin";
+  // forward 仅 win32/darwin 支持，Linux 保持不可穿透，避免无恢复路径
+  const supportsForward = supportsMouseTransparency(process.platform);
+  const initialIgnoreMouse = resolveIgnoreMouseRequest(process.platform, true);
   if (supportsForward) {
-    win.setIgnoreMouseEvents(true, { forward: true });
+    win.setIgnoreMouseEvents(initialIgnoreMouse, { forward: true });
   } else {
-    win.setIgnoreMouseEvents(false);
+    win.setIgnoreMouseEvents(initialIgnoreMouse);
   }
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
@@ -493,9 +498,12 @@ function createWindow() {
   }
 
   ipcMain.on("set-ignore-mouse", (_, ignore) => {
-    // Linux 不支持 forward 选项，ignore=true 后无法收到 mousemove 恢复，窗口会卡死
-    if (process.platform === "linux" && ignore) return;
-    win.setIgnoreMouseEvents(ignore, { forward: true });
+    const nextIgnoreMouse = resolveIgnoreMouseRequest(process.platform, ignore);
+    if (supportsForward) {
+      win.setIgnoreMouseEvents(nextIgnoreMouse, { forward: true });
+      return;
+    }
+    win.setIgnoreMouseEvents(nextIgnoreMouse);
   });
 
   // 手动窗口拖拽：记录起始位置，渲染端发 delta 移动

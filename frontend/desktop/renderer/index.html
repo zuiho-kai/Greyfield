@@ -7,6 +7,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { background: transparent; overflow: hidden; height: 100vh; width: 100vw; }
     body { font-family: system-ui, sans-serif; color: #eee; display: flex; flex-direction: column; }
+    body[data-drag-fallback="true"] #live2d-area { -webkit-app-region: drag; }
 
     #live2d-area { flex: 1; position: relative; overflow: hidden; }
     #live2d-canvas { width: 100%; height: 100%; }
@@ -18,12 +19,14 @@
       max-height: 35%; overflow-y: auto; overflow-x: hidden;
       display: flex; flex-direction: column; gap: 4px;
       pointer-events: none;
+      -webkit-app-region: no-drag;
       scrollbar-width: none;
     }
     #chat-box::-webkit-scrollbar { width: 0; height: 0; }
     .msg {
       padding: 5px 8px; border-radius: 8px; max-width: 80%;
       font-size: 13px; line-height: 1.3; pointer-events: auto;
+      -webkit-app-region: no-drag;
       backdrop-filter: blur(8px);
       transition: opacity 0.25s ease, transform 0.25s ease;
       white-space: pre-wrap; word-break: break-word;
@@ -72,6 +75,7 @@
   <script src="socket-client.js"></script>
   <script src="chat-overlay.js"></script>
   <script src="voice-ui.js"></script>
+  <script src="live2d-interaction-policy.js"></script>
   <script src="live2d-renderer.js"></script>
 </body>
 </html>

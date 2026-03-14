@@ -12,6 +12,7 @@ let modelBaseWidth = 0;
 let modelBaseHeight = 0;
 
 const { Live2DModel } = PIXI.live2d;
+const interactionPolicy = window.GreywindLive2DInteractionPolicy;
 
 // pixi-live2d-display 需要注册 Ticker 才能驱动模型更新
 Live2DModel.registerTicker(PIXI.Ticker);
@@ -37,6 +38,7 @@ async function initLive2D() {
     }
     const model = await Live2DModel.from(result.url);
     live2dModel = model;
+    document.body.dataset.modelReady = "true";
     modelBaseWidth = model.width;
     modelBaseHeight = model.height;
 
@@ -51,6 +53,7 @@ async function initLive2D() {
     console.error("Live2D 模型加载失败:", e);
     const msg = e?.message ? `Live2D: ${e.message}` : "Live2D 模型加载失败";
     placeholder.textContent = msg;
+    document.body.dataset.modelReady = "false";
   }
 }
 
@@ -89,32 +92,43 @@ initLive2D();
 // ── 鼠标穿透：透明区域穿透，模型/输入区不穿透 ──
 // ── 手动拖拽：在模型不透明区域按住拖动移动窗口 ──
 (function setupClickThrough() {
-  const ALPHA_THRESHOLD = 10;
-  let ignoring = true; // 与主进程默认状态一致
+  let modelReady = document.body.dataset.modelReady === "true";
+  let ignoring = interactionPolicy.resolveIgnoreMouseRequest(
+    window.greywind?.platform,
+    true
+  );
 
   // 拖拽状态
   let dragging = false;
   let dragStartScreenX = 0;
   let dragStartScreenY = 0;
 
-  function setIgnore(shouldIgnore) {
-    if (shouldIgnore === ignoring) return;
-    ignoring = shouldIgnore;
-    window.greywind?.setIgnoreMouse?.(shouldIgnore);
+  function syncFallbackDrag() {
+    modelReady = document.body.dataset.modelReady === "true";
+    const fallbackDrag = interactionPolicy.shouldEnableFallbackDrag({
+      modelReady,
+      interactionAvailable: interactionPolicy.hasModelHitCapability(live2dModel),
+    });
+    document.body.dataset.dragFallback = fallbackDrag ? "true" : "false";
+    if (fallbackDrag) {
+      setIgnore(false);
+    }
+    return fallbackDrag;
   }
 
-  // 检测 canvas 上 (x, y) 处像素是否不透明
+  function setIgnore(shouldIgnore) {
+    const nextIgnore = interactionPolicy.resolveIgnoreMouseRequest(
+      window.greywind?.platform,
+      shouldIgnore
+    );
+    if (nextIgnore === ignoring) return;
+    ignoring = nextIgnore;
+    window.greywind?.setIgnoreMouse?.(nextIgnore);
+  }
+
+  // 检测 (x, y) 是否命中模型。优先 hitArea，缺失时回退到包围盒。
   function isOpaqueAt(x, y) {
-    if (!canvas) return false;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const cx = Math.round((x - rect.left) * dpr);
-    const cy = Math.round((y - rect.top) * dpr);
-    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
-    if (!gl) return false;
-    const pixel = new Uint8Array(4);
-    gl.readPixels(cx, gl.drawingBufferHeight - cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-    return pixel[3] > ALPHA_THRESHOLD;
+    return interactionPolicy.isPointOnModel(live2dModel, x, y);
   }
 
   // 检测是否在输入区域内
@@ -131,6 +145,7 @@ initLive2D();
   // 在模型不透明区域按下时开始拖拽
   document.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return; // 只响应左键
+    if (syncFallbackDrag()) return;
     if (isInInputArea(e.target) || isInChatMsg(e.target)) return;
     if (!isOpaqueAt(e.clientX, e.clientY)) return;
     dragging = true;
@@ -147,17 +162,19 @@ initLive2D();
       window.greywind?.dragMove?.(dx, dy);
       return;
     }
+    if (syncFallbackDrag()) return;
     // 输入区域和聊天气泡始终不穿透
     if (isInInputArea(e.target) || isInChatMsg(e.target)) {
       setIgnore(false);
       return;
     }
-    // canvas 区域：检测像素
+    // 模型区域：几何命中检测
     setIgnore(!isOpaqueAt(e.clientX, e.clientY));
   }, { passive: true });
 
   document.addEventListener("mouseup", (e) => {
     dragging = false;
+    if (syncFallbackDrag()) return;
     // 松手后立即按当前位置重新判定穿透状态
     if (isInInputArea(e.target) || isInChatMsg(e.target)) {
       setIgnore(false);
@@ -169,6 +186,10 @@ initLive2D();
   // 鼠标离开窗口时恢复穿透并停止拖拽
   document.addEventListener("mouseleave", () => {
     dragging = false;
-    setIgnore(true);
+    if (!syncFallbackDrag()) {
+      setIgnore(true);
+    }
   }, { passive: true });
+
+  syncFallbackDrag();
 })();

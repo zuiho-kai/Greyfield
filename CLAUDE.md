@@ -75,6 +75,7 @@ worktree：[已就绪(路径/分支名) | 需要创建 → 先执行创建命令
 - **防丢失**：对话是临时的，文件是持久的（COMMON-1）
 - **不做口头承诺**（DEV-76）：教训/流程改进发现当下直接写入对应错题本文件 + 更新 `_index.md`。口头说了但没落盘 = 没做（COMMON-12）
 - **两次失败必须搜索**：连续猜方案失败两次后停下搜索根因（COMMON-9）
+- **PR/CR 链接直入 worktree**：用户给 PR 链接/编号并要求"修一下/处理 CR/看 review"时，直接视为会产生 git diff 的任务；第一动作必须是门禁声明 + 创建独立 CR worktree，禁止先在主仓库读 diff/评论后补流程
 - **CR 修复必须 worktree**：PR 收到 code review 反馈后，所有修复工作必须在独立 worktree 中进行（`git worktree add ../Greyfield-cr-<PR号> -b fix/pr<PR号>-cr <当前分支>`），修完合回原分支再推送。流程见 `docs/worktree-workflow.md`
 - **CR 闭环**（DEV-68）：CR 处理必须依次完成以下步骤才算闭环，缺一不可：①修复+推送 ②回复 PR review comment ③执行出错自动落盘流程 ④输出"CR 闭环完成"标记
 - **worktree 合回前确认分支**（DEV-67）：worktree 修复合回主仓库前，必须 `git branch` 确认当前分支是目标分支，禁止盲 merge
