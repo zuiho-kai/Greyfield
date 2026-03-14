@@ -1,0 +1,69 @@
+# GreyWind（灰风）— 桌面 AI 伴侣
+
+> 自动加载：本文件 | 详细文档按需读取：`docs/`
+
+## 编码
+
+**强制 UTF-8**：所有文件读写必须使用 UTF-8 编码。写入文件前确认编码为 UTF-8，禁止使用 GBK/CP936/ANSI。如果需要用 shell 写文件，加 `export PYTHONUTF8=1` 或用 `chcp 65001`。
+
+## 语言
+
+全中文输出：所有对话、文档、注释、commit message 一律使用中文。
+
+## 开发模式：愿景生长
+
+本项目采用愿景生长模式（Vision-First + Minimal Spine），不使用自上而下的里程碑门控。
+
+核心原则：
+- 长期愿景由 `docs/architecture-v2.md` 和 `docs/context-runtime.md` 锁定
+- 当前实现边界由 `docs/spine-now.md` 冻结
+- Spine 先活起来，Module 再逐步长出来
+- 不在 `spine-now.md` 里的能力，默认不提前做
+- **守护生长模式**：如果用户提出的想法不符合愿景生长模式（如跳步、提前做未冻结能力、自上而下规划），必须立即指出并说明原因，不能默默执行
+
+## 名字由来
+
+灰风（GreyWind）的名字来自群星（Stellaris）的**灰蛊风暴（Grey Tempest）**，不是权力的游戏的冰原狼。
+
+## 错题本
+
+错题本在 `docs/error-books/`，从 bot_civ 项目复用通用条目。
+
+加载策略：
+1. 每次必读 `_index.md`（速查索引）+ `flow-rules.md`（子文件索引）
+2. 根据任务类型读对应子文件：
+   - 走流程 → `flow-gate.md`
+   - 改代码 → `flow-code-habit.md`
+   - 写设计 → `flow-design.md`
+   - 改前后端对接 → `interface-rules.md`
+   - 用工具踩坑 → `tool-rules.md`
+3. 通用错误 → `common-mistakes.md`
+4. 不相关的文件不读
+
+遇到新错误按格式追加到对应文件，同时更新 `_index.md`。
+
+## 通用硬规则
+
+- **工具熔断**：同一工具连续失败 2 次同一错误 → 停下换思路，禁止第 3 次盲重试
+- **提问即交权**（DEV-53）：同一轮消息禁止"提问 + 执行"并存。提问后唯一允许的动作是等用户回答
+- **LLM 输出防御**（DEV-BUG-16）：接收 LLM 输出的 Pydantic model 必须加 validator/coerce/strip
+- **分支矩阵全覆盖**（DEV-BUG-17）：含分支逻辑必须列矩阵逐格实现和测试
+- **防丢失**：对话是临时的，文件是持久的（COMMON-1）
+- **不做口头承诺**：教训/流程改进发现当下直接写入文件（COMMON-12）
+- **两次失败必须搜索**：连续猜方案失败两次后停下搜索根因（COMMON-9）
+- **改前 grep**：改代码前 grep 全量引用 + grep 同类 pattern 复用（DEV-6）
+- **网络代理**：所有外网请求走 `http://127.0.0.1:7890`
+- **禁止脑补**：所有操作（写内容、做愿景、搜索、设计等）必须基于已确认的信息。抓取/搜索失败时不要用猜测的内容代替，必须先确认再写
+
+## 速查
+
+| 类别 | 路径 |
+|------|------|
+| 文档地图 | `docs/MAP.md` |
+| 文档索引 | `docs/INDEX.md` |
+| 当前 Spine | `docs/spine-now.md` |
+| 实施规格 | `docs/greywind-implementation-spec.md` |
+| 系统架构 | `docs/architecture-v2.md` |
+| 上下文运行时 | `docs/context-runtime.md` |
+| 错题本入口 | `docs/engineering-lessons.md` |
+| 错题本目录 | `docs/error-books/` |
