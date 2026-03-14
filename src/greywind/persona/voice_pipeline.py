@@ -147,8 +147,7 @@ class VoicePipeline:
                 else:
                     chat_messages.append(m)
 
-            full_response = ""
-            clean_response = ""  # 过滤 think block 后的内容，用于持久化
+            clean_response = ""  # 过滤后的文本，用于写入对话历史
             sentence_buffer = ""
             in_think_block = False  # 流式 think block 过滤状态
             think_pending = ""  # 跨 chunk 不完整标签缓冲
@@ -168,7 +167,6 @@ class VoicePipeline:
                     continue
                 if not text:
                     continue
-                full_response += text
                 # 流式过滤 think block：在句子拆分前剥离，防止跨片段泄漏
                 filtered_text, in_think_block, think_pending = _strip_think_streaming(
                     text, in_think_block, think_pending
@@ -188,6 +186,7 @@ class VoicePipeline:
             if think_pending and not in_think_block:
                 clean_response += think_pending
                 sentence_buffer += think_pending
+                clean_response += think_pending
             if sentence_buffer.strip() and not self._interrupted:
                 await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
             if clean_response and not self._interrupted:
