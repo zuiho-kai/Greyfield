@@ -52,8 +52,17 @@ def _strip_think_streaming(
     return "".join(result), inside, ""
 
 
+def _sanitize_llm_text(text: str) -> str:
+    """清洗 LLM 输出中的协议噪音，输出侧和持久化侧共用。"""
+    text = _THINK_BLOCK_RE.sub("", text)
+    text = _STRAY_TAG_RE.sub("", text)
+    text = _CONTROL_TOKEN_RE.sub("", text)
+    text = _LLM_TAG_RE.sub("", text).strip()
+    return text
+
+
 class VoicePipeline:
-    def __init__(self, ctx):
+    def __init__(self, ctx, screen_sense=None):
         # 无状态引擎：共享
         self.asr = ctx.asr
         self.tts = ctx.tts
@@ -61,6 +70,8 @@ class VoicePipeline:
         self.assembler = ctx.assembler
         self.memory = ctx.memory
         self.character = ctx.character
+        self.screen_sense = screen_sense  # 每连接独立，由 ws_handler 传入
+        self._screen_detail = getattr(ctx.config.screen, "detail", "low") if ctx.config.screen else "low"
         # 有状态组件：每连接独立
         from greywind.context_runtime.session_manager import SessionManager
         from greywind.context_runtime.thread_resolver import ThreadResolver
@@ -68,6 +79,7 @@ class VoicePipeline:
         self.thread = ThreadResolver()
         self.vad = self._clone_vad(ctx.vad)
         self._interrupted = False
+        self._responding = False
         self._response_task: asyncio.Task | None = None
 
     @staticmethod
@@ -126,8 +138,13 @@ class VoicePipeline:
 
     async def _respond(self, user_text, send_fn, send_audio_fn):
         self._interrupted = False
+        self._responding = True
         try:
             await send_fn({"type": "status", "payload": {"state": "thinking"}})
+            # 被动模式：用户说话时附上最近截图
+            screen_b64 = None
+            if self.screen_sense:
+                screen_b64 = self.screen_sense.get_latest_frame()
             messages = self.assembler.assemble(
                 character=self.character,
                 memory_prompt=self.memory.get_system_prompt(),
@@ -135,6 +152,8 @@ class VoicePipeline:
                 session_id=self.session.session_id,
                 recent_dialogue=self.session.get_recent_dialogue(),
                 user_input=user_text,
+                screen_image_b64=screen_b64,
+                screen_detail=self._screen_detail,
             )
             self.session.add_turn("user", user_text)
 
@@ -147,7 +166,7 @@ class VoicePipeline:
                 else:
                     chat_messages.append(m)
 
-            full_response = ""
+            clean_response = ""  # 过滤后的文本，用于写入对话历史
             sentence_buffer = ""
             in_think_block = False  # 流式 think block 过滤状态
             think_pending = ""  # 跨 chunk 不完整标签缓冲
@@ -167,14 +186,14 @@ class VoicePipeline:
                     continue
                 if not text:
                     continue
-                full_response += text
                 # 流式过滤 think block：在句子拆分前剥离，防止跨片段泄漏
-                text, in_think_block, think_pending = _strip_think_streaming(
+                filtered_text, in_think_block, think_pending = _strip_think_streaming(
                     text, in_think_block, think_pending
                 )
-                if not text:
+                if not filtered_text:
                     continue
-                sentence_buffer += text
+                clean_response += filtered_text
+                sentence_buffer += filtered_text
                 sentences = SENTENCE_DELIMITERS.split(sentence_buffer)
                 if len(sentences) > 1:
                     for s in sentences[:-1]:
@@ -182,24 +201,26 @@ class VoicePipeline:
                             await self._speak(s.strip(), send_fn, send_audio_fn)
                     sentence_buffer = sentences[-1]
 
+            # 流结束：flush pending 中可能残留的非标签文本
+            if think_pending and not in_think_block:
+                sentence_buffer += think_pending
+                clean_response += think_pending
             if sentence_buffer.strip() and not self._interrupted:
                 await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
-            if full_response and not self._interrupted:
-                self.session.add_turn("assistant", full_response)
+            if clean_response and not self._interrupted:
+                self.session.add_turn("assistant", _sanitize_llm_text(clean_response))
         except asyncio.CancelledError:
             logger.info("响应被打断")
         except Exception as e:
             logger.error(f"响应出错: {e}")
             await send_fn({"type": "error", "payload": {"message": str(e)}})
         finally:
+            self._responding = False
             if not self._interrupted:
                 await send_fn({"type": "status", "payload": {"state": "idle"}})
 
     async def _speak(self, text, send_fn, send_audio_fn):
-        text = _THINK_BLOCK_RE.sub("", text)
-        text = _STRAY_TAG_RE.sub("", text)
-        text = _CONTROL_TOKEN_RE.sub("", text)
-        text = _LLM_TAG_RE.sub("", text).strip()
+        text = _sanitize_llm_text(text)
         if not text:
             return
         await send_fn(
@@ -237,3 +258,88 @@ class VoicePipeline:
             return max(int(Path(path).stat().st_size / 16), 500)
         except Exception:
             return 1000
+
+    # ── 主动说话循环 ──
+
+    _PROACTIVE_SYSTEM_HINT = (
+        "你正在观看用户的屏幕。根据画面内容自然地反应——"
+        "如果画面有趣就评论，如果用户在工作就给建议，"
+        "如果没什么值得说的就回复空字符串。"
+        "保持简短自然，像朋友在旁边看一样。"
+    )
+
+    async def proactive_loop(self, send_fn, send_audio_fn):
+        """主动说话异步循环，由 ws_handler 启动"""
+        logger.info("主动说话循环已启动")
+        try:
+            while True:
+                await asyncio.sleep(3.0)
+                if not self.screen_sense or not self.screen_sense.enabled:
+                    continue
+                if self._responding:
+                    continue
+                if not self.screen_sense.should_trigger():
+                    continue
+
+                frames = self.screen_sense.get_recent_frames(5)
+                if not frames:
+                    continue
+
+                try:
+                    text = await self._proactive_judge(frames)
+                    if text and text.strip():
+                        self.screen_sense.mark_spoken()
+                        self._responding = True
+                        self._interrupted = False
+                        try:
+                            await send_fn({
+                                "type": "proactive_speak",
+                                "payload": {"text": text.strip(), "emotion": "neutral"},
+                            })
+                            if not self._interrupted:
+                                await self._speak(text.strip(), send_fn, send_audio_fn)
+                            if not self._interrupted:
+                                self.session.add_turn("assistant", text.strip())
+                        finally:
+                            self._responding = False
+                    else:
+                        # LLM 判断无需说话，重置计数器避免重复触发
+                        self.screen_sense._frames_since_trigger = 0
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    self._responding = False
+                    logger.error(f"主动说话出错: {e}")
+        except asyncio.CancelledError:
+            logger.info("主动说话循环已停止")
+
+    async def _proactive_judge(self, frames: list[str]) -> str:
+        """把截图发给 LLM，让它决定说不说"""
+        content = []
+        for b64 in frames:
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{b64}",
+                    "detail": self._screen_detail,
+                },
+            })
+        content.append({
+            "type": "text",
+            "text": self._PROACTIVE_SYSTEM_HINT,
+        })
+
+        system_parts = []
+        if self.character.persona:
+            system_parts.append(self.character.persona.strip())
+        system_prompt = "\n\n".join(system_parts) if system_parts else None
+
+        messages = [{"role": "user", "content": content}]
+
+        full = ""
+        async for chunk in self.llm.chat_completion(messages, system=system_prompt):
+            if isinstance(chunk, str):
+                full += chunk
+            elif isinstance(chunk, dict) and chunk.get("type") == "text_delta":
+                full += chunk.get("text", "")
+        return full.strip()

@@ -112,8 +112,6 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 
 ## 快速开始
 
-> ⚠️ 项目处于早期开发阶段。当前正在实现最小骨架（Spine），还不是完整可用的产品。
-
 ### 前置条件
 
 - Python 3.12+
@@ -124,7 +122,6 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 ### 安装
 
 ```bash
-# 克隆
 git clone https://github.com/zuiho-kai/Greyfield.git
 cd Greyfield
 
@@ -133,7 +130,7 @@ uv sync
 
 # 配置
 cp conf.example.yaml conf.yaml
-# 编辑 conf.yaml，填入你的硅基流动 API Key
+# 编辑 conf.yaml，把三处 "你的硅基流动API Key" 替换为你的 Key
 
 # 前端依赖
 cd frontend/desktop && npm install
@@ -142,20 +139,19 @@ cd frontend/desktop && npm install
 ### 启动
 
 ```bash
-# 终端 1：启动后端
+# 终端 1：后端
 uv run python -m greywind.run
 
-# 终端 2：启动 Electron 前端
+# 终端 2：前端
 cd frontend/desktop && npm start
 ```
 
 打开后在底部输入框打字，或点 MIC 按钮说话。
 
-> 首次启动会自动下载 Live2D 示例模型（Hiyori Momose）到本地缓存目录。
-> 下载源：[nizima Sample Models - Hiyori](https://docs.nizima.com/en/my-live2d-model/using-sample-models/)。
-> 使用该模型需遵守
-> [Live2D Free Material License Agreement](https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html)
-> 与 [Live2D Sample Data Terms](https://www.live2d.com/eula/live2d-sample-data-terms_en.html)。
+> 首次启动会自动下载 Live2D 示例模型（Hiyori Momose）。
+> 使用该模型需遵守 [Live2D Free Material License Agreement](https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html) 与 [Live2D Sample Data Terms](https://www.live2d.com/eula/live2d-sample-data-terms_en.html)。
+
+> **一键 exe**：打包支持已就绪（`build.bat`），Release 发布后会在此提供下载链接。
 
 ---
 
@@ -194,7 +190,9 @@ cd frontend/desktop && npm start
 
 **Minimal Spine → Module 生长**：先活起来，再长出能力。
 
-### Phase 1 — 先活起来 `← 当前`
+> 当前阶段以 [spine-now.md](./docs/spine-now.md) 为准，README 只做历史记录。
+
+### Phase 1 — 先活起来 `✅ 完成`
 
 - [x] 配置系统（conf.yaml + Pydantic 校验）
 - [x] JSON 记忆存储
@@ -210,13 +208,14 @@ cd frontend/desktop && npm start
 - [x] Electron 打包（灰风.exe 一键启动）
 - [x] 系统托盘 + 后端日志窗口
 - [x] 高 DPI 清晰度 + 透明桌面宠物模式
+- [x] Live2D 窗口鼠标穿透 + 手动拖拽
 
 ### Phase 2 — 能看能做
 
-- [ ] 屏幕感知（截图 + Vision）
+- [x] 屏幕感知（截图 + Vision · 差异检测 · 主动播报）
+- [ ] 自定义音色克隆
 - [ ] 浏览器操控（Playwright）
 - [ ] 桌面操控（pyautogui）
-- [ ] 自定义音色克隆
 - [ ] Live2D 直播（OBS 推流 · 弹幕互动 · 自主直播）
 - [ ] 聊天历史清空按钮 / 菜单项
 - [ ] 聊天历史按日期分文件（天 / 周滚动）
@@ -232,18 +231,6 @@ cd frontend/desktop && npm start
 
 ---
 
-## 遗留问题
-
-- 聊天历史清空按钮 / 菜单项
-- 聊天历史按日期分文件（天 / 周滚动）
-- 历史存储抽象层（MongoDB / 向量库）
-- PR #9：托盘功能是否纳入 Spine 阶段（待确认）
-- PR #9：后端日志窗口是否纳入 Spine 阶段（待确认）
-- PR #9：聊天历史写盘（`history.json`）是否仅限 UI 展示且不参与上下文（待确认）
-- PR #9：Live2D 示例模型自动下载的许可与分发说明是否需要补充（待确认）
-- PR #9：Electron 打包 / 自启相关改动是否提前进入 Spine 阶段（待确认）
-- PR #9：新增 `preload` / `renderer` 文件是否超出 `docs/spine-now.md` 允许范围（待确认）
-
 ## 参与开发
 
 **灰风现在是早期，正是参与的最好时机。**
@@ -252,11 +239,10 @@ cd frontend/desktop && npm start
 
 | 方向 | 说明 | 难度 |
 |------|------|:----:|
-| 🎨 **Live2D 前端** | Electron + pixi-live2d-display · 口型 · 表情 | ⭐⭐ |
-| 🎤 **语音管线** | VAD → ASR → LLM → TTS 全链路流式 | ⭐⭐⭐ |
-| 🖥️ **屏幕感知** | mss 截图 + Vision API → 结构化理解 | ⭐⭐ |
 | 🌐 **浏览器操控** | Playwright + function calling + 风险分级 | ⭐⭐⭐ |
-| 🧠 **Context Runtime** | Thread / Session 最小实现 | ⭐⭐⭐ |
+| 🖱️ **桌面操控** | pyautogui · 截图定位 · 操作序列 | ⭐⭐⭐ |
+| 🎤 **音色克隆** | 自定义 TTS 音色 · CosyVoice2 fine-tune | ⭐⭐⭐ |
+| 📺 **Live2D 直播** | OBS 推流 · 弹幕互动 · 自主直播 | ⭐⭐ |
 | 🔌 **Skill 系统** | 设计插件机制，让社区能贡献能力而不碰核心 | ⭐⭐ |
 | 📖 **文档 / 翻译** | README · 文档英文化 · 教程 | ⭐ |
 
@@ -264,12 +250,29 @@ cd frontend/desktop && npm start
 
 ```bash
 git clone https://github.com/zuiho-kai/Greyfield.git
-git checkout -b feat/your-feature
-# 改完提 PR
+
+# 用 worktree 隔离开发（见 docs/worktree-workflow.md）
+git worktree add ../Greyfield-<短名> -b feat/your-feature master
+
+cd ../Greyfield-<短名>
+
+# 安装依赖
+uv sync
+cd frontend/desktop && npm install && cd ../..
+
+# 复制配置
+cp conf.example.yaml conf.yaml
+# 编辑 conf.yaml，填入硅基流动 API Key
+
+# 启动后端
+uv run python -m greywind.run
+
+# 新终端启动前端
+cd frontend/desktop && npm start
 ```
 
-> 不知道从哪下手？看 **[spine-now.md](./docs/spine-now.md)** 了解当前阶段具体需求，或直接开 Issue 聊。
->
+改完提 PR 即可。不知道从哪下手？看 **[spine-now.md](./docs/spine-now.md)** 了解当前阶段具体需求，或直接开 Issue 聊。
+
 > 灰风的目标是做成 **OpenClaw 那样的开放生态** — 核心保持精简，能力通过 Skill / 插件长出来。
 
 ---
@@ -313,6 +316,20 @@ git checkout -b feat/your-feature
 
 <!-- TODO: 替换 YOUR_USERNAME -->
 <!-- [![Star History Chart](https://api.star-history.com/svg?repos=YOUR_USERNAME/greywind&type=Date)](https://star-history.com/#YOUR_USERNAME/greywind&Date) -->
+
+## 遗留问题
+
+- 聊天历史清空按钮 / 菜单项
+- 聊天历史按日期分文件（天 / 周滚动）
+- 历史存储抽象层（MongoDB / 向量库）
+- PR #9：托盘功能是否纳入 Spine 阶段（待确认）
+- PR #9：后端日志窗口是否纳入 Spine 阶段（待确认）
+- PR #9：聊天历史写盘（`history.json`）是否仅限 UI 展示且不参与上下文（待确认）
+- PR #9：Live2D 示例模型自动下载的许可与分发说明是否需要补充（待确认）
+- PR #9：Electron 打包 / 自启相关改动是否提前进入 Spine 阶段（待确认）
+- PR #9：新增 `preload` / `renderer` 文件是否超出 `docs/spine-now.md` 允许范围（待确认）
+
+---
 
 <div align="center">
 

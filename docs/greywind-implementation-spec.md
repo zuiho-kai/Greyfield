@@ -325,7 +325,7 @@ emotion_map:
 | Module | 做什么 | 前置 | 预估 |
 |--------|--------|------|------|
 | **A 音色克隆** | 启用 engines/tts/gpt_sovits，配参考音频 | Spine | 1天 |
-| **B 屏幕感知** | screen_sense.py + Vision API，问"我在看什么"能答。**默认事件触发（窗口切换/用户问/任务需要），不要定时轮询，否则 API 成本爆炸** | Spine | 2天 |
+| **B 屏幕感知** | screen_sense.py + Vision API。定时截屏（默认 3s）+ 像素差异检测跳过无变化帧 + 前台窗口标题过滤，积累有效帧后由 LLM 判断是否主动说话；用户说话时自动附最近截图（被动模式）。成本控制靠差异检测 + 冷却期 + detail:low | Spine | 3天 |
 | **C 浏览器操控** | Playwright + function calling + R0-R3 风险分级 | Spine | 3天 |
 | **D 桌面操控** | pyautogui + pywinauto + subprocess + 审计日志 | Spine | 2天 |
 | **E 任务持久化** | tasks/ + SQLite + CRUD API + 状态机 (inbox→planned→running→completed/failed) | Spine | 2天 |
@@ -337,7 +337,7 @@ emotion_map:
 | **K 记忆→向量** | store_vector.py + ChromaDB，语义检索 | J | 2天 |
 | **L 表情联动** | emotion_mapper.py，LLM 回复带 emotion → Live2D 表情切换 | Spine | 1天 |
 | **M 悬浮球** | Electron 窗口模式切换 + 系统托盘 + 状态色环 | Spine | 1天 |
-| **N 主动播报** | 后台任务完成/失败时 WebSocket 通知 → 皮套语音播报 + toast | E | 2天 |
+| **N 任务通知** | 后台任务完成/失败时 WebSocket 通知 → 皮套语音播报 + toast（屏幕主动播报已纳入 Module B） | E | 2天 |
 
 **MVP = Spine + A + B + C**（能听话、看屏幕、操作浏览器、定制声音）**≈ 9-11天**
 

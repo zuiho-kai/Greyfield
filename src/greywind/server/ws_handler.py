@@ -1,5 +1,6 @@
 """WebSocket 消息处理器 — 按协议路由消息到 Voice Pipeline"""
 
+import asyncio
 import json
 import base64
 import struct
@@ -9,14 +10,49 @@ from loguru import logger
 from fastapi import WebSocket, WebSocketDisconnect
 
 from greywind.persona.voice_pipeline import VoicePipeline
+from greywind.persona.screen_sense import ScreenSense
 from greywind.server.service_context import ServiceContext
 
 
 async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
     await ws.accept()
-    pipeline = VoicePipeline(ctx)
+    # 每连接独立创建 ScreenSense，避免跨连接共享脏状态
+    screen_sense = None
+    cfg = ctx.config.screen
+    if cfg.enabled:
+        try:
+            screen_sense = ScreenSense(
+                buffer_size=cfg.buffer_size,
+                trigger_frames=cfg.trigger_frames,
+                diff_threshold=cfg.diff_threshold,
+                cooldown=cfg.cooldown,
+                active_window_filter=cfg.active_window_filter,
+            )
+        except Exception as e:
+            logger.warning(f"ScreenSense 创建失败: {e}")
+    pipeline = VoicePipeline(ctx, screen_sense=screen_sense)
     logger.info("WebSocket 连接已建立（独立 pipeline）")
     chunk_count = 0
+    proactive_task = None
+
+    async def send_msg_safe(msg: dict):
+        try:
+            await ws.send_json(msg)
+        except Exception:
+            pass
+
+    async def send_audio_safe(audio_bytes: bytes, payload: dict):
+        try:
+            await ws.send_json({"type": "reply_audio_meta", "payload": payload})
+            await ws.send_bytes(audio_bytes)
+        except Exception:
+            pass
+
+    # 如果屏幕感知已启用，启动主动说话循环
+    if pipeline.screen_sense and pipeline.screen_sense.enabled:
+        proactive_task = asyncio.create_task(
+            pipeline.proactive_loop(send_msg_safe, send_audio_safe)
+        )
 
     async def send_msg(msg: dict):
         await ws.send_json(msg)
@@ -56,6 +92,37 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                         logger.debug(f"audio_chunk #{chunk_count}, samples={len(audio_floats)}, rms={rms:.4f}")
                     await pipeline.feed_audio(audio_floats, send_msg, send_audio)
 
+            elif msg_type == "screen_capture":
+                image_b64 = payload.get("image_base64", "")
+                window_title = payload.get("window_title", "")
+                screen_index = payload.get("screen_index", 0)
+                if image_b64 and pipeline.screen_sense:
+                    pipeline.screen_sense.receive_frame(image_b64, window_title, screen_index)
+
+            elif msg_type == "screen_sense_toggle":
+                # 前端设置页变更 enabled 时，即时控制当前连接的 ScreenSense
+                enabled = payload.get("enabled", True)
+                if pipeline.screen_sense:
+                    pipeline.screen_sense.enabled = enabled
+                    logger.info(f"ScreenSense 即时切换: enabled={enabled}")
+                    if not enabled:
+                        # 中断被动模式正在进行的响应
+                        await pipeline.interrupt()
+                        # 取消主动说话循环（会中断正在进行的 _proactive_judge/_speak）
+                        if proactive_task and not proactive_task.done():
+                            proactive_task.cancel()
+                            try:
+                                await proactive_task
+                            except asyncio.CancelledError:
+                                pass
+                            proactive_task = None
+                    else:
+                        # 重新启用时，如果 proactive_task 不在运行则重新启动
+                        if not proactive_task or proactive_task.done():
+                            proactive_task = asyncio.create_task(
+                                pipeline.proactive_loop(send_msg_safe, send_audio_safe)
+                            )
+
             elif msg_type == "interrupt":
                 await pipeline.interrupt()
 
@@ -64,12 +131,16 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
 
     except WebSocketDisconnect:
         logger.info("WebSocket 连接断开")
+        if proactive_task:
+            proactive_task.cancel()
         try:
             await pipeline.interrupt()
         except Exception as e:
             logger.debug(f"disconnect cleanup error: {e}")
     except Exception as e:
         logger.error(f"WebSocket 错误: {e}")
+        if proactive_task:
+            proactive_task.cancel()
 
 
 def _pcm16_to_floats(data: bytes) -> list[float]:
