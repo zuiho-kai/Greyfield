@@ -446,6 +446,8 @@ function createWindow() {
   }
 
   ipcMain.on("set-ignore-mouse", (_, ignore) => {
+    // Linux 不支持 forward 选项，ignore=true 后无法收到 mousemove 恢复，窗口会卡死
+    if (process.platform === "linux" && ignore) return;
     win.setIgnoreMouseEvents(ignore, { forward: true });
   });
 
