@@ -37,8 +37,8 @@ async function initLive2D() {
     }
     const model = await Live2DModel.from(result.url);
     live2dModel = model;
-    modelBaseWidth = model.width;
-    modelBaseHeight = model.height;
+    modelBaseWidth = model.internalModel.originalWidth;
+    modelBaseHeight = model.internalModel.originalHeight;
 
     fitModel(app, model);
     app.stage.addChild(model);
@@ -163,9 +163,9 @@ initLive2D();
     }
   });
 
-  // 鼠标离开窗口时恢复穿透并停止拖拽
+  // 鼠标离开窗口时恢复穿透并停止拖拽（拖拽中不穿透，等 mouseup 再判定）
   document.addEventListener("mouseleave", () => {
-    dragging = false;
+    if (dragging) return;
     setIgnore(true);
   }, { passive: true });
 })();
