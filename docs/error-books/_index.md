@@ -4,7 +4,7 @@
 
 | 编号 | 一句话 | 标签 | 频率 | 文件 |
 |------|--------|------|------|------|
-| DEV-4 | 跳过流程门控直接编码 | 门控/流程 | 🔴×19 | flow-gate.md |
+| DEV-4 | 跳过流程门控直接编码 | 门控/流程 | 🔴×20 | flow-gate.md |
 | DEV-5 | 实施不遵循设计文档 | 门控/流程 | 🟢 | flow-gate.md |
 | DEV-42 | 对话开头环境指令未执行就动手 | git/CR | 🟢 | git-worktree.md |
 | DEV-53 | 问了用户但不等回答就自己执行 | 门控/流程 | 🟢 | flow-gate.md |
@@ -15,11 +15,14 @@
 | DEV-47 | 批量/seed 幂等设计未考虑"部分成功" | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-63 | Review 评论不贴合现状时未做等价落地 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-69 | 文档中硬编码环境相关值（分支名、路径格式） | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-77 | 文档引用外部链接未验证有效性 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-78 | 流程文档 shell 命令未标注执行目录 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-71 | 流式状态机边界条件遗漏 | 流式/运行时 | 🟡×3 | streaming-runtime.md |
 | DEV-72 | 新功能前端无条件启动，未与后端配置协商 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-67 | worktree 操作前未确认当前分支 | git/CR | 🟢 | git-worktree.md |
 | DEV-74 | 主仓库里 checkout 切分支污染工作区 | git/CR | 🟢 | git-worktree.md |
 | DEV-68 | CR 处理未完成闭环 | git/CR | 🟢 | git-worktree.md |
+| DEV-76 | worktree 改完直接本地 merge 跳过 PR | git/CR | 🟢 | git-worktree.md |
 | DEV-64 | 构建脚本数据源与运行时环境不一致 | 构建/打包 | 🟡×3 | build-packaging.md |
 | DEV-65 | 跨平台路径拼接用了宿主机 path API | 构建/打包 | 🟢 | build-packaging.md |
 | DEV-75 | 跨平台 API 降级只做初始化不做运行时兜底 | 构建/打包 | 🟢 | build-packaging.md |

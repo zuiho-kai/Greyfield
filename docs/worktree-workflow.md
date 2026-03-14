@@ -34,21 +34,29 @@ git worktree add ../Greyfield-voice -b feat/voice-spine master
 
 在 worktree 目录里正常开发、提交。
 
-### 4. 收工：合并 + 清理
+### 4. 收工：推送 + 开 PR + 清理
 
 ```bash
-# 回到主仓库
-cd E:/a7/Greyfield
+# 在 worktree 目录里推送分支
+git push -u origin <分支名>
 
-# 合并
-git merge <分支名>
+# 去 GitHub 开 PR，合并后再执行清理
+```
+
+PR 合并后清理：
+
+```bash
+# 必须先回到主仓库目录，不能在 worktree 里执行 remove
+cd E:/a7/Greyfield
 
 # 删除 worktree
 git worktree remove ../Greyfield-<短名>
 
-# 删除分支（已合并）
+# 删除本地分支
 git branch -d <分支名>
 ```
+
+> ⚠️ 禁止在主仓库执行 `git merge <分支名>` 直接合入。所有分支必须通过 GitHub PR 合并。（DEV-76）
 
 在 `docs/worktree-log.md` 更新状态为「已合并」。
 
