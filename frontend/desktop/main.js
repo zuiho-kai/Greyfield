@@ -502,6 +502,9 @@ function createWindow() {
     },
   });
 
+  // transparent + frame:false 在 Windows 上 resizable:false 可能不生效，用事件兜底
+  win.on("will-resize", (e) => { e.preventDefault(); });
+
   // forward 仅 win32/darwin 支持，Linux 不启用穿透避免死锁
   const supportsForward = process.platform === "win32" || process.platform === "darwin";
   if (supportsForward) {
