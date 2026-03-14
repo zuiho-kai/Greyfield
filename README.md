@@ -238,6 +238,12 @@ cd frontend/desktop && npm start
 - 聊天历史清空按钮 / 菜单项
 - 聊天历史按日期分文件（天 / 周滚动）
 - 历史存储抽象层（MongoDB / 向量库）
+- PR #9：托盘功能是否纳入 Spine 阶段（待确认）
+- PR #9：后端日志窗口是否纳入 Spine 阶段（待确认）
+- PR #9：聊天历史写盘（`history.json`）是否仅限 UI 展示且不参与上下文（待确认）
+- PR #9：Live2D 示例模型自动下载的许可与分发说明是否需要补充（待确认）
+- PR #9：Electron 打包 / 自启相关改动是否提前进入 Spine 阶段（待确认）
+- PR #9：新增 `preload` / `renderer` 文件是否超出 `docs/spine-now.md` 允许范围（待确认）
 
 ## 参与开发
 
