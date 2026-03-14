@@ -6,6 +6,7 @@ let ws = null;
 let reconnectTimer = null;
 let pendingAudioMeta = null;
 const listeners = {};
+const sendQueue = [];
 
 function wsOn(type, fn) {
   (listeners[type] = listeners[type] || []).push(fn);
@@ -18,6 +19,14 @@ function wsEmit(type, data) {
 function wsSend(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
+  } else {
+    sendQueue.push(msg);
+  }
+}
+
+function flushSendQueue() {
+  while (sendQueue.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(sendQueue.shift()));
   }
 }
 
@@ -32,6 +41,7 @@ function wsConnect() {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
     }
+    flushSendQueue();
     fetch("http://127.0.0.1:12393/health")
       .then((r) => r.json())
       .then((data) => {

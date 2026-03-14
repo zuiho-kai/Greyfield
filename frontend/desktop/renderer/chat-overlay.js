@@ -10,6 +10,14 @@ const MESSAGE_TTL_MS = 9000;
 const FADE_OUT_MS = 300;
 const MERGE_WINDOW_MS = 1500;
 
+/** 清理 LLM 输出中的 think:/text: 等标签 */
+function cleanLLMText(text) {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/^(think|text|thought)\s*[:：]\s*/gim, "")
+    .trim();
+}
+
 let lastMessageEl = null;
 let lastMessageRole = null;
 let lastMessageAt = 0;
@@ -42,6 +50,8 @@ function appendMessageText(el, text) {
 }
 
 function addMessage(role, text) {
+  if (role === "assistant") text = cleanLLMText(text);
+  if (!text) return;
   const now = Date.now();
   const canMerge =
     role === "assistant" &&

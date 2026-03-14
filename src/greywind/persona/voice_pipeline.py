@@ -8,6 +8,8 @@ import numpy as np
 from loguru import logger
 
 SENTENCE_DELIMITERS = re.compile(r"(?<=[。！？.!?\n])")
+_LLM_TAG_RE = re.compile(r"^(think|text|thought)\s*[:：]\s*", re.IGNORECASE)
+_THINK_BLOCK_RE = re.compile(r"<think>[\s\S]*?</think>")
 
 
 class VoicePipeline:
@@ -146,6 +148,10 @@ class VoicePipeline:
                 await send_fn({"type": "status", "payload": {"state": "idle"}})
 
     async def _speak(self, text, send_fn, send_audio_fn):
+        text = _THINK_BLOCK_RE.sub("", text)
+        text = _LLM_TAG_RE.sub("", text).strip()
+        if not text:
+            return
         await send_fn(
             {"type": "reply_text", "payload": {"text": text, "emotion": "neutral"}}
         )

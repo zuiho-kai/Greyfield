@@ -128,7 +128,22 @@ def download_if_needed(python_version: str, arch: str) -> Path:
     url = embedded_zip_url(python_version, arch)
     print(f"[GreyWind] Downloading embeddable Python runtime: {url}")
     with urllib.request.urlopen(url) as response, zip_path.open("wb") as output:
-        shutil.copyfileobj(response, output)
+        total = int(response.headers.get("Content-Length", 0))
+        downloaded = 0
+        chunk_size = 64 * 1024
+        while True:
+            chunk = response.read(chunk_size)
+            if not chunk:
+                break
+            output.write(chunk)
+            downloaded += len(chunk)
+            if total:
+                pct = downloaded * 100 // total
+                mb_done = downloaded / (1024 * 1024)
+                mb_total = total / (1024 * 1024)
+                print(f"\r  [{pct:3d}%] {mb_done:.1f} / {mb_total:.1f} MB", end="", flush=True)
+        if total:
+            print()  # 换行
     return zip_path
 
 
