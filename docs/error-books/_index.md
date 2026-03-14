@@ -38,7 +38,7 @@
 | DEV-54 | 新脚本猜 API 端点不查已有脚本 | 通用/工具 | 🟢 | tool-rules.md |
 | DEV-56 | 新脚本重写逻辑不复用已有框架 | 通用/工具 | 🟢 | tool-rules.md |
 | DEV-57 | Bash heredoc 大段 JS 单引号冲突 | 通用/工具 | 🟢 | tool-rules.md |
-| DEV-58 | 降级链跳步，跳过中间步骤 | 通用/工具 | 🟢 | tool-rules.md |
+| DEV-58 | 降级链跳步，跳过中间步骤 | 通用/工具 | 🟡×2 | tool-rules.md |
 | DEV-59 | 抓取失败后编造内容 | 通用/工具 | 🟢 | tool-rules.md |
 | DEV-1 | 后端终端改了前端文件 | 通用/接口 | 🟢 | interface-rules.md |
 | DEV-2 | 改接口没更新契约文档 | 通用/接口 | 🟢 | interface-rules.md |
