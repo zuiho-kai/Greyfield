@@ -194,7 +194,7 @@ cd frontend/desktop && npm start
 
 **Minimal Spine → Module 生长**：先活起来，再长出能力。
 
-### Phase 1 — 先活起来 `← 当前`
+### Phase 1 — 先活起来 `✅ 完成`
 
 - [x] 配置系统（conf.yaml + Pydantic 校验）
 - [x] JSON 记忆存储
@@ -210,13 +210,14 @@ cd frontend/desktop && npm start
 - [x] Electron 打包（灰风.exe 一键启动）
 - [x] 系统托盘 + 后端日志窗口
 - [x] 高 DPI 清晰度 + 透明桌面宠物模式
+- [x] Live2D 窗口鼠标穿透 + 手动拖拽
 
-### Phase 2 — 能看能做
+### Phase 2 — 能看能做 `← 当前`
 
-- [ ] 屏幕感知（截图 + Vision）
+- [x] 屏幕感知（截图 + Vision · 差异检测 · 主动播报）
+- [ ] 自定义音色克隆
 - [ ] 浏览器操控（Playwright）
 - [ ] 桌面操控（pyautogui）
-- [ ] 自定义音色克隆
 - [ ] Live2D 直播（OBS 推流 · 弹幕互动 · 自主直播）
 - [ ] 聊天历史清空按钮 / 菜单项
 - [ ] 聊天历史按日期分文件（天 / 周滚动）
@@ -237,12 +238,6 @@ cd frontend/desktop && npm start
 - 聊天历史清空按钮 / 菜单项
 - 聊天历史按日期分文件（天 / 周滚动）
 - 历史存储抽象层（MongoDB / 向量库）
-- PR #9：托盘功能是否纳入 Spine 阶段（待确认）
-- PR #9：后端日志窗口是否纳入 Spine 阶段（待确认）
-- PR #9：聊天历史写盘（`history.json`）是否仅限 UI 展示且不参与上下文（待确认）
-- PR #9：Live2D 示例模型自动下载的许可与分发说明是否需要补充（待确认）
-- PR #9：Electron 打包 / 自启相关改动是否提前进入 Spine 阶段（待确认）
-- PR #9：新增 `preload` / `renderer` 文件是否超出 `docs/spine-now.md` 允许范围（待确认）
 
 ## 参与开发
 
@@ -252,11 +247,10 @@ cd frontend/desktop && npm start
 
 | 方向 | 说明 | 难度 |
 |------|------|:----:|
-| 🎨 **Live2D 前端** | Electron + pixi-live2d-display · 口型 · 表情 | ⭐⭐ |
-| 🎤 **语音管线** | VAD → ASR → LLM → TTS 全链路流式 | ⭐⭐⭐ |
-| 🖥️ **屏幕感知** | mss 截图 + Vision API → 结构化理解 | ⭐⭐ |
 | 🌐 **浏览器操控** | Playwright + function calling + 风险分级 | ⭐⭐⭐ |
-| 🧠 **Context Runtime** | Thread / Session 最小实现 | ⭐⭐⭐ |
+| 🖱️ **桌面操控** | pyautogui · 截图定位 · 操作序列 | ⭐⭐⭐ |
+| 🎤 **音色克隆** | 自定义 TTS 音色 · CosyVoice2 fine-tune | ⭐⭐⭐ |
+| 📺 **Live2D 直播** | OBS 推流 · 弹幕互动 · 自主直播 | ⭐⭐ |
 | 🔌 **Skill 系统** | 设计插件机制，让社区能贡献能力而不碰核心 | ⭐⭐ |
 | 📖 **文档 / 翻译** | README · 文档英文化 · 教程 | ⭐ |
 
