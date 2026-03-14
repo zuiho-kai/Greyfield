@@ -48,7 +48,7 @@ function parseBoolEnv(value, defaultValue) {
 }
 
 function resolveAutoDownloadDefault() {
-  return app.isPackaged;
+  return true;
 }
 
 function resolveAutoDownload() {
@@ -203,6 +203,8 @@ function buildBackendEnv() {
   env.PYTHONPATH = env.PYTHONPATH
     ? `${srcPath}${path.delimiter}${env.PYTHONPATH}`
     : srcPath;
+  env.PYTHONIOENCODING = "utf-8";
+  env.PYTHONUTF8 = "1";
   return env;
 }
 
@@ -471,12 +473,27 @@ function createWindow() {
   return win;
 }
 
-app.whenReady().then(() => {
-  historyFilePath = resolveHistoryFilePath();
-  loadHistoryFromDisk();
-  startBackend();
-  setTimeout(createWindow, 3000);
-});
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    // 第二个实例启动时，聚焦已有窗口
+    const allWindows = BrowserWindow.getAllWindows();
+    const mainWin = allWindows.find((w) => !w.isDestroyed());
+    if (mainWin) {
+      if (!mainWin.isVisible()) mainWin.show();
+      mainWin.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    historyFilePath = resolveHistoryFilePath();
+    loadHistoryFromDisk();
+    startBackend();
+    createWindow();
+  });
+}
 
 app.on("window-all-closed", (e) => {
   if (!isQuitting) {

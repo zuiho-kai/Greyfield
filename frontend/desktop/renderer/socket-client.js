@@ -6,6 +6,10 @@ let ws = null;
 let reconnectTimer = null;
 let pendingAudioMeta = null;
 const listeners = {};
+const sendQueue = [];
+// 实时流消息不缓冲，断线时直接丢弃
+const REALTIME_TYPES = new Set(["audio_chunk"]);
+const SEND_QUEUE_MAX = 50;
 
 function wsOn(type, fn) {
   (listeners[type] = listeners[type] || []).push(fn);
@@ -18,6 +22,18 @@ function wsEmit(type, data) {
 function wsSend(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
+  } else {
+    // 实时流消息断线时丢弃，避免重连后重放过期数据
+    if (REALTIME_TYPES.has(msg.type)) return;
+    if (sendQueue.length < SEND_QUEUE_MAX) {
+      sendQueue.push(msg);
+    }
+  }
+}
+
+function flushSendQueue() {
+  while (sendQueue.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(sendQueue.shift()));
   }
 }
 
@@ -32,6 +48,7 @@ function wsConnect() {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
     }
+    flushSendQueue();
     fetch("http://127.0.0.1:12393/health")
       .then((r) => r.json())
       .then((data) => {

@@ -42,6 +42,13 @@
 - CR 发现 P0 / 测试失败 / 同一错误连续 2 次 / 用户指出流程违规 / 实现与设计不一致
 - 流程核心：归因分析（A/B/C/D 四条路径）→ 读记录规则 → 落盘 → 复盘
 
+## Token 节省规则
+
+- **禁止全量 Read 大文件**（DEV-60）：文件 >200 行 → 必须先 Grep 定位行号再局部 Read（带 `offset` + `limit`），禁止全量 Read
+- **子 agent 精简输入**（DEV-61）：子 agent prompt 只附相关源码片段（≤150 行），不附整个模块，不传 CLAUDE.md
+- **探索前先查索引**（DEV-62）：新 session 开局先读 CLAUDE.md + `docs/MAP.md`，再按需定位文件，禁止上来就 `Glob **/*` 全量探索
+- **能 Edit 不 Write**（DEV-63）：能用 Edit 局部修改就不用 Write 重写整个文件
+
 ## 通用硬规则
 
 - **Write 强制分步**（DEV-8）：≤50 行可一次 Write；>50 行先 Write 骨架再 Edit 分段填充，每段 ≤50 行。Write 失败 1 次 → 切 Bash heredoc。禁止同一方式连续失败超过 2 次
