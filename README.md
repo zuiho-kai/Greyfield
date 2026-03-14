@@ -112,25 +112,14 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 
 ## 快速开始
 
-### 方式一：直接下载 exe（推荐）
-
-1. 前往 [Releases](https://github.com/zuiho-kai/Greyfield/releases) 下载最新 `GreyWind.exe`
-2. 双击运行，首次启动会提示填入硅基流动 API Key
-3. 没有 Key？[注册硅基流动](https://cloud.siliconflow.cn)，免费送额度
-
-> 仅支持 Windows。首次启动会自动下载 Live2D 示例模型（Hiyori Momose）。
-> 使用该模型需遵守 [Live2D Free Material License Agreement](https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html) 与 [Live2D Sample Data Terms](https://www.live2d.com/eula/live2d-sample-data-terms_en.html)。
-
-### 方式二：从源码运行（开发者）
-
-**前置条件**
+### 前置条件
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)（Python 包管理）
 - Node.js 18+
 - 硅基流动 API Key（[注册](https://cloud.siliconflow.cn)，免费送额度）
 
-**安装**
+### 安装
 
 ```bash
 git clone https://github.com/zuiho-kai/Greyfield.git
@@ -147,7 +136,7 @@ cp conf.example.yaml conf.yaml
 cd frontend/desktop && npm install
 ```
 
-**启动**
+### 启动
 
 ```bash
 # 终端 1：后端
@@ -158,6 +147,11 @@ cd frontend/desktop && npm start
 ```
 
 打开后在底部输入框打字，或点 MIC 按钮说话。
+
+> 首次启动会自动下载 Live2D 示例模型（Hiyori Momose）。
+> 使用该模型需遵守 [Live2D Free Material License Agreement](https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html) 与 [Live2D Sample Data Terms](https://www.live2d.com/eula/live2d-sample-data-terms_en.html)。
+
+> **一键 exe**：打包支持已就绪（`build.bat`），Release 发布后会在此提供下载链接。
 
 ---
 
