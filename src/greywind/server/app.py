@@ -72,7 +72,8 @@ async def update_screen_settings(body: dict):
         return {"error": "后端未就绪"}
     cfg = _ctx.config.screen
 
-    # ScreenSense 是每连接创建的，这里只更新全局配置，下次连接生效
+    # ScreenSense 是每连接创建的，这里更新全局配置。
+    # enabled 的即时生效通过前端 WebSocket 发送 screen_sense_toggle 消息实现。
     if "diff_threshold" in body:
         cfg.diff_threshold = float(body["diff_threshold"])
     if "active_window_filter" in body:

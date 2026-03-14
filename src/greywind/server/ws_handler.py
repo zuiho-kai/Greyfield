@@ -99,6 +99,13 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                 if image_b64 and pipeline.screen_sense:
                     pipeline.screen_sense.receive_frame(image_b64, window_title, screen_index)
 
+            elif msg_type == "screen_sense_toggle":
+                # 前端设置页变更 enabled 时，即时控制当前连接的 ScreenSense
+                enabled = payload.get("enabled", True)
+                if pipeline.screen_sense:
+                    pipeline.screen_sense.enabled = enabled
+                    logger.info(f"ScreenSense 即时切换: enabled={enabled}")
+
             elif msg_type == "interrupt":
                 await pipeline.interrupt()
 

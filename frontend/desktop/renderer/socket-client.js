@@ -166,7 +166,11 @@ if (window.greywind?.onScreenSettingsChanged) {
   window.greywind.onScreenSettingsChanged((data) => {
     if (data.enabled === false) {
       stopScreenCapture();
+      // 通知后端当前连接的 ScreenSense 也立即停止
+      wsSend({ type: "screen_sense_toggle", payload: { enabled: false } });
     } else if (data.enabled === true && !screenCaptureTimer) {
+      // 通知后端当前连接的 ScreenSense 重新启用
+      wsSend({ type: "screen_sense_toggle", payload: { enabled: true } });
       // 重新从 health API 获取配置启动截屏
       fetch("http://127.0.0.1:12393/health")
         .then((r) => r.json())
