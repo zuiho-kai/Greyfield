@@ -65,6 +65,7 @@ async function initLive2D() {
     window.addEventListener("resize", () => {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
+        if (isDragging) return;
         app.renderer.resize(canvas.parentElement.clientWidth, canvas.parentElement.clientHeight);
         fitModel(app, model);
       }, 150);
@@ -109,6 +110,9 @@ wsOn("status", (p) => {
 });
 
 initLive2D();
+
+// 模块级拖拽状态，供 resize 回调检查
+let isDragging = false;
 
 // ── 鼠标穿透：透明区域穿透，模型/输入区不穿透 ──
 // ── 手动拖拽：在模型不透明区域按住拖动移动窗口 ──
@@ -155,6 +159,7 @@ initLive2D();
     if (isInInputArea(e.target) || isInChatMsg(e.target)) return;
     if (!isOpaqueAt(e.clientX, e.clientY)) return;
     dragging = true;
+    isDragging = true;
     dragStartScreenX = e.screenX;
     dragStartScreenY = e.screenY;
     window.greywind?.startDrag?.();
@@ -179,6 +184,7 @@ initLive2D();
 
   document.addEventListener("mouseup", (e) => {
     dragging = false;
+    isDragging = false;
     // 松手后立即按当前位置重新判定穿透状态
     if (isInInputArea(e.target) || isInChatMsg(e.target)) {
       setIgnore(false);
