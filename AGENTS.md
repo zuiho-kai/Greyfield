@@ -4,4 +4,15 @@
 
 ## 编码
 
-**强制 UTF-8**：所有文件读写必须使用 UTF-8 编码。写入文件前确认编码为 UTF-8，禁止使用 GBK/CP936/ANSI。如果需要用 shell 写文件，加 `export PYTHONUTF8=1` 或用 `chcp 65001`。
+**强制 UTF-8**：所有文件读写必须使用 UTF-8 编码。写入文件前确认编码为 UTF-8，禁止使用 GBK/CP936/ANSI。
+
+- Shell/Python 写文件时，必须显式使用 UTF-8。Python 设 `PYTHONUTF8=1`；PowerShell 写文件优先用 `Set-Content -Encoding utf8` 或其他明确指定 UTF-8 的方式。
+- **PowerShell 调原生命令且内容含中文时，禁止只依赖 `chcp 65001`**。`gh`、`git`、`node` 等原生命令如果通过 stdin / 管道 / `--body-file -` 接收中文，必须先显式设置：
+
+```powershell
+[Console]::InputEncoding  = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Console]::OutputEncoding
+```
+
+- 向 `gh` 提交 review/comment、向其他原生命令传递中文正文时，**优先做法**是：先写入 UTF-8 文件，再让命令读取该文件；不要直接用 PowerShell here-string/管道把中文正文喂给原生命令。
