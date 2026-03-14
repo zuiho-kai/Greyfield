@@ -85,3 +85,84 @@ wsOn("status", (p) => {
 });
 
 initLive2D();
+
+// ── 鼠标穿透：透明区域穿透，模型/输入区不穿透 ──
+// ── 手动拖拽：在模型不透明区域按住拖动移动窗口 ──
+(function setupClickThrough() {
+  const ALPHA_THRESHOLD = 10;
+  let ignoring = true; // 与主进程默认状态一致
+
+  // 拖拽状态
+  let dragging = false;
+  let dragStartScreenX = 0;
+  let dragStartScreenY = 0;
+
+  function setIgnore(shouldIgnore) {
+    if (shouldIgnore === ignoring) return;
+    ignoring = shouldIgnore;
+    window.greywind?.setIgnoreMouse?.(shouldIgnore);
+  }
+
+  // 检测 canvas 上 (x, y) 处像素是否不透明
+  function isOpaqueAt(x, y) {
+    if (!canvas) return false;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const cx = Math.round((x - rect.left) * dpr);
+    const cy = Math.round((y - rect.top) * dpr);
+    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+    if (!gl) return false;
+    const pixel = new Uint8Array(4);
+    gl.readPixels(cx, gl.drawingBufferHeight - cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    return pixel[3] > ALPHA_THRESHOLD;
+  }
+
+  // 检测是否在输入区域内
+  function isInInputArea(target) {
+    const inputArea = document.getElementById("input-area");
+    return inputArea && inputArea.contains(target);
+  }
+
+  // 检测是否在聊天气泡上
+  function isInChatMsg(target) {
+    return target && target.closest && target.closest(".msg") !== null;
+  }
+
+  // 在模型不透明区域按下时开始拖拽
+  document.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return; // 只响应左键
+    if (isInInputArea(e.target) || isInChatMsg(e.target)) return;
+    if (!isOpaqueAt(e.clientX, e.clientY)) return;
+    dragging = true;
+    dragStartScreenX = e.screenX;
+    dragStartScreenY = e.screenY;
+    window.greywind?.startDrag?.();
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    // 拖拽中：移动窗口
+    if (dragging) {
+      const dx = e.screenX - dragStartScreenX;
+      const dy = e.screenY - dragStartScreenY;
+      window.greywind?.dragMove?.(dx, dy);
+      return;
+    }
+    // 输入区域和聊天气泡始终不穿透
+    if (isInInputArea(e.target) || isInChatMsg(e.target)) {
+      setIgnore(false);
+      return;
+    }
+    // canvas 区域：检测像素
+    setIgnore(!isOpaqueAt(e.clientX, e.clientY));
+  }, { passive: true });
+
+  document.addEventListener("mouseup", () => {
+    dragging = false;
+  });
+
+  // 鼠标离开窗口时恢复穿透并停止拖拽
+  document.addEventListener("mouseleave", () => {
+    dragging = false;
+    setIgnore(true);
+  }, { passive: true });
+})();
