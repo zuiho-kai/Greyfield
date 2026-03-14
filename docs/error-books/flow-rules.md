@@ -14,8 +14,11 @@
 
 | 文件 | 范围 | 何时读 | 条目 |
 |------|------|--------|------|
-| `flow-gate.md` | 门控/流程执行、用户交互 | 走门控链、等用户确认、准备环境 | DEV-4,5,42,53,61 |
-| `flow-code-habit.md` | 代码修改习惯 | 改代码、改文档、修 P0/P1、批量操作 | DEV-6,24,29,47,60,63,64,65,66,67,68,69 |
+| `flow-gate.md` | 门控/流程执行、用户交互 | 走门控链、等用户确认、准备环境 | DEV-4,5,53,61 |
+| `flow-code-habit.md` | 代码修改习惯 | 改代码、改文档、修 P0/P1、批量操作 | DEV-6,24,29,47,63,69,71,72 |
+| `git-worktree.md` | git/worktree/CR 流程 | CR 处理、worktree 操作、分支管理 | DEV-42,67,68 |
+| `build-packaging.md` | 构建/打包 | 改构建脚本、electron-builder 打包 | DEV-64,65 |
+| `streaming-runtime.md` | 流式处理/实时运行时 | 改流式 LLM 输出、WebSocket 通道、VAD/ASR | DEV-60,66,70,73 |
 | `flow-design.md` | 设计阶段 | 写设计文档、功能设计、架构风险分析 | DEV-38,40,44 |
 | `error-book-recorder.md` | 记录落盘 | 讨论记录、文档更新、索引维护 | REC-1~6 |
 | `checklist-error-landing.md` | 出错自动落盘流程 | 触发条件满足时自动执行 | — |

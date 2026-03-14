@@ -14,6 +14,44 @@ _STRAY_TAG_RE = re.compile(r"</?(think|text|thought)>", re.IGNORECASE)
 _CONTROL_TOKEN_RE = re.compile(r"<\|[^|]*\|>")
 
 
+def _strip_think_streaming(
+    text: str, inside: bool, pending: str = ""
+) -> tuple[str, bool, str]:
+    """流式过滤 think block，返回 (过滤后文本, 是否仍在 think block 内, 待定缓冲)。
+
+    逐 chunk 调用，正确处理标签被 chunk 边界拆开的情况（如 ``</thi`` + ``nk>``）。
+    ``pending`` 保存上次 chunk 末尾可能是不完整标签的部分，下次调用时拼接继续解析。
+    """
+    text = pending + text
+    result: list[str] = []
+    i = 0
+    while i < len(text):
+        if inside:
+            end = text.find("</think>", i)
+            if end == -1:
+                # 检查末尾是否有 </think> 的不完整前缀
+                for k in range(min(len("</think>") - 1, len(text) - i), 0, -1):
+                    if "</think>"[:k] == text[-k:]:
+                        return "".join(result), True, text[-k:]
+                break  # 整个 chunk 都在 think block 内，全部丢弃
+            i = end + len("</think>")
+            inside = False
+        else:
+            start = text.find("<think>", i)
+            if start == -1:
+                # 检查末尾是否有 <think> 的不完整前缀
+                for k in range(min(len("<think>") - 1, len(text) - i), 0, -1):
+                    if "<think>"[:k] == text[-k:]:
+                        result.append(text[i:-k])
+                        return "".join(result), False, text[-k:]
+                result.append(text[i:])
+                break
+            result.append(text[i:start])
+            i = start + len("<think>")
+            inside = True
+    return "".join(result), inside, ""
+
+
 class VoicePipeline:
     def __init__(self, ctx):
         # 无状态引擎：共享
@@ -110,7 +148,10 @@ class VoicePipeline:
                     chat_messages.append(m)
 
             full_response = ""
+            clean_response = ""  # 过滤 think block 后的内容，用于持久化
             sentence_buffer = ""
+            in_think_block = False  # 流式 think block 过滤状态
+            think_pending = ""  # 跨 chunk 不完整标签缓冲
             await send_fn({"type": "status", "payload": {"state": "speaking"}})
 
             async for chunk in self.llm.chat_completion(
@@ -128,7 +169,14 @@ class VoicePipeline:
                 if not text:
                     continue
                 full_response += text
-                sentence_buffer += text
+                # 流式过滤 think block：在句子拆分前剥离，防止跨片段泄漏
+                filtered_text, in_think_block, think_pending = _strip_think_streaming(
+                    text, in_think_block, think_pending
+                )
+                if not filtered_text:
+                    continue
+                clean_response += filtered_text
+                sentence_buffer += filtered_text
                 sentences = SENTENCE_DELIMITERS.split(sentence_buffer)
                 if len(sentences) > 1:
                     for s in sentences[:-1]:
@@ -136,10 +184,14 @@ class VoicePipeline:
                             await self._speak(s.strip(), send_fn, send_audio_fn)
                     sentence_buffer = sentences[-1]
 
+            # 流结束：flush pending 中可能残留的非标签文本
+            if think_pending and not in_think_block:
+                clean_response += think_pending
+                sentence_buffer += think_pending
             if sentence_buffer.strip() and not self._interrupted:
                 await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
-            if full_response and not self._interrupted:
-                self.session.add_turn("assistant", full_response)
+            if clean_response and not self._interrupted:
+                self.session.add_turn("assistant", clean_response)
         except asyncio.CancelledError:
             logger.info("响应被打断")
         except Exception as e:
