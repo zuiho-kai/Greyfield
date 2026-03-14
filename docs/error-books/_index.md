@@ -19,7 +19,7 @@
 | DEV-65 | 跨平台路径拼接用了宿主机 path API | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-66 | 实时通道断线缓冲未区分消息时效性 | 通用/流程 | 🟢 | flow-code-habit.md |
 | DEV-69 | 文档中硬编码环境相关值（分支名、路径格式） | 通用/流程 | 🟢 | flow-code-habit.md |
-| DEV-70 | 流式清洗逻辑放在拆分之后导致跨片段匹配失败 | 通用/流程 | 🟢 | flow-code-habit.md |
+| DEV-70 | 流式清洗逻辑未处理标签跨 chunk 拆分 | 通用/流程 | 🟡×2 | flow-code-habit.md |
 | DEV-53 | 问了用户但不等回答就自己执行 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-61 | 交付前不做开发自验证 | 通用/流程 | 🟢 | flow-gate.md |
 | DEV-3 | 联调问题用双终端来回排查 | 通用/工具 | 🟢 | tool-rules.md |
