@@ -11,12 +11,12 @@
   }
 
   function hasModelHitCapability(model) {
+    const hitAreaDefs = model?.internalModel?.getHitAreaDefs?.();
     return Boolean(
       model
-      && (
-        typeof model.hitTest === "function"
-        || typeof model.getBounds === "function"
-      )
+      && typeof model.hitTest === "function"
+      && Array.isArray(hitAreaDefs)
+      && hitAreaDefs.length > 0
     );
   }
 
@@ -29,28 +29,8 @@
       return false;
     }
 
-    if (typeof model.hitTest === "function") {
-      const hits = model.hitTest(x, y);
-      if (Array.isArray(hits) && hits.length > 0) {
-        return true;
-      }
-    }
-
-    if (typeof model.getBounds !== "function") {
-      return false;
-    }
-
-    const bounds = model.getBounds();
-    if (!bounds) {
-      return false;
-    }
-
-    return (
-      x >= bounds.x
-      && x <= bounds.x + bounds.width
-      && y >= bounds.y
-      && y <= bounds.y + bounds.height
-    );
+    const hits = model.hitTest(x, y);
+    return Array.isArray(hits) && hits.length > 0;
   }
 
   const api = {

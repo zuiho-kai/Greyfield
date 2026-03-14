@@ -9,6 +9,7 @@ const policyPath = path.resolve(
   "live2d-interaction-policy.js"
 );
 const {
+  hasModelHitCapability,
   isPointOnModel,
   resolveIgnoreMouseRequest,
   shouldEnableFallbackDrag,
@@ -45,25 +46,56 @@ test("模型已就绪且可命中时关闭拖拽回退", () => {
   );
 });
 
+test("只有定义了 hitArea 的模型才具备命中检测能力", () => {
+  const modelWithHitArea = {
+    hitTest: () => [],
+    internalModel: {
+      getHitAreaDefs: () => [{ name: "Body" }],
+    },
+  };
+  const modelWithoutHitArea = {
+    hitTest: () => [],
+    getBounds: () => ({ x: 10, y: 20, width: 30, height: 40 }),
+    internalModel: {
+      getHitAreaDefs: () => [],
+    },
+  };
+
+  assert.equal(hasModelHitCapability(modelWithHitArea), true);
+  assert.equal(hasModelHitCapability(modelWithoutHitArea), false);
+});
+
 test("命中 hitArea 时判定为模型不透明区域", () => {
   const model = {
     hitTest: (x, y) => (x === 12 && y === 34 ? ["Body"] : []),
-    getBounds: () => ({ x: 100, y: 100, width: 10, height: 10 }),
+    internalModel: {
+      getHitAreaDefs: () => [{ name: "Body" }],
+    },
   };
 
   assert.equal(isPointOnModel(model, 12, 34), true);
 });
 
-test("没有 hitArea 命中时回退到包围盒判定", () => {
+test("没有 hitArea 命中时不退化成包围盒拦截", () => {
   const model = {
     hitTest: () => [],
     getBounds: () => ({ x: 10, y: 20, width: 30, height: 40 }),
+    internalModel: {
+      getHitAreaDefs: () => [{ name: "Body" }],
+    },
   };
 
-  assert.equal(isPointOnModel(model, 25, 30), true);
-  assert.equal(isPointOnModel(model, 5, 30), false);
+  assert.equal(isPointOnModel(model, 25, 30), false);
 });
 
-test("模型对象缺失时不命中模型", () => {
-  assert.equal(isPointOnModel(null, 10, 10), false);
+test("没有 hitArea 定义的模型不参与命中判定", () => {
+  const model = {
+    hitTest: () => ["Body"],
+    getBounds: () => ({ x: 10, y: 20, width: 30, height: 40 }),
+    internalModel: {
+      getHitAreaDefs: () => [],
+    },
+  };
+
+  assert.equal(isPointOnModel(model, 10, 10), false);
 });
