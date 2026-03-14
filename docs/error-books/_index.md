@@ -15,6 +15,7 @@
 | DEV-47 | 批量/seed 幂等设计未考虑"部分成功" | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-63 | Review 评论不贴合现状时未做等价落地 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-69 | 文档中硬编码环境相关值（分支名、路径格式） | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-77 | 文档引用外部链接未验证有效性 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-71 | 流式状态机边界条件遗漏 | 流式/运行时 | 🟡×3 | streaming-runtime.md |
 | DEV-72 | 新功能前端无条件启动，未与后端配置协商 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-67 | worktree 操作前未确认当前分支 | git/CR | 🟢 | git-worktree.md |
