@@ -10,7 +10,7 @@
 | DEV-53 | 问了用户但不等回答就自己执行 | 门控/流程 | 🟢 | flow-gate.md |
 | DEV-61 | 交付前不做开发自验证 | 门控/流程 | 🟢 | flow-gate.md |
 | DEV-6 | 改代码不 grep 引用/不复用 pattern | 代码习惯 | 🟡×3 | flow-code-habit.md |
-| DEV-24 | 更新文档只改局部不扫全文 | 代码习惯 | 🟡×2 | flow-code-habit.md |
+| DEV-24 | 更新文档只改局部不扫全文 | 代码习惯 | 🟡×3 | flow-code-habit.md |
 | DEV-29 | P0/P1 修复列表漏项+执行碎片化 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-47 | 批量/seed 幂等设计未考虑"部分成功" | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-63 | Review 评论不贴合现状时未做等价落地 | 代码习惯 | 🟢 | flow-code-habit.md |
