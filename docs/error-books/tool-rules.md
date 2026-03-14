@@ -62,7 +62,7 @@
 ✅ 同类操作的新脚本，复制已有可运行的函数，不从零重写
 > 已验证的集成代码：复用 > 重写。
 
-### DEV-58 降级链跳步 — WebFetch 失败后跳过 agent-browser 直接 curl `🟢`
+### DEV-58 降级链跳步 — WebFetch 失败后跳过 agent-browser 直接 curl `🟡×2`
 
 ❌ CLAUDE.md 定义了降级链（WebFetch → agent-browser → Scrapling → Playwright），失败后跳过中间步骤直接用 curl
 ✅ 严格按降级链顺序逐步降级，不跳步。curl 不在降级链里，任何时候都不该出现
