@@ -21,3 +21,9 @@
 ❌ 函数按参数 `platform` 判断目标是 win32，但用宿主机的 `path.join` 拼路径。在 Linux CI 上构建 Windows 路径会产生混合分隔符（`C:\x\resources/backend/python`）
 ✅ 路径拼接涉及目标平台时，用 `path.win32.join` / `path.posix.join` 显式选择，不依赖宿主机默认的 `path.join`。检查点：函数参数里有 `platform` → 路径 API 必须跟着走
 > 归因：`path.join` 的行为取决于 Node 运行的 OS 而非业务逻辑的目标 OS，混淆了"构建环境"与"目标环境"
+
+### DEV-75 跨平台 API 降级只做初始化不做运行时兜底 `🟢`
+
+❌ 初始化时按平台降级（`setIgnoreMouseEvents(false)`），但运行时 IPC 仍无条件调用平台不支持的选项（`forward: true`），降级形同虚设
+✅ 平台降级必须覆盖运行时路径：IPC handler 中按 `process.platform` 守卫，不支持的平台直接丢弃请求，不能只守初始化
+> 归因 C：新场景。PR #24 CR 发现

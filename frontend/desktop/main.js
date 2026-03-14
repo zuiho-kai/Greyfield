@@ -432,7 +432,13 @@ function createWindow() {
     },
   });
 
-  win.setIgnoreMouseEvents(false);
+  // forward 仅 win32/darwin 支持，Linux 不启用穿透避免死锁
+  const supportsForward = process.platform === "win32" || process.platform === "darwin";
+  if (supportsForward) {
+    win.setIgnoreMouseEvents(true, { forward: true });
+  } else {
+    win.setIgnoreMouseEvents(false);
+  }
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
   if (process.argv.includes("--dev")) {
@@ -440,8 +446,21 @@ function createWindow() {
   }
 
   ipcMain.on("set-ignore-mouse", (_, ignore) => {
+    // Linux 不支持 forward 选项，ignore=true 后无法收到 mousemove 恢复，窗口会卡死
+    if (process.platform === "linux" && ignore) return;
     win.setIgnoreMouseEvents(ignore, { forward: true });
   });
+
+  // 手动窗口拖拽：记录起始位置，渲染端发 delta 移动
+  let dragStartPos = null;
+  ipcMain.on("window-drag-start", () => {
+    dragStartPos = win.getPosition();
+  });
+  ipcMain.on("window-drag-move", (_, dx, dy) => {
+    if (!dragStartPos) return;
+    win.setPosition(dragStartPos[0] + dx, dragStartPos[1] + dy);
+  });
+
   ipcMain.on("chat-history:add", (_, entry) => {
     pushHistory(entry);
   });

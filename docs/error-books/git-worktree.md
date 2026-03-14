@@ -21,6 +21,12 @@
 ✅ worktree 修复合回前，先 `git branch` 确认当前分支是目标分支，再执行 merge/cherry-pick
 > 归因：假设"当前分支 = 会话开头的分支"，没考虑工作目录可能已切换过分支
 
+### DEV-74 主仓库里 checkout 切分支污染工作区 `🟢`
+
+❌ 为了"确认代码状态"在主仓库 `git checkout` 到目标分支，读完代码后忘记切回，主仓库分支被污染
+✅ 主仓库禁止 `git checkout <branch>` / `git switch`。需要读其他分支的代码 → 创建 worktree 或在已有 worktree 里读
+> 归因：把 checkout 当成"只读操作"，没意识到它改变了主仓库的分支指针
+
 ### DEV-68 CR 处理未完成闭环 `🟢`
 
 ❌ 修复并推送后漏掉回复 review comment / 落盘 / 输出标记中的任一步，导致闭环不完整
