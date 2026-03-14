@@ -92,7 +92,6 @@ initLive2D();
 // ── 鼠标穿透：透明区域穿透，模型/输入区不穿透 ──
 // ── 手动拖拽：在模型不透明区域按住拖动移动窗口 ──
 (function setupClickThrough() {
-  const ALPHA_THRESHOLD = 10;
   let modelReady = document.body.dataset.modelReady === "true";
   let ignoring = interactionPolicy.resolveIgnoreMouseRequest(
     window.greywind?.platform,
@@ -104,16 +103,11 @@ initLive2D();
   let dragStartScreenX = 0;
   let dragStartScreenY = 0;
 
-  function hasHitTestBackend() {
-    if (!canvas) return false;
-    return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
-  }
-
   function syncFallbackDrag() {
     modelReady = document.body.dataset.modelReady === "true";
     const fallbackDrag = interactionPolicy.shouldEnableFallbackDrag({
       modelReady,
-      hitTestAvailable: hasHitTestBackend(),
+      interactionAvailable: interactionPolicy.hasModelHitCapability(live2dModel),
     });
     document.body.dataset.dragFallback = fallbackDrag ? "true" : "false";
     if (fallbackDrag) {
@@ -132,18 +126,9 @@ initLive2D();
     window.greywind?.setIgnoreMouse?.(nextIgnore);
   }
 
-  // 检测 canvas 上 (x, y) 处像素是否不透明
+  // 检测 (x, y) 是否命中模型。优先 hitArea，缺失时回退到包围盒。
   function isOpaqueAt(x, y) {
-    if (!canvas) return false;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const cx = Math.round((x - rect.left) * dpr);
-    const cy = Math.round((y - rect.top) * dpr);
-    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
-    if (!gl) return false;
-    const pixel = new Uint8Array(4);
-    gl.readPixels(cx, gl.drawingBufferHeight - cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-    return pixel[3] > ALPHA_THRESHOLD;
+    return interactionPolicy.isPointOnModel(live2dModel, x, y);
   }
 
   // 检测是否在输入区域内
@@ -183,7 +168,7 @@ initLive2D();
       setIgnore(false);
       return;
     }
-    // canvas 区域：检测像素
+    // 模型区域：几何命中检测
     setIgnore(!isOpaqueAt(e.clientX, e.clientY));
   }, { passive: true });
 
