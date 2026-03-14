@@ -38,3 +38,9 @@
 ❌ 拿到 PR 链接后凭编号猜对应分支，操作了错误分支，白跑多轮
 ✅ 操作任何 PR 前必须先抓取 PR 页面（WebFetch）确认 head branch，再找对应 worktree
 > 归因 C：现有"改前 grep"规则只覆盖代码，未覆盖 PR 元数据确认场景
+
+### DEV-76 worktree 改完直接本地 merge，跳过 PR `🟢`
+
+❌ worktree 分支改完后在主仓库执行 `git merge <branch>`，直接合入，绕过 PR review
+✅ worktree 改完 → `git push` 推远端 → GitHub 开 PR → 合并。主仓库禁止执行 `git merge` 合入功能分支
+
