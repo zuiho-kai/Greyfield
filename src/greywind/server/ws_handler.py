@@ -35,21 +35,21 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
     chunk_count = 0
     proactive_task = None
 
+    async def send_msg_safe(msg: dict):
+        try:
+            await ws.send_json(msg)
+        except Exception:
+            pass
+
+    async def send_audio_safe(audio_bytes: bytes, payload: dict):
+        try:
+            await ws.send_json({"type": "reply_audio_meta", "payload": payload})
+            await ws.send_bytes(audio_bytes)
+        except Exception:
+            pass
+
     # 如果屏幕感知已启用，启动主动说话循环
     if pipeline.screen_sense and pipeline.screen_sense.enabled:
-        async def send_msg_safe(msg: dict):
-            try:
-                await ws.send_json(msg)
-            except Exception:
-                pass
-
-        async def send_audio_safe(audio_bytes: bytes, payload: dict):
-            try:
-                await ws.send_json({"type": "reply_audio_meta", "payload": payload})
-                await ws.send_bytes(audio_bytes)
-            except Exception:
-                pass
-
         proactive_task = asyncio.create_task(
             pipeline.proactive_loop(send_msg_safe, send_audio_safe)
         )
@@ -105,9 +105,23 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                 if pipeline.screen_sense:
                     pipeline.screen_sense.enabled = enabled
                     logger.info(f"ScreenSense 即时切换: enabled={enabled}")
-                    # 关闭时中断正在进行的主动说话，确保真正"立即静音"
                     if not enabled:
+                        # 中断被动模式正在进行的响应
                         await pipeline.interrupt()
+                        # 取消主动说话循环（会中断正在进行的 _proactive_judge/_speak）
+                        if proactive_task and not proactive_task.done():
+                            proactive_task.cancel()
+                            try:
+                                await proactive_task
+                            except asyncio.CancelledError:
+                                pass
+                            proactive_task = None
+                    else:
+                        # 重新启用时，如果 proactive_task 不在运行则重新启动
+                        if not proactive_task or proactive_task.done():
+                            proactive_task = asyncio.create_task(
+                                pipeline.proactive_loop(send_msg_safe, send_audio_safe)
+                            )
 
             elif msg_type == "interrupt":
                 await pipeline.interrupt()
