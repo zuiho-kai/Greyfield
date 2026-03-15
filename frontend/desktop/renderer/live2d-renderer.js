@@ -101,11 +101,14 @@ wsOn("status", (p) => {
 
 initLive2D();
 
-// ── 鼠标穿透：透明区域穿透，模型/输入区不穿透 ──
-// 拖拽由 CSS -webkit-app-region: drag 处理，无需 JS IPC
-(function setupClickThrough() {
+// ── 鼠标穿透 + 拖拽 ──
+// 穿透检测用 rAF 节流，拖拽期间跳过穿透检测
+(function setupClickThroughAndDrag() {
   let ignoring = true; // 与主进程默认状态一致
   let rafPending = false;
+  let dragging = false;
+  let dragStartScreenX = 0;
+  let dragStartScreenY = 0;
 
   function setIgnore(shouldIgnore) {
     if (shouldIgnore === ignoring) return;
@@ -132,12 +135,30 @@ initLive2D();
     return target && target.closest && target.closest(".msg") !== null;
   }
 
+  // 在模型不透明区域按下时开始拖拽
+  document.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    if (isInInputArea(e.target) || isInChatMsg(e.target)) return;
+    if (!isOpaqueAt(e.clientX, e.clientY)) return;
+    dragging = true;
+    dragStartScreenX = e.screenX;
+    dragStartScreenY = e.screenY;
+    window.greywind?.startDrag?.();
+  });
+
   document.addEventListener("mousemove", (e) => {
+    // 拖拽中：移动窗口，跳过穿透检测
+    if (dragging) {
+      const dx = e.screenX - dragStartScreenX;
+      const dy = e.screenY - dragStartScreenY;
+      window.greywind?.dragMove?.(dx, dy);
+      return;
+    }
+    // 穿透检测：rAF 节流，每帧最多一次
     if (rafPending) return;
     rafPending = true;
     requestAnimationFrame(() => {
       rafPending = false;
-      // 输入区域和聊天气泡始终不穿透
       if (isInInputArea(e.target) || isInChatMsg(e.target)) {
         setIgnore(false);
         return;
@@ -146,8 +167,18 @@ initLive2D();
     });
   }, { passive: true });
 
+  document.addEventListener("mouseup", (e) => {
+    dragging = false;
+    if (isInInputArea(e.target) || isInChatMsg(e.target)) {
+      setIgnore(false);
+    } else {
+      setIgnore(!isOpaqueAt(e.clientX, e.clientY));
+    }
+  });
+
   // 鼠标离开窗口时恢复穿透
   document.addEventListener("mouseleave", () => {
+    if (dragging) return;
     setIgnore(true);
   }, { passive: true });
 })();

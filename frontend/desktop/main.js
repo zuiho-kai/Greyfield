@@ -507,6 +507,16 @@ function createWindow() {
     win.setIgnoreMouseEvents(ignore, { forward: true });
   });
 
+  // 手动窗口拖拽：renderer 发 delta，main 只做 setPosition（不做 setSize 补丁）
+  let dragStartPos = null;
+  ipcMain.on("window-drag-start", () => {
+    dragStartPos = win.getPosition();
+  });
+  ipcMain.on("window-drag-move", (_, dx, dy) => {
+    if (!dragStartPos) return;
+    win.setPosition(dragStartPos[0] + dx, dragStartPos[1] + dy);
+  });
+
   ipcMain.on("chat-history:add", (_, entry) => {
     pushHistory(entry);
   });
