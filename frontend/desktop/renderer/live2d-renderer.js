@@ -101,84 +101,114 @@ wsOn("status", (p) => {
 
 initLive2D();
 
-// ── 鼠标穿透 + 拖拽 ──
-// 穿透检测用 rAF 节流，拖拽期间跳过穿透检测
-(function setupClickThroughAndDrag() {
-  let ignoring = true; // 与主进程默认状态一致
-  let rafPending = false;
+// ── 拖拽 ──
+// 默认不穿透，窗口始终接收鼠标。穿透由托盘菜单手动切换。
+// 用 setShape 限制可点击区域为模型包围盒 + 输入区。
+(async function setupDrag() {
   let dragging = false;
   let dragStartScreenX = 0;
   let dragStartScreenY = 0;
+  let dragRafPending = false;
+  let dragLatestDx = 0;
+  let dragLatestDy = 0;
+  const useNativeDrag = await window.greywind?.hasNativeDrag?.() || false;
+  console.log("[drag] useNativeDrag:", useNativeDrag);
 
-  function setIgnore(shouldIgnore) {
-    if (shouldIgnore === ignoring) return;
-    ignoring = shouldIgnore;
-    window.greywind?.setIgnoreMouse?.(shouldIgnore);
+  function endDrag() {
+    if (!dragging) return;
+    dragging = false;
+    window.greywind?.endDrag?.();
   }
 
-  // 检测 (x, y) 是否命中模型包围盒
-  function isOpaqueAt(x, y) {
-    if (!live2dModel) return true;
-    const mx = live2dModel.x;
-    const my = live2dModel.y;
-    const mw = modelBaseWidth * live2dModel.scale.x;
-    const mh = modelBaseHeight * live2dModel.scale.y;
-    return x >= mx && x <= mx + mw && y >= my && y <= my + mh;
-  }
+  const dragOverlay = document.getElementById("drag-overlay");
 
-  function isInInputArea(target) {
-    const inputArea = document.getElementById("input-area");
-    return inputArea && inputArea.contains(target);
-  }
-
-  function isInChatMsg(target) {
-    return target && target.closest && target.closest(".msg") !== null;
-  }
-
-  // 在模型不透明区域按下时开始拖拽
-  document.addEventListener("mousedown", (e) => {
+  // 在 overlay 上监听拖拽（完全绕过 PIXI 事件系统）
+  dragOverlay.addEventListener("pointerdown", (e) => {
+    console.log("[drag] pointerdown on overlay, button:", e.button, "native:", useNativeDrag);
     if (e.button !== 0) return;
-    if (isInInputArea(e.target) || isInChatMsg(e.target)) return;
-    if (!isOpaqueAt(e.clientX, e.clientY)) return;
+
+    if (useNativeDrag) {
+      // Win32 原生拖拽：SendMessage WM_NCLBUTTONDOWN，零闪烁
+      window.greywind.nativeDrag();
+      return;
+    }
+
     dragging = true;
     dragStartScreenX = e.screenX;
     dragStartScreenY = e.screenY;
+    dragOverlay.style.cursor = "grabbing";
     window.greywind?.startDrag?.();
+    console.log("[drag] startDrag sent, screen:", e.screenX, e.screenY);
   });
 
-  document.addEventListener("mousemove", (e) => {
-    // 拖拽中：移动窗口，跳过穿透检测
-    if (dragging) {
-      const dx = e.screenX - dragStartScreenX;
-      const dy = e.screenY - dragStartScreenY;
-      window.greywind?.dragMove?.(dx, dy);
-      return;
-    }
-    // 穿透检测：rAF 节流，每帧最多一次
-    if (rafPending) return;
-    rafPending = true;
-    requestAnimationFrame(() => {
-      rafPending = false;
-      if (isInInputArea(e.target) || isInChatMsg(e.target)) {
-        setIgnore(false);
-        return;
-      }
-      setIgnore(!isOpaqueAt(e.clientX, e.clientY));
-    });
-  }, { passive: true });
-
-  document.addEventListener("mouseup", (e) => {
-    dragging = false;
-    if (isInInputArea(e.target) || isInChatMsg(e.target)) {
-      setIgnore(false);
-    } else {
-      setIgnore(!isOpaqueAt(e.clientX, e.clientY));
+  dragOverlay.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    dragLatestDx = e.screenX - dragStartScreenX;
+    dragLatestDy = e.screenY - dragStartScreenY;
+    console.log("[drag] pointermove dx:", dragLatestDx, "dy:", dragLatestDy);
+    if (!dragRafPending) {
+      dragRafPending = true;
+      requestAnimationFrame(() => {
+        dragRafPending = false;
+        window.greywind?.dragMove?.(dragLatestDx, dragLatestDy);
+      });
     }
   });
 
-  // 鼠标离开窗口时恢复穿透
-  document.addEventListener("mouseleave", () => {
-    if (dragging) return;
-    setIgnore(true);
-  }, { passive: true });
+  function onDragEnd() {
+    endDrag();
+    dragOverlay.style.cursor = "grab";
+  }
+  dragOverlay.addEventListener("pointerup", onDragEnd);
+  dragOverlay.addEventListener("pointercancel", onDragEnd);
+  dragOverlay.addEventListener("lostpointercapture", onDragEnd);
+  window.addEventListener("blur", () => endDrag());
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) endDrag();
+  });
+
+  // ── setShape：限制可点击区域为模型包围盒 + 输入区 ──
+  function updateClickShape() {
+    if (!window.greywind?.setClickShape) return;
+    const rects = [];
+    // 模型包围盒
+    if (live2dModel) {
+      const mx = Math.round(live2dModel.x);
+      const my = Math.round(live2dModel.y);
+      const mw = Math.round(modelBaseWidth * live2dModel.scale.x);
+      const mh = Math.round(modelBaseHeight * live2dModel.scale.y);
+      rects.push({ x: mx, y: my, width: mw, height: mh });
+    }
+    // 输入区
+    const inputArea = document.getElementById("input-area");
+    if (inputArea) {
+      const r = inputArea.getBoundingClientRect();
+      rects.push({ x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) });
+    }
+    // 聊天气泡区
+    const chatBox = document.getElementById("chat-box");
+    if (chatBox && chatBox.children.length > 0) {
+      const r = chatBox.getBoundingClientRect();
+      rects.push({ x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) });
+    }
+    console.log("[shape] updateClickShape rects:", JSON.stringify(rects));
+    window.greywind.setClickShape(rects);
+  }
+
+  // 模型加载后设置一次，之后不需要频繁更新
+  // 用 MutationObserver 监听聊天气泡变化时更新
+  const chatBox = document.getElementById("chat-box");
+  if (chatBox) {
+    new MutationObserver(() => updateClickShape()).observe(chatBox, { childList: true });
+  }
+  // 初始延迟设置（等模型加载完）
+  const shapeInterval = setInterval(() => {
+    if (live2dModel) {
+      updateClickShape();
+      clearInterval(shapeInterval);
+    }
+  }, 500);
+
+  // 穿透模式关闭后，主进程通知 renderer 重新设置 shape
+  window.greywind?.onRefreshClickShape?.(() => updateClickShape());
 })();
