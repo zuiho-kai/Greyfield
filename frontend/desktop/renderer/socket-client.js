@@ -11,6 +11,14 @@ const sendQueue = [];
 const REALTIME_TYPES = new Set(["audio_chunk", "screen_capture"]);
 const SEND_QUEUE_MAX = 50;
 
+/** 查前端设置页的截屏 enabled 状态，查不到默认关闭 */
+async function checkScreenEnabled() {
+  try {
+    const cfg = await window.greywind?.getScreenSettings?.();
+    return cfg && cfg.enabled === true;
+  } catch { return false; }
+}
+
 function wsOn(type, fn) {
   (listeners[type] = listeners[type] || []).push(fn);
 }
@@ -62,18 +70,24 @@ function wsConnect() {
           document.getElementById("status-bar").textContent =
             "已连接 | 不可用: " + missing.join(", ");
         }
-        // 根据后端配置决定是否启动截屏
+        // 根据后端配置决定是否启动截屏（需前端设置 enabled 才启动）
         if (e.screen_sense) {
-          const interval = (data.screen && data.screen.capture_interval)
-            ? data.screen.capture_interval * 1000
-            : SCREEN_CAPTURE_INTERVAL_MS;
-          const monitor = (data.screen && data.screen.monitor) || "active";
-          startScreenCapture(interval, monitor);
+          checkScreenEnabled().then(enabled => {
+            if (!enabled) return;
+            const interval = (data.screen && data.screen.capture_interval)
+              ? data.screen.capture_interval * 1000
+              : SCREEN_CAPTURE_INTERVAL_MS;
+            const monitor = (data.screen && data.screen.monitor) || "active";
+            startScreenCapture(interval, monitor);
+          });
         }
       })
       .catch(() => {
-        // health 请求失败时用默认值启动截屏
-        startScreenCapture(SCREEN_CAPTURE_INTERVAL_MS);
+        // health 请求失败时也需检查设置，不再无条件启动
+        checkScreenEnabled().then(enabled => {
+          if (!enabled) return;
+          startScreenCapture(SCREEN_CAPTURE_INTERVAL_MS);
+        });
       });
   };
 

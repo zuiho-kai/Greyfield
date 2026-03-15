@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("greywind", {
   appendHistory: (entry) => ipcRenderer.send("chat-history:append", entry),
   getLive2DModelUrl: () => ipcRenderer.invoke("live2d:get-model-url"),
   captureScreen: (opts) => ipcRenderer.invoke("screen:capture", opts),
+  getScreenSettings: () => ipcRenderer.invoke("settings:get-screen"),
   onScreenSettingsChanged: (fn) => ipcRenderer.on("screen-settings-changed", (_, data) => fn(data)),
   onRefreshClickShape: (fn) => ipcRenderer.on("refresh-click-shape", () => fn()),
   getRenderSettings: () => ipcRenderer.invoke("render-settings:get"),

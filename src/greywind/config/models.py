@@ -48,7 +48,7 @@ class CharacterConfig(BaseModel):
 
 
 class ScreenConfig(BaseModel):
-    enabled: bool = True
+    enabled: bool = False
     capture_interval: float = 3.0
     trigger_frames: int = 5
     diff_threshold: float = 0.05
