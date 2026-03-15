@@ -522,14 +522,17 @@ function createWindow() {
     },
   });
 
-  // forward 仅 win32/darwin 支持，Linux 保持不可穿透，避免无恢复路径
-  const supportsForward = supportsMouseTransparency(process.platform);
-  const initialIgnoreMouse = resolveIgnoreMouseRequest(process.platform, true);
-  if (supportsForward) {
-    win.setIgnoreMouseEvents(initialIgnoreMouse, { forward: true });
-  } else {
-    win.setIgnoreMouseEvents(initialIgnoreMouse);
-  }
+  // 默认不穿透，窗口正常接收所有鼠标事件
+  // 用 setShape 限制可点击区域（模型包围盒 + 输入区），区域外自动穿透
+  win.setIgnoreMouseEvents(false);
+  let clickThrough = false;
+
+  ipcMain.on("set-click-shape", (_, rects) => {
+    if (clickThrough) return;
+    // 暂时禁用 setShape，先验证拖拽
+    console.log("[shape] setShape skipped (debug), rects:", rects.length);
+  });
+
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
@@ -537,14 +540,6 @@ function createWindow() {
     win.webContents.openDevTools({ mode: "detach" });
   }
 
-  ipcMain.on("set-ignore-mouse", (_, ignore) => {
-    const nextIgnoreMouse = resolveIgnoreMouseRequest(process.platform, ignore);
-    if (supportsForward) {
-      win.setIgnoreMouseEvents(nextIgnoreMouse, { forward: true });
-      return;
-    }
-    win.setIgnoreMouseEvents(nextIgnoreMouse);
-  });
 
   // 窗口拖拽：JS setPosition 方案（始终注册作为回退）
   let dragStartPos = null;
@@ -672,23 +667,19 @@ function createWindow() {
   tray = new Tray(path.join(__dirname, "renderer", "icon.png").replace(/\\/g, "/"));
   tray.setToolTip("灰风 GreyWind");
 
-  let clickThrough = false;
-
   function rebuildTrayMenu() {
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: "显示/隐藏", click: () => win.isVisible() ? win.hide() : win.show() },
       { label: clickThrough ? "关闭鼠标穿透" : "开启鼠标穿透", click: () => {
         clickThrough = !clickThrough;
         if (clickThrough) {
-          // 穿透模式：整窗穿透，不 forward
+          // 穿透模式：整窗穿透，清空 shape
+          win.setShape([]);
           win.setIgnoreMouseEvents(true);
         } else {
-          // 恢复交互：恢复 forward 穿透模式
-          if (supportsForward) {
-            win.setIgnoreMouseEvents(true, { forward: true });
-          } else {
-            win.setIgnoreMouseEvents(false);
-          }
+          // 恢复交互：取消穿透，通知 renderer 重新设置 shape
+          win.setIgnoreMouseEvents(false);
+          win.webContents.send("refresh-click-shape");
         }
         rebuildTrayMenu();
       }},

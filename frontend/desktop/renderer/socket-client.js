@@ -124,6 +124,7 @@ let screenMonitorMode = "active";
 const SCREEN_CAPTURE_INTERVAL_MS = 3000; // fallback default
 
 function startScreenCapture(intervalMs, monitor) {
+  return; // 临时禁用截屏，排查卡顿
   if (screenCaptureTimer) return;
   const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
   if (monitor) screenMonitorMode = monitor;
