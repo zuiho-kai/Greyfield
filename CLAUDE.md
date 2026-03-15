@@ -96,6 +96,7 @@ worktree：[已就绪(路径/分支名) | 需要创建 → 先执行创建命令
 - **3 次 fix commit 强制停下**（DEV-83）：同一功能/同一链路/同一文件簇累计 3 次 fix commit 未解决 = 强制停下。执行：①`git log --oneline` 确认 fix 次数 ②列出每次 fix 改了什么、为什么没解决 ③回退到第一次 fix 前的状态 ④换完全不同的技术路径
 - **平台能力边界先确认**（DEV-84）：使用平台 API 前，先确认能力边界：①查官方文档已知限制 ②搜 GitHub Issues 同类问题 ③最小复现验证实际行为。三步都确认后再写应用层代码
 - **禁止无证据的"根治"**（DEV-85）：禁止在 commit message 中使用"根治/彻底修复/完美解决"等词，除非附带验证证据。commit message 只描述改了什么，不做效果承诺
+- **PR/CR 链接直入 worktree**：用户给 PR 链接/编号并要求"修一下/处理 CR/看 review"时，直接视为会产生 git diff 的任务；第一动作必须是门禁声明 + 创建独立 CR worktree，禁止先在主仓库读 diff/评论后补流程
 - **CR 修复必须 worktree**：PR 收到 code review 反馈后，所有修复工作必须在独立 worktree 中进行（`git worktree add ../Greyfield-cr-<PR号> -b fix/pr<PR号>-cr <当前分支>`），修完合回原分支再推送。流程见 `docs/worktree-workflow.md`
 - **CR 闭环**（DEV-68）：CR 处理必须依次完成以下步骤才算闭环，缺一不可：①修复+推送 ②回复 PR review comment ③执行出错自动落盘流程 ④输出"CR 闭环完成"标记
 - **worktree 合回前确认分支**（DEV-67）：worktree 修复合回主仓库前，必须 `git branch` 确认当前分支是目标分支，禁止盲 merge

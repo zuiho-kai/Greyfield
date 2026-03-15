@@ -16,3 +16,7 @@ $OutputEncoding = [Console]::OutputEncoding
 ```
 
 - 向 `gh` 提交 review/comment、向其他原生命令传递中文正文时，**优先做法**是：先写入 UTF-8 文件，再让命令读取该文件；不要直接用 PowerShell here-string/管道把中文正文喂给原生命令。
+
+## Code Review
+
+做 PR code review 时，如果已经形成明确的 review finding，默认直接用 `gh` 提交到对应 PR（行内评论或 review summary），不要只停留在本地结论；仅当用户明确要求不要提交时例外。

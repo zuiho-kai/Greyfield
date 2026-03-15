@@ -5,6 +5,10 @@ const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { resolveProjectRoot, resolvePythonExecutable } = require("./runtime-paths");
+const {
+  resolveIgnoreMouseRequest,
+  supportsMouseTransparency,
+} = require("./renderer/live2d-interaction-policy.js");
 
 // Win32 系统级拖拽（仅 Windows）
 let nativeDrag = null;
@@ -528,6 +532,7 @@ function createWindow() {
     // 暂时禁用 setShape，先验证拖拽
     console.log("[shape] setShape skipped (debug), rects:", rects.length);
   });
+
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 

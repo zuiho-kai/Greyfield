@@ -12,6 +12,7 @@ let modelBaseWidth = 0;
 let modelBaseHeight = 0;
 
 const { Live2DModel } = PIXI.live2d;
+const interactionPolicy = window.GreywindLive2DInteractionPolicy;
 
 // pixi-live2d-display 需要注册 Ticker 才能驱动模型更新
 Live2DModel.registerTicker(PIXI.Ticker);
@@ -54,6 +55,7 @@ async function initLive2D() {
     }
     const model = await Live2DModel.from(result.url);
     live2dModel = model;
+    document.body.dataset.modelReady = "true";
     modelBaseWidth = model.internalModel.originalWidth;
     modelBaseHeight = model.internalModel.originalHeight;
 
@@ -66,6 +68,7 @@ async function initLive2D() {
     console.error("Live2D 模型加载失败:", e);
     const msg = e?.message ? `Live2D: ${e.message}` : "Live2D 模型加载失败";
     placeholder.textContent = msg;
+    document.body.dataset.modelReady = "false";
   }
 }
 
@@ -132,6 +135,7 @@ initLive2D();
       window.greywind.nativeDrag();
       return;
     }
+
 
     dragging = true;
     dragStartScreenX = e.screenX;
