@@ -585,7 +585,7 @@ function createWindow() {
 
       const sources = await desktopCapturer.getSources({
         types: ["screen"],
-        thumbnailSize: { width: 1280, height: 720 },
+        thumbnailSize: { width: 640, height: 360 },
       });
       if (wasVisible) win.setOpacity(1);
       if (!sources.length) return { ok: false, error: "无法获取屏幕源" };

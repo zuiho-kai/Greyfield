@@ -134,22 +134,23 @@ wsConnect();
  */
 let screenCaptureTimer = null;
 let screenCaptureEnabled = false;
+let screenCaptureBusy = false; // 并发锁：上一次截图未完成时跳过
 let screenMonitorMode = "active";
 const SCREEN_CAPTURE_INTERVAL_MS = 3000; // fallback default
 
 function startScreenCapture(intervalMs, monitor) {
-  return; // 临时禁用截屏，排查卡顿
   if (screenCaptureTimer) return;
   const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
   if (monitor) screenMonitorMode = monitor;
   screenCaptureEnabled = true;
   screenCaptureTimer = setInterval(async () => {
     if (!screenCaptureEnabled) return;
+    if (screenCaptureBusy) return; // 上一次还没完成，跳过本轮
     if (!window.greywind?.captureScreen) return;
+    screenCaptureBusy = true;
     try {
       const result = await window.greywind.captureScreen({ monitor: screenMonitorMode });
       if (result.ok) {
-        // 多屏模式：逐个发送每块屏幕的截图，带 screen_index 区分
         const screens = result.all_screens || (result.image_base64 ? [result.image_base64] : []);
         for (let i = 0; i < screens.length; i++) {
           wsSend({
@@ -164,6 +165,8 @@ function startScreenCapture(intervalMs, monitor) {
       }
     } catch (err) {
       console.debug("截屏失败:", err);
+    } finally {
+      screenCaptureBusy = false;
     }
   }, interval);
 }
