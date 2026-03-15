@@ -26,7 +26,6 @@ const HISTORY_SAVE_DEBOUNCE_MS = 500;
 let historyFilePath = null;
 let historySaveTimer = null;
 let cachedForegroundTitle = "";
-let foregroundTitleTimer = null;
 
 const LIVE2D_SAMPLE = {
   id: "hiyori",
@@ -292,19 +291,6 @@ function refreshForegroundTitle() {
   }
 }
 
-function startForegroundTitlePolling() {
-  if (foregroundTitleTimer) return;
-  refreshForegroundTitle();
-  foregroundTitleTimer = setInterval(refreshForegroundTitle, 2000);
-}
-
-function stopForegroundTitlePolling() {
-  if (foregroundTitleTimer) {
-    clearInterval(foregroundTitleTimer);
-    foregroundTitleTimer = null;
-  }
-}
-
 function normalizeEntry(entry) {
   const role = entry?.role === "user" ? "user" : "assistant";
   const text = typeof entry?.text === "string" ? entry.text : String(entry?.text ?? "");
@@ -502,17 +488,6 @@ function createWindow() {
     },
   });
 
-  // transparent + frame:false 在 Windows 上 resizable:false 和 will-resize 都不生效
-  // 用 resize 事件强制恢复到初始尺寸
-  const lockedSize = [winW, winH];
-  win.on("will-resize", (e) => { e.preventDefault(); });
-  win.on("resize", () => {
-    const [cw, ch] = win.getSize();
-    if (cw !== lockedSize[0] || ch !== lockedSize[1]) {
-      win.setSize(lockedSize[0], lockedSize[1]);
-    }
-  });
-
   // forward 仅 win32/darwin 支持，Linux 不启用穿透避免死锁
   const supportsForward = process.platform === "win32" || process.platform === "darwin";
   if (supportsForward) {
@@ -532,25 +507,6 @@ function createWindow() {
     win.setIgnoreMouseEvents(ignore, { forward: true });
   });
 
-  // 手动窗口拖拽：记录起始位置和尺寸，渲染端发 delta 移动
-  let dragStartPos = null;
-  let dragLockedSize = null;
-  ipcMain.on("window-drag-start", () => {
-    dragStartPos = win.getPosition();
-    dragLockedSize = win.getSize();
-  });
-  ipcMain.on("window-drag-move", (_, dx, dy) => {
-    if (!dragStartPos) return;
-    win.setPosition(dragStartPos[0] + dx, dragStartPos[1] + dy);
-    // Windows transparent+frameless 拖动时窗口会被系统 resize，强制恢复
-    if (dragLockedSize) {
-      const [cw, ch] = win.getSize();
-      if (cw !== dragLockedSize[0] || ch !== dragLockedSize[1]) {
-        win.setSize(dragLockedSize[0], dragLockedSize[1]);
-      }
-    }
-  });
-
   ipcMain.on("chat-history:add", (_, entry) => {
     pushHistory(entry);
   });
@@ -560,6 +516,7 @@ function createWindow() {
   ipcMain.handle("screen:capture", async (_, opts) => {
     try {
       const monitorMode = (opts && opts.monitor) || "active";
+      refreshForegroundTitle();
 
       // 隐藏灰风窗口避免截到自己
       const wasVisible = win.isVisible();
@@ -682,7 +639,6 @@ if (!gotLock) {
     historyFilePath = resolveHistoryFilePath();
     loadHistoryFromDisk();
     startBackend();
-    startForegroundTitlePolling();
     createWindow();
   });
 }
@@ -696,6 +652,5 @@ app.on("window-all-closed", (e) => {
 app.on("before-quit", () => {
   isQuitting = true;
   saveHistoryToDisk();
-  stopForegroundTitlePolling();
   stopBackend();
 });

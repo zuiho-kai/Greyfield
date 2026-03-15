@@ -101,18 +101,11 @@ wsOn("status", (p) => {
 
 initLive2D();
 
-// 模块级拖拽状态，供 resize 回调检查
-let isDragging = false;
-
 // ── 鼠标穿透：透明区域穿透，模型/输入区不穿透 ──
-// ── 手动拖拽：在模型不透明区域按住拖动移动窗口 ──
+// 拖拽由 CSS -webkit-app-region: drag 处理，无需 JS IPC
 (function setupClickThrough() {
   let ignoring = true; // 与主进程默认状态一致
-
-  // 拖拽状态
-  let dragging = false;
-  let dragStartScreenX = 0;
-  let dragStartScreenY = 0;
+  let rafPending = false;
 
   function setIgnore(shouldIgnore) {
     if (shouldIgnore === ignoring) return;
@@ -120,11 +113,9 @@ let isDragging = false;
     window.greywind?.setIgnoreMouse?.(shouldIgnore);
   }
 
-  // 检测 (x, y) 是否命中模型 — 用 Cubism hitTest 几何检测，避免 readPixels GPU 同步开销
-  // live2dModel 为 null 时（加载中或失败）返回 true，保持窗口可交互
+  // 检测 (x, y) 是否命中模型包围盒
   function isOpaqueAt(x, y) {
     if (!live2dModel) return true;
-    // 用模型位置和缩放后尺寸算包围盒（比 getBounds() 稳定）
     const mx = live2dModel.x;
     const my = live2dModel.y;
     const mw = modelBaseWidth * live2dModel.scale.x;
@@ -132,60 +123,31 @@ let isDragging = false;
     return x >= mx && x <= mx + mw && y >= my && y <= my + mh;
   }
 
-  // 检测是否在输入区域内
   function isInInputArea(target) {
     const inputArea = document.getElementById("input-area");
     return inputArea && inputArea.contains(target);
   }
 
-  // 检测是否在聊天气泡上
   function isInChatMsg(target) {
     return target && target.closest && target.closest(".msg") !== null;
   }
 
-  // 在模型不透明区域按下时开始拖拽
-  document.addEventListener("mousedown", (e) => {
-    if (e.button !== 0) return; // 只响应左键
-    if (isInInputArea(e.target) || isInChatMsg(e.target)) return;
-    if (!isOpaqueAt(e.clientX, e.clientY)) return;
-    dragging = true;
-    isDragging = true;
-    dragStartScreenX = e.screenX;
-    dragStartScreenY = e.screenY;
-    window.greywind?.startDrag?.();
-  });
-
   document.addEventListener("mousemove", (e) => {
-    // 拖拽中：移动窗口
-    if (dragging) {
-      const dx = e.screenX - dragStartScreenX;
-      const dy = e.screenY - dragStartScreenY;
-      window.greywind?.dragMove?.(dx, dy);
-      return;
-    }
-    // 输入区域和聊天气泡始终不穿透
-    if (isInInputArea(e.target) || isInChatMsg(e.target)) {
-      setIgnore(false);
-      return;
-    }
-    // canvas 区域：检测像素
-    setIgnore(!isOpaqueAt(e.clientX, e.clientY));
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      // 输入区域和聊天气泡始终不穿透
+      if (isInInputArea(e.target) || isInChatMsg(e.target)) {
+        setIgnore(false);
+        return;
+      }
+      setIgnore(!isOpaqueAt(e.clientX, e.clientY));
+    });
   }, { passive: true });
 
-  document.addEventListener("mouseup", (e) => {
-    dragging = false;
-    isDragging = false;
-    // 松手后立即按当前位置重新判定穿透状态
-    if (isInInputArea(e.target) || isInChatMsg(e.target)) {
-      setIgnore(false);
-    } else {
-      setIgnore(!isOpaqueAt(e.clientX, e.clientY));
-    }
-  });
-
-  // 鼠标离开窗口时恢复穿透并停止拖拽（拖拽中不穿透，等 mouseup 再判定）
+  // 鼠标离开窗口时恢复穿透
   document.addEventListener("mouseleave", () => {
-    if (dragging) return;
     setIgnore(true);
   }, { passive: true });
 })();
