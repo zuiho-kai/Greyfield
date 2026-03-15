@@ -1,2 +1,2 @@
 cd frontend/desktop
-npm start
+npm start --dev

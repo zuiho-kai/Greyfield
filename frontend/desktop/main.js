@@ -10,6 +10,36 @@ const {
   supportsMouseTransparency,
 } = require("./renderer/live2d-interaction-policy.js");
 
+// Win32 系统级拖拽（仅 Windows）
+let nativeDrag = null;
+if (process.platform === "win32") {
+  try {
+    const koffi = require("koffi");
+    const user32 = koffi.load("user32.dll");
+    const ReleaseCapture = user32.func("bool __stdcall ReleaseCapture()");
+    const SendMessageW = user32.func("intptr_t __stdcall SendMessageW(intptr_t hwnd, uint32_t msg, intptr_t wParam, intptr_t lParam)");
+    const PostMessageW = user32.func("bool __stdcall PostMessageW(intptr_t hwnd, uint32_t msg, intptr_t wParam, intptr_t lParam)");
+    const GetKeyState = user32.func("int16_t __stdcall GetKeyState(int32_t nVirtKey)");
+    const WM_NCLBUTTONDOWN = 0x00A1;
+    const WM_SYSCOMMAND = 0x0112;
+    const SC_MOVE = 0xF010;
+    const HTCAPTION = 2;
+    const VK_LBUTTON = 0x01;
+    nativeDrag = (hwndBuffer) => {
+      const hwnd = hwndBuffer.length >= 8
+        ? Number(hwndBuffer.readBigInt64LE(0))
+        : hwndBuffer.readInt32LE(0);
+      const lbState = GetKeyState(VK_LBUTTON);
+      console.log("[main] hwnd:", hwnd, "lButton state:", lbState);
+      ReleaseCapture();
+      // 用 WM_SYSCOMMAND SC_MOVE 作为备选
+      SendMessageW(hwnd, WM_SYSCOMMAND, SC_MOVE + HTCAPTION, 0);
+    };
+  } catch (e) {
+    console.warn("koffi 加载失败，回退到 JS 拖拽:", e.message);
+  }
+}
+
 // 打包后后端资源在 resources/backend/；开发时向上两级到项目根
 const PROJECT_ROOT = resolveProjectRoot({
   isPackaged: app.isPackaged,
@@ -30,7 +60,6 @@ const HISTORY_SAVE_DEBOUNCE_MS = 500;
 let historyFilePath = null;
 let historySaveTimer = null;
 let cachedForegroundTitle = "";
-let foregroundTitleTimer = null;
 
 const LIVE2D_SAMPLE = {
   id: "hiyori",
@@ -223,6 +252,29 @@ function resolveHistoryFilePath() {
   return path.join(dir, "history.json");
 }
 
+function resolveRenderSettingsPath() {
+  const base = app.isPackaged ? app.getPath("userData") : PROJECT_ROOT;
+  return path.join(base, "cache", "render-settings.json");
+}
+
+const DEFAULT_RENDER_SETTINGS = { hiDpi: false, bubbleBlur: true };
+
+function loadRenderSettings() {
+  try {
+    const p = resolveRenderSettingsPath();
+    if (fs.existsSync(p)) return { ...DEFAULT_RENDER_SETTINGS, ...JSON.parse(fs.readFileSync(p, "utf8")) };
+  } catch (_) {}
+  return { ...DEFAULT_RENDER_SETTINGS };
+}
+
+function saveRenderSettings(data) {
+  try {
+    const p = resolveRenderSettingsPath();
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify(data, null, 2), "utf8");
+  } catch (_) {}
+}
+
 function ensureHistoryDir() {
   if (!historyFilePath) return;
   fs.mkdirSync(path.dirname(historyFilePath), { recursive: true });
@@ -270,19 +322,6 @@ function refreshForegroundTitle() {
     ).trim();
   } catch (_) {
     // 失败时保留上次值
-  }
-}
-
-function startForegroundTitlePolling() {
-  if (foregroundTitleTimer) return;
-  refreshForegroundTitle();
-  foregroundTitleTimer = setInterval(refreshForegroundTitle, 2000);
-}
-
-function stopForegroundTitlePolling() {
-  if (foregroundTitleTimer) {
-    clearInterval(foregroundTitleTimer);
-    foregroundTitleTimer = null;
   }
 }
 
@@ -473,7 +512,7 @@ function createWindow() {
     frame: false,
     alwaysOnTop: true,
     hasShadow: false,
-    resizable: true,
+    resizable: false,
     skipTaskbar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -483,38 +522,49 @@ function createWindow() {
     },
   });
 
-  // forward 仅 win32/darwin 支持，Linux 保持不可穿透，避免无恢复路径
-  const supportsForward = supportsMouseTransparency(process.platform);
-  const initialIgnoreMouse = resolveIgnoreMouseRequest(process.platform, true);
-  if (supportsForward) {
-    win.setIgnoreMouseEvents(initialIgnoreMouse, { forward: true });
-  } else {
-    win.setIgnoreMouseEvents(initialIgnoreMouse);
-  }
+  // 默认不穿透，窗口正常接收所有鼠标事件
+  // 用 setShape 限制可点击区域（模型包围盒 + 输入区），区域外自动穿透
+  win.setIgnoreMouseEvents(false);
+  let clickThrough = false;
+
+  ipcMain.on("set-click-shape", (_, rects) => {
+    if (clickThrough) return;
+    // 暂时禁用 setShape，先验证拖拽
+    console.log("[shape] setShape skipped (debug), rects:", rects.length);
+  });
+
+
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
   if (process.argv.includes("--dev")) {
     win.webContents.openDevTools({ mode: "detach" });
   }
 
-  ipcMain.on("set-ignore-mouse", (_, ignore) => {
-    const nextIgnoreMouse = resolveIgnoreMouseRequest(process.platform, ignore);
-    if (supportsForward) {
-      win.setIgnoreMouseEvents(nextIgnoreMouse, { forward: true });
-      return;
-    }
-    win.setIgnoreMouseEvents(nextIgnoreMouse);
-  });
 
-  // 手动窗口拖拽：记录起始位置，渲染端发 delta 移动
+  // 窗口拖拽：JS setPosition 方案（始终注册作为回退）
   let dragStartPos = null;
   ipcMain.on("window-drag-start", () => {
     dragStartPos = win.getPosition();
   });
   ipcMain.on("window-drag-move", (_, dx, dy) => {
     if (!dragStartPos) return;
-    win.setPosition(dragStartPos[0] + dx, dragStartPos[1] + dy);
+    win.setPosition(dragStartPos[0] + Math.round(dx), dragStartPos[1] + Math.round(dy));
   });
+  ipcMain.on("window-drag-end", () => {
+    dragStartPos = null;
+  });
+
+  // Win32 原生拖拽（零闪烁，无假 resize）
+  if (nativeDrag) {
+    ipcMain.on("window-drag-native", () => {
+      console.log("[main] nativeDrag called");
+      nativeDrag(win.getNativeWindowHandle());
+      console.log("[main] nativeDrag returned");
+    });
+  }
+
+  // 告诉 renderer 是否支持原生拖拽
+  ipcMain.handle("drag:has-native", () => !!nativeDrag);
 
   ipcMain.on("chat-history:add", (_, entry) => {
     pushHistory(entry);
@@ -525,6 +575,7 @@ function createWindow() {
   ipcMain.handle("screen:capture", async (_, opts) => {
     try {
       const monitorMode = (opts && opts.monitor) || "active";
+      refreshForegroundTitle();
 
       // 隐藏灰风窗口避免截到自己
       const wasVisible = win.isVisible();
@@ -602,18 +653,45 @@ function createWindow() {
     }
   });
 
+  ipcMain.handle("render-settings:get", () => loadRenderSettings());
+  ipcMain.handle("render-settings:update", (_, data) => {
+    const merged = { ...loadRenderSettings(), ...data };
+    saveRenderSettings(merged);
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("render-settings-changed", merged);
+    }
+    return merged;
+  });
+
   // 系统托盘
   tray = new Tray(path.join(__dirname, "renderer", "icon.png").replace(/\\/g, "/"));
   tray.setToolTip("灰风 GreyWind");
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: "显示/隐藏", click: () => win.isVisible() ? win.hide() : win.show() },
-    { label: "屏幕感知设置", click: () => showSettingsWindow() },
-    { label: "后端日志", click: () => showLogWindow() },
-    { label: "Chat History", click: () => showHistoryWindow() },
-    { label: "开发工具", click: () => win.webContents.openDevTools({ mode: "detach" }) },
-    { type: "separator" },
-    { label: "退出", click: () => app.quit() },
-  ]));
+
+  function rebuildTrayMenu() {
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: "显示/隐藏", click: () => win.isVisible() ? win.hide() : win.show() },
+      { label: clickThrough ? "关闭鼠标穿透" : "开启鼠标穿透", click: () => {
+        clickThrough = !clickThrough;
+        if (clickThrough) {
+          // 穿透模式：整窗穿透，清空 shape
+          win.setShape([]);
+          win.setIgnoreMouseEvents(true);
+        } else {
+          // 恢复交互：取消穿透，通知 renderer 重新设置 shape
+          win.setIgnoreMouseEvents(false);
+          win.webContents.send("refresh-click-shape");
+        }
+        rebuildTrayMenu();
+      }},
+      { label: "屏幕感知设置", click: () => showSettingsWindow() },
+      { label: "后端日志", click: () => showLogWindow() },
+      { label: "Chat History", click: () => showHistoryWindow() },
+      { label: "开发工具", click: () => win.webContents.openDevTools({ mode: "detach" }) },
+      { type: "separator" },
+      { label: "退出", click: () => app.quit() },
+    ]));
+  }
+  rebuildTrayMenu();
   tray.on("click", () => win.isVisible() ? win.hide() : win.show());
 
   return win;
@@ -637,7 +715,6 @@ if (!gotLock) {
     historyFilePath = resolveHistoryFilePath();
     loadHistoryFromDisk();
     startBackend();
-    startForegroundTitlePolling();
     createWindow();
   });
 }
@@ -651,6 +728,5 @@ app.on("window-all-closed", (e) => {
 app.on("before-quit", () => {
   isQuitting = true;
   saveHistoryToDisk();
-  stopForegroundTitlePolling();
   stopBackend();
 });
