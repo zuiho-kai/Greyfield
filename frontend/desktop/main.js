@@ -525,6 +525,8 @@ function createWindow() {
   // 默认不穿透，窗口正常接收所有鼠标事件
   // 用 setShape 限制可点击区域（模型包围盒 + 输入区），区域外自动穿透
   win.setIgnoreMouseEvents(false);
+  // 截屏保护：让 OS 级别排除本窗口，避免截屏截到灰风自己
+  win.setContentProtection(true);
   let clickThrough = false;
 
   ipcMain.on("set-click-shape", (_, rects) => {
@@ -577,17 +579,10 @@ function createWindow() {
       const monitorMode = (opts && opts.monitor) || "active";
       refreshForegroundTitle();
 
-      // 隐藏灰风窗口避免截到自己
-      const wasVisible = win.isVisible();
-      if (wasVisible) win.setOpacity(0);
-      // 等一帧让窗口透明生效
-      await new Promise((r) => setTimeout(r, 50));
-
       const sources = await desktopCapturer.getSources({
         types: ["screen"],
         thumbnailSize: { width: 1280, height: 720 },
       });
-      if (wasVisible) win.setOpacity(1);
       if (!sources.length) return { ok: false, error: "无法获取屏幕源" };
 
       let selectedSources;
@@ -613,7 +608,6 @@ function createWindow() {
       const b64 = selectedSources[0].thumbnail.toJPEG(60).toString("base64");
       return { ok: true, image_base64: b64, window_title: cachedForegroundTitle };
     } catch (err) {
-      win.setOpacity(1);
       return { ok: false, error: err?.message || String(err) };
     }
   });
