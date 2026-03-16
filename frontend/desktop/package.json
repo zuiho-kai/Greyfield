@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "node scripts/kill-port.js 12393 && node scripts/start-backend.js && electron .",
+    "dev": "electron .",
     "prepare:backend-runtime": "python scripts/prepare_backend_runtime.py",
     "build": "npm run prepare:backend-runtime && electron-builder --win",
     "build:dir": "npm run prepare:backend-runtime && electron-builder --win --dir",

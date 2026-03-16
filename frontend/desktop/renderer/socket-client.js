@@ -102,6 +102,7 @@ function wsConnect() {
 
   ws.onmessage = (e) => {
     if (typeof e.data !== "string") {
+      console.log("[ws-debug] 收到二进制消息", e.data?.byteLength, "bytes");
       if (!(e.data instanceof ArrayBuffer) || !pendingAudioMeta) {
         console.warn("Unexpected binary WS message", e.data);
         pendingAudioMeta = null;
@@ -115,6 +116,7 @@ function wsConnect() {
 
     try {
       const msg = JSON.parse(e.data);
+      console.log("[ws-debug] 收到消息:", msg.type, JSON.stringify(msg.payload).slice(0, 100));
       if (msg.type === "reply_audio_meta") {
         pendingAudioMeta = msg.payload;
         return;
@@ -132,8 +134,10 @@ wsConnect();
 if (window.greywind?.onScreenSettingsChanged) {
   window.greywind.onScreenSettingsChanged((data) => {
     if (data.enabled === false) {
+      wsSend({ type: "screen_sense_toggle", payload: { enabled: false } });
       window.greywind?.stopScreenCapture?.();
     } else if (data.enabled === true) {
+      wsSend({ type: "screen_sense_toggle", payload: { enabled: true } });
       fetch("http://127.0.0.1:12393/health")
         .then((r) => r.json())
         .then((h) => {
@@ -144,5 +148,16 @@ if (window.greywind?.onScreenSettingsChanged) {
         })
         .catch(() => window.greywind?.startScreenCapture?.({ intervalMs: 3000 }));
     }
+  });
+}
+
+// 主进程截屏后通过 IPC 发来 base64，renderer 通过自己的 WS 转发给后端
+// 这样只有一个 WS 连接，后端的 proactive_loop 音频回传正常
+if (window.greywind?.onScreenFrame) {
+  window.greywind.onScreenFrame((data) => {
+    wsSend({
+      type: "screen_capture",
+      payload: data,
+    });
   });
 }

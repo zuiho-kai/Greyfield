@@ -10,6 +10,18 @@ const {
   supportsMouseTransparency,
 } = require("./renderer/live2d-interaction-policy.js");
 
+// 捕获未处理异常，防止静默闪退
+process.on("uncaughtException", (err) => {
+  console.error("[CRASH] uncaughtException:", err.stack || err.message);
+  fs.appendFileSync(path.join(__dirname, "crash.log"),
+    `[${new Date().toISOString()}] uncaughtException: ${err.stack || err.message}\n`);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[CRASH] unhandledRejection:", reason);
+  fs.appendFileSync(path.join(__dirname, "crash.log"),
+    `[${new Date().toISOString()}] unhandledRejection: ${reason}\n`);
+});
+
 // Win32 系统级拖拽（仅 Windows）
 let nativeDrag = null;
 if (process.platform === "win32") {
@@ -54,6 +66,7 @@ let logWin = null;
 let historyWin = null;
 let settingsWin = null;
 let isQuitting = false;
+let mainWin = null;
 let chatHistory = [];
 const MAX_HISTORY_ITEMS = 500;
 const HISTORY_SAVE_DEBOUNCE_MS = 500;
@@ -62,8 +75,6 @@ let historySaveTimer = null;
 let cachedForegroundTitle = "";
 
 // ── 主进程截屏模块（DEV-86：重数据不经渲染进程；DEV-88：koffi 直调 Win32 API，不 spawn 进程）──
-const WebSocket = require("ws");
-let screenWs = null;
 let screenCaptureTimer = null;
 let screenCaptureEnabled = false;
 const SCREEN_CAPTURE_INTERVAL_MS = 3000;
@@ -92,33 +103,42 @@ if (process.platform === "win32") {
     const SRCCOPY = 0x00CC0020;
     const DIB_RGB_COLORS = 0;
 
+    // 预分配复用 Buffer，避免每次 capture 都 alloc 新 Buffer
+    // 新 Buffer 可能在 koffi FFI 调用期间被 V8 GC 回收 → ACCESS_VIOLATION
+    let _cachedW = 0;
+    let _cachedH = 0;
+    let _pixelsBuf = null;
+    let _rgbaBuf = null;  // BGRA→RGBA 转换后的复用 buffer
+    const _bmiBuf = Buffer.alloc(40);
+
     win32Screen = {
       capture() {
         const w = GetSystemMetrics(SM_CXSCREEN);
         const h = GetSystemMetrics(SM_CYSCREEN);
+
+        // 分辨率变化时重新分配
+        if (w !== _cachedW || h !== _cachedH) {
+          _cachedW = w;
+          _cachedH = h;
+          _pixelsBuf = Buffer.alloc(w * 4 * h);
+          _rgbaBuf = Buffer.alloc(w * 4 * h);
+        }
+
+        // 填充 BITMAPINFOHEADER（复用 buffer）
+        _bmiBuf.writeUInt32LE(40, 0);
+        _bmiBuf.writeInt32LE(w, 4);
+        _bmiBuf.writeInt32LE(-h, 8);             // top-down
+        _bmiBuf.writeUInt16LE(1, 12);
+        _bmiBuf.writeUInt16LE(32, 14);           // 32-bit BGRA
+        _bmiBuf.writeUInt32LE(0, 16);
+
         const hdcScreen = GetDC(0);
         const hdcMem = CreateCompatibleDC(hdcScreen);
         const hBitmap = CreateCompatibleBitmap(hdcScreen, w, h);
         const hOld = SelectObject(hdcMem, hBitmap);
 
         BitBlt(hdcMem, 0, 0, w, h, hdcScreen, 0, 0, SRCCOPY);
-
-        // BITMAPINFOHEADER (40 bytes) — 手动构造
-        const bmiSize = 40;
-        const bmi = Buffer.alloc(bmiSize + 12); // +12 for color masks just in case
-        bmi.writeUInt32LE(bmiSize, 0);       // biSize
-        bmi.writeInt32LE(w, 4);              // biWidth
-        bmi.writeInt32LE(-h, 8);             // biHeight (负值 = top-down)
-        bmi.writeUInt16LE(1, 12);            // biPlanes
-        bmi.writeUInt16LE(24, 14);           // biBitCount (24-bit BGR)
-        bmi.writeUInt32LE(0, 16);            // biCompression = BI_RGB
-
-        // 每行 stride 对齐到 4 字节
-        const stride = ((w * 3 + 3) & ~3);
-        const pixelDataSize = stride * h;
-        const pixelData = Buffer.alloc(pixelDataSize);
-
-        GetDIBits(hdcMem, hBitmap, 0, h, pixelData, bmi, DIB_RGB_COLORS);
+        GetDIBits(hdcMem, hBitmap, 0, h, _pixelsBuf, _bmiBuf, DIB_RGB_COLORS);
 
         // 清理 GDI 资源
         SelectObject(hdcMem, hOld);
@@ -126,51 +146,22 @@ if (process.platform === "win32") {
         DeleteDC(hdcMem);
         ReleaseDC(0, hdcScreen);
 
-        // 构造 BMP 文件（file header 14 bytes + info header 40 bytes + pixel data）
-        const fileHeaderSize = 14;
-        const bmpSize = fileHeaderSize + bmiSize + pixelDataSize;
-        const bmp = Buffer.alloc(bmpSize);
-
-        // BMP file header
-        bmp.write("BM", 0);                                    // signature
-        bmp.writeUInt32LE(bmpSize, 2);                         // file size
-        bmp.writeUInt32LE(0, 6);                               // reserved
-        bmp.writeUInt32LE(fileHeaderSize + bmiSize, 10);       // pixel data offset
-
-        // 写回正确的 biHeight（正值，BMP 文件格式需要 bottom-up）
-        bmi.writeInt32LE(h, 8);
-        bmi.copy(bmp, fileHeaderSize, 0, bmiSize);
-
-        // 像素数据翻转（top-down → bottom-up for BMP）
-        for (let y = 0; y < h; y++) {
-          pixelData.copy(bmp, fileHeaderSize + bmiSize + (h - 1 - y) * stride, y * stride, y * stride + stride);
+        // BGRA → RGBA（nativeImage.createFromBitmap 需要 RGBA）
+        // 写入复用 buffer，避免 GC 回收临时 buffer 导致 native 侧 ACCESS_VIOLATION
+        _pixelsBuf.copy(_rgbaBuf);
+        for (let i = 0; i < _rgbaBuf.length; i += 4) {
+          const b = _rgbaBuf[i];
+          _rgbaBuf[i] = _rgbaBuf[i + 2];
+          _rgbaBuf[i + 2] = b;
+          _rgbaBuf[i + 3] = 255;
         }
 
-        return bmp;
+        return { pixels: _rgbaBuf, w, h };
       },
     };
     console.log("[screen] Win32 koffi 截屏模块已加载");
   } catch (e) {
     console.warn("[screen] koffi 截屏加载失败:", e.message);
-  }
-}
-
-function screenWsConnect() {
-  if (screenWs && screenWs.readyState === WebSocket.OPEN) return;
-  try {
-    screenWs = new WebSocket("ws://127.0.0.1:12393/ws");
-    screenWs.on("open", () => console.log("[screen] WebSocket 已连接"));
-    screenWs.on("error", (err) => console.debug("[screen] WebSocket 错误:", err.message));
-    screenWs.on("close", () => { screenWs = null; });
-  } catch (e) {
-    console.debug("[screen] WebSocket 连接失败:", e.message);
-    screenWs = null;
-  }
-}
-
-function screenWsSend(msg) {
-  if (screenWs && screenWs.readyState === WebSocket.OPEN) {
-    screenWs.send(JSON.stringify(msg));
   }
 }
 
@@ -182,26 +173,23 @@ function startScreenCapture(intervalMs) {
   }
   screenCaptureEnabled = true;
   const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
-  screenWsConnect();
   screenCaptureTimer = setInterval(() => {
     if (!screenCaptureEnabled) return;
     try {
-      refreshForegroundTitle();
-      const bmpBuffer = win32Screen.capture();
-      // BMP → JPEG 压缩（BMP 6MB → JPEG ~200KB），减少 WebSocket 传输量
+      const { pixels, w, h } = win32Screen.capture();
       const { nativeImage } = require("electron");
-      const img = nativeImage.createFromBuffer(bmpBuffer);
-      const jpegBuffer = img.toJPEG(70);
+      const img = nativeImage.createFromBitmap(pixels, { width: w, height: h });
+      const jpegBuffer = img.toJPEG(85);
       const b64 = jpegBuffer.toString("base64");
-      screenWsConnect();
-      screenWsSend({
-        type: "screen_capture",
-        payload: {
+      // 通过 IPC 发给 renderer，由 renderer 的 WS 连接发送给后端
+      // 这样只有一个 WS 连接，音频回传正常
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.webContents.send("screen:frame", {
           image_base64: b64,
           window_title: cachedForegroundTitle,
           screen_index: 0,
-        },
-      });
+        });
+      }
     } catch (err) {
       console.debug("[screen] 截屏失败:", err.message);
     }
@@ -214,9 +202,6 @@ function stopScreenCapture() {
   if (screenCaptureTimer) {
     clearInterval(screenCaptureTimer);
     screenCaptureTimer = null;
-  }
-  if (screenWs) {
-    screenWsSend({ type: "screen_sense_toggle", payload: { enabled: false } });
   }
   console.log("[screen] 截屏已停止");
 }
@@ -525,6 +510,25 @@ function appendHistory(entry) {
 }
 
 function startBackend() {
+  // 先清理端口残留进程
+  try {
+    const out = require("child_process").execSync(
+      `netstat -ano | findstr :12393 | findstr LISTENING`,
+      { encoding: "utf8" }
+    );
+    const pids = new Set(
+      out.trim().split("\n").map(l => l.trim().split(/\s+/).pop()).filter(Boolean)
+    );
+    for (const pid of pids) {
+      try {
+        require("child_process").execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" });
+        console.log(`[backend] 已清理端口 12393 残留进程 PID ${pid}`);
+      } catch {}
+    }
+  } catch {
+    // 没有占用，正常
+  }
+
   const pythonExe = resolvePythonExecutable({
     isPackaged: app.isPackaged,
     projectRoot: PROJECT_ROOT,
@@ -686,6 +690,7 @@ function createWindow() {
       webSecurity: false,
     },
   });
+  mainWin = win;
 
   // 默认不穿透，窗口正常接收所有鼠标事件
   // 用 setShape 限制可点击区域（模型包围盒 + 输入区），区域外自动穿透
@@ -700,6 +705,30 @@ function createWindow() {
 
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
+
+  // 监听渲染进程崩溃
+  win.webContents.on("render-process-gone", (event, details) => {
+    const msg = `[CRASH] render-process-gone: reason=${details.reason} exitCode=${details.exitCode}`;
+    console.error(msg);
+    fs.appendFileSync(path.join(__dirname, "crash.log"),
+      `[${new Date().toISOString()}] ${msg}\n`);
+  });
+  win.webContents.on("crashed", (event) => {
+    console.error("[CRASH] webContents crashed");
+    fs.appendFileSync(path.join(__dirname, "crash.log"),
+      `[${new Date().toISOString()}] webContents crashed\n`);
+  });
+  win.on("unresponsive", () => {
+    console.error("[CRASH] window unresponsive");
+    fs.appendFileSync(path.join(__dirname, "crash.log"),
+      `[${new Date().toISOString()}] window unresponsive\n`);
+  });
+  app.on("child-process-gone", (event, details) => {
+    const msg = `[CRASH] child-process-gone: type=${details.type} reason=${details.reason}`;
+    console.error(msg);
+    fs.appendFileSync(path.join(__dirname, "crash.log"),
+      `[${new Date().toISOString()}] ${msg}\n`);
+  });
 
   if (process.argv.includes("--dev")) {
     win.webContents.openDevTools({ mode: "detach" });

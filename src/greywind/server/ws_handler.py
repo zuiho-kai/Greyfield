@@ -102,6 +102,21 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
             elif msg_type == "screen_sense_toggle":
                 # 前端设置页变更 enabled 时，即时控制当前连接的 ScreenSense
                 enabled = payload.get("enabled", True)
+                if enabled and not pipeline.screen_sense:
+                    # 连接建立时 screen.enabled=False 导致未创建，现在动态补建
+                    try:
+                        cfg = ctx.config.screen
+                        screen_sense = ScreenSense(
+                            buffer_size=cfg.buffer_size,
+                            trigger_frames=cfg.trigger_frames,
+                            diff_threshold=cfg.diff_threshold,
+                            cooldown=cfg.cooldown,
+                            active_window_filter=cfg.active_window_filter,
+                        )
+                        pipeline.screen_sense = screen_sense
+                        logger.info("ScreenSense 动态创建成功")
+                    except Exception as e:
+                        logger.warning(f"ScreenSense 动态创建失败: {e}")
                 if pipeline.screen_sense:
                     pipeline.screen_sense.enabled = enabled
                     logger.info(f"ScreenSense 即时切换: enabled={enabled}")
