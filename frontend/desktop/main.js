@@ -61,12 +61,99 @@ let historyFilePath = null;
 let historySaveTimer = null;
 let cachedForegroundTitle = "";
 
-// ── 主进程截屏模块（DEV-86：重数据不经渲染进程）──
+// ── 主进程截屏模块（DEV-86：重数据不经渲染进程；DEV-88：koffi 直调 Win32 API，不 spawn 进程）──
 const WebSocket = require("ws");
 let screenWs = null;
 let screenCaptureTimer = null;
 let screenCaptureEnabled = false;
 const SCREEN_CAPTURE_INTERVAL_MS = 3000;
+
+// Win32 截屏 API（纯内存，无子进程，无 DWM 刷新）
+let win32Screen = null;
+if (process.platform === "win32") {
+  try {
+    const koffi = require("koffi");
+    const gdi32 = koffi.load("gdi32.dll");
+    const user32 = koffi.load("user32.dll");
+
+    const GetDC = user32.func("intptr_t __stdcall GetDC(intptr_t hWnd)");
+    const ReleaseDC = user32.func("int32_t __stdcall ReleaseDC(intptr_t hWnd, intptr_t hDC)");
+    const GetSystemMetrics = user32.func("int32_t __stdcall GetSystemMetrics(int32_t nIndex)");
+    const CreateCompatibleDC = gdi32.func("intptr_t __stdcall CreateCompatibleDC(intptr_t hdc)");
+    const CreateCompatibleBitmap = gdi32.func("intptr_t __stdcall CreateCompatibleBitmap(intptr_t hdc, int32_t cx, int32_t cy)");
+    const SelectObject = gdi32.func("intptr_t __stdcall SelectObject(intptr_t hdc, intptr_t h)");
+    const BitBlt = gdi32.func("bool __stdcall BitBlt(intptr_t hdc, int32_t x, int32_t y, int32_t cx, int32_t cy, intptr_t hdcSrc, int32_t x1, int32_t y1, uint32_t rop)");
+    const DeleteDC = gdi32.func("bool __stdcall DeleteDC(intptr_t hdc)");
+    const DeleteObject = gdi32.func("bool __stdcall DeleteObject(intptr_t ho)");
+    const GetDIBits = gdi32.func("int32_t __stdcall GetDIBits(intptr_t hdc, intptr_t hbm, uint32_t start, uint32_t cLines, void* lpvBits, void* lpbmi, uint32_t usage)");
+
+    const SM_CXSCREEN = 0;
+    const SM_CYSCREEN = 1;
+    const SRCCOPY = 0x00CC0020;
+    const DIB_RGB_COLORS = 0;
+
+    win32Screen = {
+      capture() {
+        const w = GetSystemMetrics(SM_CXSCREEN);
+        const h = GetSystemMetrics(SM_CYSCREEN);
+        const hdcScreen = GetDC(0);
+        const hdcMem = CreateCompatibleDC(hdcScreen);
+        const hBitmap = CreateCompatibleBitmap(hdcScreen, w, h);
+        const hOld = SelectObject(hdcMem, hBitmap);
+
+        BitBlt(hdcMem, 0, 0, w, h, hdcScreen, 0, 0, SRCCOPY);
+
+        // BITMAPINFOHEADER (40 bytes) — 手动构造
+        const bmiSize = 40;
+        const bmi = Buffer.alloc(bmiSize + 12); // +12 for color masks just in case
+        bmi.writeUInt32LE(bmiSize, 0);       // biSize
+        bmi.writeInt32LE(w, 4);              // biWidth
+        bmi.writeInt32LE(-h, 8);             // biHeight (负值 = top-down)
+        bmi.writeUInt16LE(1, 12);            // biPlanes
+        bmi.writeUInt16LE(24, 14);           // biBitCount (24-bit BGR)
+        bmi.writeUInt32LE(0, 16);            // biCompression = BI_RGB
+
+        // 每行 stride 对齐到 4 字节
+        const stride = ((w * 3 + 3) & ~3);
+        const pixelDataSize = stride * h;
+        const pixelData = Buffer.alloc(pixelDataSize);
+
+        GetDIBits(hdcMem, hBitmap, 0, h, pixelData, bmi, DIB_RGB_COLORS);
+
+        // 清理 GDI 资源
+        SelectObject(hdcMem, hOld);
+        DeleteObject(hBitmap);
+        DeleteDC(hdcMem);
+        ReleaseDC(0, hdcScreen);
+
+        // 构造 BMP 文件（file header 14 bytes + info header 40 bytes + pixel data）
+        const fileHeaderSize = 14;
+        const bmpSize = fileHeaderSize + bmiSize + pixelDataSize;
+        const bmp = Buffer.alloc(bmpSize);
+
+        // BMP file header
+        bmp.write("BM", 0);                                    // signature
+        bmp.writeUInt32LE(bmpSize, 2);                         // file size
+        bmp.writeUInt32LE(0, 6);                               // reserved
+        bmp.writeUInt32LE(fileHeaderSize + bmiSize, 10);       // pixel data offset
+
+        // 写回正确的 biHeight（正值，BMP 文件格式需要 bottom-up）
+        bmi.writeInt32LE(h, 8);
+        bmi.copy(bmp, fileHeaderSize, 0, bmiSize);
+
+        // 像素数据翻转（top-down → bottom-up for BMP）
+        for (let y = 0; y < h; y++) {
+          pixelData.copy(bmp, fileHeaderSize + bmiSize + (h - 1 - y) * stride, y * stride, y * stride + stride);
+        }
+
+        return bmp;
+      },
+    };
+    console.log("[screen] Win32 koffi 截屏模块已加载");
+  } catch (e) {
+    console.warn("[screen] koffi 截屏加载失败:", e.message);
+  }
+}
 
 function screenWsConnect() {
   if (screenWs && screenWs.readyState === WebSocket.OPEN) return;
@@ -89,17 +176,24 @@ function screenWsSend(msg) {
 
 function startScreenCapture(intervalMs) {
   if (screenCaptureTimer) return;
+  if (!win32Screen) {
+    console.warn("[screen] 截屏模块未加载，跳过");
+    return;
+  }
   screenCaptureEnabled = true;
   const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
   screenWsConnect();
-  screenCaptureTimer = setInterval(async () => {
+  screenCaptureTimer = setInterval(() => {
     if (!screenCaptureEnabled) return;
     try {
-      const screenshot = require("screenshot-desktop");
       refreshForegroundTitle();
-      const imgBuffer = await screenshot({ format: "jpg" });
-      const b64 = imgBuffer.toString("base64");
-      screenWsConnect(); // 确保连接
+      const bmpBuffer = win32Screen.capture();
+      // BMP → JPEG 压缩（BMP 6MB → JPEG ~200KB），减少 WebSocket 传输量
+      const { nativeImage } = require("electron");
+      const img = nativeImage.createFromBuffer(bmpBuffer);
+      const jpegBuffer = img.toJPEG(70);
+      const b64 = jpegBuffer.toString("base64");
+      screenWsConnect();
       screenWsSend({
         type: "screen_capture",
         payload: {
