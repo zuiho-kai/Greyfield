@@ -530,8 +530,6 @@ function createWindow() {
   // 默认不穿透，窗口正常接收所有鼠标事件
   // 用 setShape 限制可点击区域（模型包围盒 + 输入区），区域外自动穿透
   win.setIgnoreMouseEvents(false);
-  // 截屏保护：让 OS 级别排除本窗口，避免截屏截到灰风自己
-  win.setContentProtection(true);
   let clickThrough = false;
 
   ipcMain.on("set-click-shape", (_, rects) => {
