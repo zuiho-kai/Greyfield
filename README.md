@@ -92,21 +92,22 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 
 ## 它和别的项目有什么不同
 
-| | ChatGPT | OpenClaw | MaiBot | Open Interpreter | **灰风** |
-|---|---|---|---|---|---|
-| **你看到的** | 网页对话框 | 消息里的文字 | QQ 群里的文字 | 终端 | **桌面 Live2D 角色** |
-| **它能看到你** | ❌ | ❌ | ❌ | ❌ | **截图 + Vision** |
-| **语音优先** | 后加的 | 后加的 | ❌ | ❌ | **Spine 自带** |
-| **角色感** | 弱 | 无 | 强 | 无 | **Live2D + 人格** |
-| **跨会话连续** | ❌ | Session | 部分 | ❌ | **Thread + Handoff** |
-| **桌面操作** | ❌ | ❌ | ❌ | ✅ | **✅** |
-| **多模型后端** | 单 | 单 | 单 | 单 | **多 CLI 协作** |
+| | ChatGPT | OpenClaw | MaiBot | my-neuro | Open Interpreter | **灰风** |
+|---|---|---|---|---|---|---|
+| **你看到的** | 网页对话框 | 消息里的文字 | QQ 群里的文字 | 桌面 Live2D | 终端 | **桌面 Live2D 角色** |
+| **它能看到你** | ❌ | ❌ | ❌ | 截图 | ❌ | **截图 + Vision** |
+| **语音优先** | 后加的 | 后加的 | ❌ | ✅ | ❌ | **Spine 自带** |
+| **角色感** | 弱 | 无 | 强 | 强 | 无 | **Live2D + 人格** |
+| **跨会话连续** | ❌ | Session | 部分 | 截断窗口 | ❌ | **Thread + Handoff** |
+| **桌面操作** | ❌ | ❌ | ❌ | ✅ | ✅ | **✅** |
+| **多模型后端** | 单 | 单 | 单 | 单 | 单 | **多 CLI 协作** |
 
 一句话总结：
 
 - **OpenClaw** = 你消息里的 AI（WhatsApp / Telegram / Slack）
 - **MaiBot** = 你群聊里的 AI（QQ）
-- **灰风** = **你电脑里的 AI**（桌面常驻 · 能看能听能做）
+- **my-neuro** = 你桌面上的 AI 工作台（模块拼装 · 可训练声音和性格）
+- **灰风** = **你电脑里的 AI**（桌面常驻 · 能看能听能做 · 人格连续）
 
 ---
 
@@ -295,6 +296,7 @@ cd frontend/desktop && npm start
 |------|-----------|
 | [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber) | ASR / TTS / VAD / LLM / Live2D 引擎（MIT，直接搬运） |
 | [airi](https://github.com/moeru-ai/airi) | 自托管 AI 伴侣 · 实时语音 · 游戏交互思路 |
+| [my-neuro](https://github.com/morettt/my-neuro) | TTS 声音训练 · BERT 情感分类 · MemOS 记忆系统分层（[竞品分析](./docs/competitor-analysis-my-neuro.md)） |
 | [Cat Cafe](https://github.com/zts212653/cat-cafe-tutorials) | 多 CLI 角色化协作 · 对外只暴露角色 |
 | [OpenClaw](https://github.com/openclaw/openclaw) | Gateway / 分层记忆 · Skill 生态思路 |
 | Neuro | 桌面 AI 存在感 · 多模态陪伴 |
