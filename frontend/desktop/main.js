@@ -61,6 +61,72 @@ let historyFilePath = null;
 let historySaveTimer = null;
 let cachedForegroundTitle = "";
 
+// ── 主进程截屏模块（DEV-86：重数据不经渲染进程）──
+const WebSocket = require("ws");
+let screenWs = null;
+let screenCaptureTimer = null;
+let screenCaptureEnabled = false;
+const SCREEN_CAPTURE_INTERVAL_MS = 3000;
+
+function screenWsConnect() {
+  if (screenWs && screenWs.readyState === WebSocket.OPEN) return;
+  try {
+    screenWs = new WebSocket("ws://127.0.0.1:12393/ws");
+    screenWs.on("open", () => console.log("[screen] WebSocket 已连接"));
+    screenWs.on("error", (err) => console.debug("[screen] WebSocket 错误:", err.message));
+    screenWs.on("close", () => { screenWs = null; });
+  } catch (e) {
+    console.debug("[screen] WebSocket 连接失败:", e.message);
+    screenWs = null;
+  }
+}
+
+function screenWsSend(msg) {
+  if (screenWs && screenWs.readyState === WebSocket.OPEN) {
+    screenWs.send(JSON.stringify(msg));
+  }
+}
+
+function startScreenCapture(intervalMs) {
+  if (screenCaptureTimer) return;
+  screenCaptureEnabled = true;
+  const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
+  screenWsConnect();
+  screenCaptureTimer = setInterval(async () => {
+    if (!screenCaptureEnabled) return;
+    try {
+      const screenshot = require("screenshot-desktop");
+      refreshForegroundTitle();
+      const imgBuffer = await screenshot({ format: "jpg" });
+      const b64 = imgBuffer.toString("base64");
+      screenWsConnect(); // 确保连接
+      screenWsSend({
+        type: "screen_capture",
+        payload: {
+          image_base64: b64,
+          window_title: cachedForegroundTitle,
+          screen_index: 0,
+        },
+      });
+    } catch (err) {
+      console.debug("[screen] 截屏失败:", err.message);
+    }
+  }, interval);
+  console.log(`[screen] 截屏已启动，间隔 ${interval}ms`);
+}
+
+function stopScreenCapture() {
+  screenCaptureEnabled = false;
+  if (screenCaptureTimer) {
+    clearInterval(screenCaptureTimer);
+    screenCaptureTimer = null;
+  }
+  if (screenWs) {
+    screenWsSend({ type: "screen_sense_toggle", payload: { enabled: false } });
+  }
+  console.log("[screen] 截屏已停止");
+}
+
 const LIVE2D_SAMPLE = {
   id: "hiyori",
   zipUrl: "https://storage.googleapis.com/nizima-apps/sample-models/hiyori.zip",
@@ -577,17 +643,14 @@ function createWindow() {
   ipcMain.on("chat-history:append", (_, entry) => {
     appendHistory(entry);
   });
-  ipcMain.handle("screen:capture", async (_, opts) => {
-    try {
-      const screenshot = require("screenshot-desktop");
-      refreshForegroundTitle();
-
-      const imgBuffer = await screenshot({ format: "jpg" });
-      const b64 = imgBuffer.toString("base64");
-      return { ok: true, image_base64: b64, window_title: cachedForegroundTitle };
-    } catch (err) {
-      return { ok: false, error: err?.message || String(err) };
-    }
+  ipcMain.handle("screen:start", async (_, opts) => {
+    const interval = (opts && opts.intervalMs) || SCREEN_CAPTURE_INTERVAL_MS;
+    startScreenCapture(interval);
+    return { ok: true };
+  });
+  ipcMain.handle("screen:stop", async () => {
+    stopScreenCapture();
+    return { ok: true };
   });
   ipcMain.handle("live2d:get-model-url", async () => {
     try {
