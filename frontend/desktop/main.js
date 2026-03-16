@@ -176,6 +176,7 @@ function startScreenCapture(intervalMs) {
   screenCaptureTimer = setInterval(() => {
     if (!screenCaptureEnabled) return;
     try {
+      refreshForegroundTitle();
       const { pixels, w, h } = win32Screen.capture();
       const { nativeImage } = require("electron");
       const img = nativeImage.createFromBitmap(pixels, { width: w, height: h });

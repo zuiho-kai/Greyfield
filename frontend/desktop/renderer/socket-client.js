@@ -77,7 +77,8 @@ function wsConnect() {
             const interval = (data.screen && data.screen.capture_interval)
               ? data.screen.capture_interval * 1000
               : 3000;
-            window.greywind?.startScreenCapture?.({ intervalMs: interval });
+            const monitor = (data.screen && data.screen.monitor) || "active";
+            window.greywind?.startScreenCapture?.({ intervalMs: interval, monitor });
           });
         }
       })
@@ -144,7 +145,8 @@ if (window.greywind?.onScreenSettingsChanged) {
           const interval = (h.screen && h.screen.capture_interval)
             ? h.screen.capture_interval * 1000
             : 3000;
-          window.greywind?.startScreenCapture?.({ intervalMs: interval });
+          const monitor = (h.screen && h.screen.monitor) || "active";
+          window.greywind?.startScreenCapture?.({ intervalMs: interval, monitor });
         })
         .catch(() => window.greywind?.startScreenCapture?.({ intervalMs: 3000 }));
     }
