@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, desktopCapturer } = require("electron");
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
 const { spawn } = require("child_process");
 const https = require("https");
 const fs = require("fs");
@@ -581,36 +581,11 @@ function createWindow() {
   });
   ipcMain.handle("screen:capture", async (_, opts) => {
     try {
-      const monitorMode = (opts && opts.monitor) || "active";
+      const screenshot = require("screenshot-desktop");
       refreshForegroundTitle();
 
-      const sources = await desktopCapturer.getSources({
-        types: ["screen"],
-        thumbnailSize: { width: 640, height: 360 },
-      });
-      if (!sources.length) return { ok: false, error: "无法获取屏幕源" };
-
-      let selectedSources;
-      if (monitorMode === "all") {
-        selectedSources = sources;
-      } else if (monitorMode === "primary") {
-        const primaryDisplay = screen.getPrimaryDisplay();
-        const found = sources.find((s) => s.display_id === String(primaryDisplay.id));
-        selectedSources = [found || sources[0]];
-      } else {
-        // active: 鼠标所在屏幕
-        const cursorPoint = screen.getCursorScreenPoint();
-        const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
-        const found = sources.find((s) => s.display_id === String(activeDisplay.id));
-        selectedSources = [found || sources[0]];
-      }
-
-      if (selectedSources.length > 1) {
-        // 多屏模式：返回所有屏幕截图数组，由 renderer 逐个发送
-        const allImages = selectedSources.map((s) => s.thumbnail.toJPEG(60).toString("base64"));
-        return { ok: true, image_base64: allImages[0], all_screens: allImages, window_title: cachedForegroundTitle };
-      }
-      const b64 = selectedSources[0].thumbnail.toJPEG(60).toString("base64");
+      const imgBuffer = await screenshot({ format: "jpg" });
+      const b64 = imgBuffer.toString("base64");
       return { ok: true, image_base64: b64, window_title: cachedForegroundTitle };
     } catch (err) {
       return { ok: false, error: err?.message || String(err) };
