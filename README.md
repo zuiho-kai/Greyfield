@@ -9,10 +9,9 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)](https://python.org)
 [![Node](https://img.shields.io/badge/Node-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)](https://www.electronjs.org)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active_Development-orange)](https://github.com)
-<!-- [![Stars](https://img.shields.io/github/stars/YOUR_USERNAME/greywind?style=flat)](https://github.com/YOUR_USERNAME/greywind) -->
-<!-- [![Discord](https://img.shields.io/discord/YOUR_DISCORD_ID?label=Discord&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/YOUR_INVITE) -->
+[![Status](https://img.shields.io/badge/Status-Active_Development-orange)](https://github.com/zuiho-kai/Greyfield)
 
 [English](./README_EN.md) | **中文**
 
@@ -28,7 +27,7 @@
 <p align="center"><em>待机 · 聊天 · 系统托盘</em></p>
 
 <p align="center">
-  <a href="#-为什么叫灰风">名字由来</a> · <a href="#-快速开始">快速开始</a> · <a href="#-文档">文档</a> · <a href="#-参与开发">参与开发</a>
+  <a href="#为什么叫灰风">名字由来</a> · <a href="#快速开始">快速开始</a> · <a href="#文档">文档</a> · <a href="#参与开发">参与开发</a>
 </p>
 
 ---
@@ -75,38 +74,38 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 
 ## 它能做什么
 
-| | 能力 | 说明 |
-|:---:|------|------|
-| 👁️ | **看你的屏幕** | 截图 + Vision API · 窗口感知 · 知道你在做什么 |
-| 👂 | **听你说话** | 麦克风 · VAD · ASR · 说到一半可以打断它 |
-| 🗣️ | **对你说话** | TTS · Live2D 口型同步 · 表情联动 |
-| 🧠 | **记住你** | 跨会话上下文延续 · 不是每次从零开始 |
-| 🖥️ | **帮你干活** | 浏览器操控 · 桌面操作 · Shell · 文件管理 |
-| 📺 | **Live2D 直播** | 角色直接推流 · 弹幕互动 · 自主直播 |
-| 🤖 | **调度多个 AI** | 底层按需调度 Claude Code / Codex / Gemini CLI，对你透明 |
+| | 能力 | 说明 | 状态 |
+|:---:|------|------|:----:|
+| 👁️ | **看你的屏幕** | 截图 + Vision API · 差异检测 · 知道你在做什么 | ✅ |
+| 👂 | **听你说话** | 麦克风 · VAD · ASR · 说到一半可以打断它 | ✅ |
+| 🗣️ | **对你说话** | 流式 TTS · Live2D 口型同步 · 表情联动 | ✅ |
+| 🧠 | **记住你** | 跨会话上下文延续 · 不是每次从零开始 | ✅ |
+| 🖥️ | **桌面宠物** | 透明窗口 · 鼠标穿透 · 拖拽 · 高 DPI · 系统托盘 | ✅ |
+| 📦 | **一键启动** | Electron 打包 · `build.bat` 构建 exe | ✅ |
+| 🌐 | **浏览器操控** | Playwright + function calling | 规划中 |
+| 🖱️ | **桌面操控** | pyautogui · 截图定位 · 操作序列 | 规划中 |
+| 📺 | **Live2D 直播** | OBS 推流 · 弹幕互动 · 自主直播 | 规划中 |
+| 🤖 | **多 Agent 协作** | 底层按需调度多个 AI CLI，对你透明 | 规划中 |
 
 > 对外只有灰风。底层的模型和 CLI 全部隐藏。
-> 类似 [Cat Cafe](https://github.com/zts212653/cat-cafe-tutorials) 的思路：对外暴露角色，执行器不可见。
 
 ---
 
 ## 它和别的项目有什么不同
 
-| | ChatGPT | OpenClaw | MaiBot | Open Interpreter | **灰风** |
-|---|---|---|---|---|---|
-| **你看到的** | 网页对话框 | 消息里的文字 | QQ 群里的文字 | 终端 | **桌面 Live2D 角色** |
-| **它能看到你** | ❌ | ❌ | ❌ | ❌ | **截图 + Vision** |
-| **语音优先** | 后加的 | 后加的 | ❌ | ❌ | **Spine 自带** |
-| **角色感** | 弱 | 无 | 强 | 无 | **Live2D + 人格** |
-| **跨会话连续** | ❌ | Session | 部分 | ❌ | **Thread + Handoff** |
-| **桌面操作** | ❌ | ❌ | ❌ | ✅ | **✅** |
-| **多模型后端** | 单 | 单 | 单 | 单 | **多 CLI 协作** |
+| | ChatGPT | MaiBot | Open Interpreter | **灰风** |
+|---|---|---|---|---|
+| **你看到的** | 网页对话框 | QQ 群里的文字 | 终端 | **桌面 Live2D 角色** |
+| **它能看到你** | ❌ | ❌ | ❌ | **截图 + Vision** |
+| **语音优先** | 后加的 | ❌ | ❌ | **核心链路自带** |
+| **角色感** | 弱 | 强 | 无 | **Live2D + 人格** |
+| **跨会话连续** | ❌ | 部分 | ❌ | **Thread + Session** |
+| **桌面存在感** | ❌ | ❌ | ❌ | **透明窗口 · 桌面宠物** |
 
 一句话总结：
 
-- **OpenClaw** = 你消息里的 AI（WhatsApp / Telegram / Slack）
 - **MaiBot** = 你群聊里的 AI（QQ）
-- **灰风** = **你电脑里的 AI**（桌面常驻 · 能看能听能做）
+- **灰风** = **你电脑里的 AI**（桌面常驻 · 能看能听能说）
 
 ---
 
@@ -114,10 +113,15 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 
 ### 前置条件
 
-- Python 3.12+
-- [uv](https://docs.astral.sh/uv/)（Python 包管理）
-- Node.js 18+
-- 硅基流动 API Key（[注册](https://cloud.siliconflow.cn)，免费送额度）
+| 依赖 | 版本 | 说明 |
+|------|------|------|
+| [Python](https://python.org) | 3.10+ | 后端运行时 |
+| [uv](https://docs.astral.sh/uv/) | 最新 | Python 包管理，替代 pip |
+| [Node.js](https://nodejs.org) | 18+ | 前端 Electron 构建 |
+| [Git](https://git-scm.com) | 最新 | 版本控制 |
+| 硅基流动 API Key | — | [注册](https://cloud.siliconflow.cn)，免费送额度，用于 LLM / ASR / TTS |
+
+> 没装 uv？一行搞定：`pip install uv` 或 `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
 ### 安装
 
@@ -125,15 +129,29 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 git clone https://github.com/zuiho-kai/Greyfield.git
 cd Greyfield
 
-# 后端依赖
+# 1. 后端 Python 依赖（uv 会自动创建虚拟环境）
 uv sync
 
-# 配置
-cp conf.example.yaml conf.yaml
-# 编辑 conf.yaml，把三处 "你的硅基流动API Key" 替换为你的 Key
+# 2. 前端依赖
+cd frontend/desktop
+npm install
+cd ../..
 
-# 前端依赖
-cd frontend/desktop && npm install
+# 3. 配置
+cp conf.example.yaml conf.yaml
+```
+
+编辑 `conf.yaml`，把三处 `你的硅基流动API Key` 替换为你的 Key：
+
+```yaml
+llm:
+  api_key: "sk-xxx"    # ← 你的硅基流动 API Key
+
+asr:
+  api_key: "sk-xxx"    # ← 同一个 Key
+
+tts:
+  api_key: "sk-xxx"    # ← 同一个 Key
 ```
 
 ### 启动
@@ -152,6 +170,15 @@ cd frontend/desktop && npm start
 > 使用该模型需遵守 [Live2D Free Material License Agreement](https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html) 与 [Live2D Sample Data Terms](https://www.live2d.com/eula/live2d-sample-data-terms_en.html)。
 
 > **一键 exe**：打包支持已就绪（`build.bat`），Release 发布后会在此提供下载链接。
+
+### 常见问题
+
+| 问题 | 解决 |
+|------|------|
+| `uv: command not found` | `pip install uv` 或参考 [uv 安装文档](https://docs.astral.sh/uv/getting-started/installation/) |
+| `npm install` 报 node-gyp 错误 | 确认 Node.js >= 18，Windows 用户需安装 [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) |
+| 后端启动报 `conf.yaml not found` | 复制 `conf.example.yaml` 为 `conf.yaml` 并填入 API Key |
+| Live2D 模型下载失败 | 检查网络连接，或手动下载模型放入 `models/` 目录 |
 
 ---
 
@@ -183,6 +210,19 @@ cd frontend/desktop && npm start
 2. **上下文运行时** — 让 AI 在跨会话时还是同一个角色，而不是每次重来
 
 > 架构细节：[architecture-v2.md](./docs/architecture-v2.md) · 上下文设计：[context-runtime.md](./docs/context-runtime.md)
+
+### 技术栈
+
+| 层 | 技术 |
+|------|------|
+| 后端 | Python 3.10+ · FastAPI · WebSocket · Pydantic |
+| 前端 | Electron · pixi.js · pixi-live2d-display |
+| LLM | 硅基流动 Step-3.5-Flash（OpenAI 兼容接口） |
+| ASR | 硅基流动 SenseVoiceSmall |
+| TTS | 硅基流动 CosyVoice2 · edge-tts（备用） |
+| VAD | Silero VAD（onnxruntime 本地推理） |
+| 截屏 | Pillow + Vision API |
+| 包管理 | uv（Python） · npm（Node） |
 
 ---
 
@@ -235,6 +275,104 @@ cd frontend/desktop && npm start
 
 **灰风现在是早期，正是参与的最好时机。**
 
+### 开发环境搭建
+
+#### 1. 安装基础工具
+
+```bash
+# Python 3.10+（推荐 3.12）
+# 下载：https://python.org
+
+# uv（Python 包管理器）
+pip install uv
+
+# Node.js 18+
+# 下载：https://nodejs.org
+
+# Windows 用户还需要：
+# Visual Studio Build Tools（node-gyp 编译需要）
+# 下载：https://visualstudio.microsoft.com/visual-cpp-build-tools/
+```
+
+#### 2. 克隆仓库并创建开发分支
+
+```bash
+git clone https://github.com/zuiho-kai/Greyfield.git
+cd Greyfield
+
+# 用 worktree 隔离开发（推荐，见 docs/worktree-workflow.md）
+git worktree add ../Greyfield-<短名> -b feat/your-feature master
+cd ../Greyfield-<短名>
+```
+
+#### 3. 安装后端依赖
+
+```bash
+# uv 会自动创建 .venv 虚拟环境并安装所有依赖
+uv sync
+
+# 主要依赖包括：
+# - fastapi + uvicorn（WebSocket 服务）
+# - openai（LLM / ASR API 调用）
+# - pydantic（配置校验）
+# - edge-tts（备用 TTS）
+# - onnxruntime（VAD 模型推理）
+# - pydub（音频处理）
+# - Pillow（截图处理）
+# - loguru（日志）
+```
+
+#### 4. 安装前端依赖
+
+```bash
+cd frontend/desktop
+npm install
+
+# 主要依赖包括：
+# - electron（桌面壳）
+# - pixi.js + pixi-live2d-display（Live2D 渲染）
+# - electron-builder（打包）
+```
+
+#### 5. 配置并启动
+
+```bash
+# 回到项目根目录
+cd ../..
+
+# 复制配置文件
+cp conf.example.yaml conf.yaml
+# 编辑 conf.yaml，填入硅基流动 API Key（三处）
+
+# 终端 1：启动后端
+uv run python -m greywind.run
+
+# 终端 2：启动前端
+cd frontend/desktop && npm start
+```
+
+### 项目结构
+
+```
+Greyfield/
+├── src/greywind/           # Python 后端
+│   ├── config/             #   配置加载 + Pydantic 校验
+│   ├── engines/            #   ASR / TTS / VAD / LLM / Live2D 引擎
+│   ├── persona/            #   人格注入 · 语音管线 · 口型 · 表情
+│   ├── context_runtime/    #   Thread / Session / Prompt 装配
+│   ├── memory/             #   记忆存储（当前 JSON）
+│   ├── server/             #   FastAPI + WebSocket 服务
+│   └── run.py              #   入口
+├── frontend/desktop/       # Electron 前端
+│   ├── main.js             #   主进程
+│   ├── preload.js          #   预加载脚本
+│   └── renderer/           #   渲染进程（Live2D · 聊天 · 语音 UI）
+├── conf.example.yaml       # 配置模板
+├── models/                 # Live2D 模型目录
+├── docs/                   # 设计文档
+└── build.bat               # Windows 打包脚本
+```
+
 ### 当前最需要的方向
 
 | 方向 | 说明 | 难度 |
@@ -245,31 +383,6 @@ cd frontend/desktop && npm start
 | 📺 **Live2D 直播** | OBS 推流 · 弹幕互动 · 自主直播 | ⭐⭐ |
 | 🔌 **Skill 系统** | 设计插件机制，让社区能贡献能力而不碰核心 | ⭐⭐ |
 | 📖 **文档 / 翻译** | README · 文档英文化 · 教程 | ⭐ |
-
-### 怎么开始
-
-```bash
-git clone https://github.com/zuiho-kai/Greyfield.git
-
-# 用 worktree 隔离开发（见 docs/worktree-workflow.md）
-git worktree add ../Greyfield-<短名> -b feat/your-feature master
-
-cd ../Greyfield-<短名>
-
-# 安装依赖
-uv sync
-cd frontend/desktop && npm install && cd ../..
-
-# 复制配置
-cp conf.example.yaml conf.yaml
-# 编辑 conf.yaml，填入硅基流动 API Key
-
-# 启动后端
-uv run python -m greywind.run
-
-# 新终端启动前端
-cd frontend/desktop && npm start
-```
 
 改完提 PR 即可。不知道从哪下手？看 **[spine-now.md](./docs/spine-now.md)** 了解当前阶段具体需求，或直接开 Issue 聊。
 
@@ -303,31 +416,16 @@ cd frontend/desktop && npm start
 
 ## 社区
 
-<!-- TODO: 替换为真实链接 -->
-
 | 平台 | 链接 | 说明 |
 |------|------|------|
-| **QQ 群** | [加入](#) | 日常交流 · 问题答疑 |
-| **Discord** | [加入](#) | 英文社区 · 开发讨论 |
-| **Issues** | [GitHub](https://github.com/YOUR_USERNAME/greywind/issues) | Bug · 功能建议 |
-| **Discussions** | [GitHub](https://github.com/YOUR_USERNAME/greywind/discussions) | 开放讨论 |
+| **Issues** | [GitHub](https://github.com/zuiho-kai/Greyfield/issues) | Bug · 功能建议 |
+| **Discussions** | [GitHub](https://github.com/zuiho-kai/Greyfield/discussions) | 开放讨论 |
+
+<!-- TODO: QQ 群 / Discord 链接就绪后补充 -->
 
 ---
 
-<!-- TODO: 替换 YOUR_USERNAME -->
-<!-- [![Star History Chart](https://api.star-history.com/svg?repos=YOUR_USERNAME/greywind&type=Date)](https://star-history.com/#YOUR_USERNAME/greywind&Date) -->
-
-## 遗留问题
-
-- 聊天历史清空按钮 / 菜单项
-- 聊天历史按日期分文件（天 / 周滚动）
-- 历史存储抽象层（MongoDB / 向量库）
-- PR #9：托盘功能是否纳入 Spine 阶段（待确认）
-- PR #9：后端日志窗口是否纳入 Spine 阶段（待确认）
-- PR #9：聊天历史写盘（`history.json`）是否仅限 UI 展示且不参与上下文（待确认）
-- PR #9：Live2D 示例模型自动下载的许可与分发说明是否需要补充（待确认）
-- PR #9：Electron 打包 / 自启相关改动是否提前进入 Spine 阶段（待确认）
-- PR #9：新增 `preload` / `renderer` 文件是否超出 `docs/spine-now.md` 允许范围（待确认）
+<!-- [![Star History Chart](https://api.star-history.com/svg?repos=zuiho-kai/Greyfield&type=Date)](https://star-history.com/#zuiho-kai/Greyfield&Date) -->
 
 ---
 
