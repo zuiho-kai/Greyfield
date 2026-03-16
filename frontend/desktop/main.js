@@ -315,11 +315,16 @@ function scheduleSaveHistory() {
 
 function refreshForegroundTitle() {
   try {
-    const { execSync } = require("child_process");
-    cachedForegroundTitle = execSync(
-      'powershell.exe -NoProfile -NonInteractive -Command "(Get-Process | Where-Object {$_.MainWindowHandle -eq (Add-Type -MemberDefinition \'[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow();\' -Name W -Namespace U -PassThru)::GetForegroundWindow()}).MainWindowTitle"',
-      { timeout: 1000, windowsHide: true, encoding: "utf-8" }
-    ).trim();
+    const { execFile } = require("child_process");
+    execFile(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command",
+       "(Get-Process | Where-Object {$_.MainWindowHandle -eq (Add-Type -MemberDefinition '[DllImport(\"user32.dll\")] public static extern IntPtr GetForegroundWindow();' -Name W -Namespace U -PassThru)::GetForegroundWindow()}).MainWindowTitle"],
+      { timeout: 2000, windowsHide: true },
+      (err, stdout) => {
+        if (!err && stdout) cachedForegroundTitle = stdout.toString().trim();
+      }
+    );
   } catch (_) {
     // 失败时保留上次值
   }
@@ -581,7 +586,7 @@ function createWindow() {
 
       const sources = await desktopCapturer.getSources({
         types: ["screen"],
-        thumbnailSize: { width: 1280, height: 720 },
+        thumbnailSize: { width: 640, height: 360 },
       });
       if (!sources.length) return { ok: false, error: "无法获取屏幕源" };
 
