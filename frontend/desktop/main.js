@@ -690,8 +690,12 @@ function createWindow() {
           // 全局穿透模式：完全穿透，不 forward
           win.setIgnoreMouseEvents(true);
         } else {
-          // 恢复区域穿透：穿透 + forward，renderer 控制交互区
-          win.setIgnoreMouseEvents(true, { forward: true });
+          // 恢复区域穿透：Linux 回退到不穿透
+          if (supportsForward) {
+            win.setIgnoreMouseEvents(true, { forward: true });
+          } else {
+            win.setIgnoreMouseEvents(false);
+          }
           win.webContents.send("refresh-click-shape");
         }
         rebuildTrayMenu();
