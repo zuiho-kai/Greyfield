@@ -131,7 +131,7 @@ async def voice_upload(body: dict):
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
         tmp.write(base64.b64decode(audio_b64))
         tmp.close()
-        uri = vm.upload(tmp.name, text, custom_name, model=cfg.model or "FunAudioLLM/CosyVoice2-0.5B")
+        uri = vm.upload(tmp.name, text, custom_name, model=_ctx.config.tts.model or "FunAudioLLM/CosyVoice2-0.5B")
         return {"ok": True, "uri": uri, "custom_name": custom_name}
     except Exception as e:
         logger.error(f"音色上传失败: {e}")
