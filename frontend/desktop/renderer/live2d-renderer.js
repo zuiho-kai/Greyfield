@@ -202,7 +202,7 @@ initLive2D();
       const cy = Math.round((y - rect.top) * dpr);
       if (cx >= 0 && cy >= 0 && cx < gl.drawingBufferWidth && cy < gl.drawingBufferHeight) {
         const pixel = new Uint8Array(4);
-        gl.readPixels(cx, gl.drawingBufferHeight - cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        gl.readPixels(cx, gl.drawingBufferHeight - 1 - cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
         if (pixel[3] > 10) return true;
       }
     }

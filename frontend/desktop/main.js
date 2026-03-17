@@ -522,13 +522,19 @@ function createWindow() {
     },
   });
 
-  // 默认穿透 + forward：鼠标事件穿透到桌面，但仍转发给 renderer 做检测
-  // renderer 检测到鼠标在模型/输入区上时，通过 IPC 切回不穿透
-  win.setIgnoreMouseEvents(true, { forward: true });
+  // 区域穿透：仅 Windows/macOS 支持 forward 模式
+  // Linux 不支持 forward，回退到不穿透（全窗口可交互）
+  const supportsForward = process.platform === "win32" || process.platform === "darwin";
+  if (supportsForward) {
+    win.setIgnoreMouseEvents(true, { forward: true });
+  } else {
+    win.setIgnoreMouseEvents(false);
+  }
   let clickThrough = false;
 
   ipcMain.on("set-mouse-ignore", (_, ignore) => {
     if (clickThrough) return; // 全局穿透模式下不响应
+    if (!supportsForward) return; // Linux 不切换
     if (ignore) {
       win.setIgnoreMouseEvents(true, { forward: true });
     } else {
