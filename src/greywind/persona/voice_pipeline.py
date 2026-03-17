@@ -172,8 +172,12 @@ class VoicePipeline:
             # 准备浏览器工具（如果启用）
             tools = None
             if self.browser and self._browser_config.enabled:
-                from greywind.execution.browser_tools import BROWSER_TOOLS
-                tools = BROWSER_TOOLS
+                from greywind.engines.llm.stateless_llm.claude_llm import AsyncLLM as ClaudeLLM
+                from greywind.execution.browser_tools import BROWSER_TOOLS, browser_tools_for_anthropic
+                if isinstance(self.llm, ClaudeLLM):
+                    tools = browser_tools_for_anthropic()
+                else:
+                    tools = BROWSER_TOOLS
 
             max_rounds = self._browser_config.max_tool_rounds if self._browser_config else 30
             for round_idx in range(max_rounds + 1):
@@ -247,7 +251,10 @@ class VoicePipeline:
 
     async def _stream_llm_response(self, chat_messages, system_prompt, tools,
                                     send_fn, send_audio_fn, is_final_round=False):
-        """流式读取 LLM 响应，返回 (clean_response, tool_calls)"""
+        """流式读取 LLM 响应，返回 (clean_response, tool_calls)
+
+        如果模型不支持 tools，会自动不带 tools 重试一次。
+        """
         from greywind.engines.llm.types import ToolCallObject
 
         clean_response = ""
@@ -255,6 +262,7 @@ class VoicePipeline:
         in_think_block = False
         think_pending = ""
         tool_calls = None
+        retry_without_tools = False
         await send_fn({"type": "status", "payload": {"state": "speaking"}})
 
         async for chunk in self.llm.chat_completion(
@@ -268,11 +276,11 @@ class VoicePipeline:
                 tool_calls = chunk
                 continue
 
-            # 过滤不支持 tools 的 sentinel 信号
+            # 过滤不支持 tools 的 sentinel 信号 → 标记重试
             if chunk == "__API_NOT_SUPPORT_TOOLS__":
-                logger.info("当前模型不支持 tool calling，跳过 tools")
-                tool_calls = None
-                continue
+                logger.info("当前模型不支持 tool calling，将不带 tools 重试")
+                retry_without_tools = True
+                break
 
             # 兼容 OpenAI (str) 和 Claude (dict with text_delta)
             if isinstance(chunk, str):
@@ -304,6 +312,14 @@ class VoicePipeline:
             clean_response += think_pending
         if sentence_buffer.strip() and not self._interrupted:
             await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
+
+        # 模型不支持 tools → 不带 tools 重试一次
+        if retry_without_tools and not self._interrupted:
+            logger.info("不带 tools 重试当前请求")
+            return await self._stream_llm_response(
+                chat_messages, system_prompt, None,
+                send_fn, send_audio_fn, is_final_round=is_final_round,
+            )
 
         return clean_response, tool_calls
 
