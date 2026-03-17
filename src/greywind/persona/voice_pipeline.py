@@ -198,29 +198,68 @@ class VoicePipeline:
                     break
 
                 # 执行 tool calls，结果回注 messages
-                chat_messages.append({
-                    "role": "assistant",
-                    "content": clean_response if clean_response else None,
-                    "tool_calls": [
-                        {
+                from greywind.engines.llm.stateless_llm.claude_llm import AsyncLLM as ClaudeLLM
+                is_claude = isinstance(self.llm, ClaudeLLM)
+
+                if is_claude:
+                    # Claude 格式：assistant content = text block + tool_use blocks
+                    assistant_content = []
+                    if clean_response:
+                        assistant_content.append({"type": "text", "text": clean_response})
+                    for tc in tool_calls:
+                        assistant_content.append({
+                            "type": "tool_use",
                             "id": tc.id,
-                            "type": "function",
-                            "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                        }
-                        for tc in tool_calls
-                    ],
-                })
+                            "name": tc.function.name,
+                            "input": json.loads(tc.function.arguments) if tc.function.arguments else {},
+                        })
+                    chat_messages.append({
+                        "role": "assistant",
+                        "content": assistant_content,
+                    })
+                else:
+                    # OpenAI 格式
+                    chat_messages.append({
+                        "role": "assistant",
+                        "content": clean_response if clean_response else None,
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                            }
+                            for tc in tool_calls
+                        ],
+                    })
 
                 for tc in tool_calls:
                     if self._interrupted:
                         break
                     result = await self._execute_tool_call(tc)
-                    # 构造 tool result message
-                    tool_msg = {"role": "tool", "tool_call_id": tc.id, "content": ""}
                     # 截图单独注入为 image，文本结果放 content
                     screenshot_b64 = result.pop("screenshot_b64", None)
-                    tool_msg["content"] = json.dumps(result, ensure_ascii=False)
-                    chat_messages.append(tool_msg)
+                    result_json = json.dumps(result, ensure_ascii=False)
+
+                    if is_claude:
+                        # Claude 格式：tool_result content block
+                        chat_messages.append({
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": tc.id,
+                                    "content": result_json,
+                                }
+                            ],
+                        })
+                    else:
+                        # OpenAI 格式
+                        chat_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": result_json,
+                        })
+
                     # 截图作为 user message 注入（让 LLM 看到）
                     if screenshot_b64:
                         chat_messages.append({
@@ -255,13 +294,14 @@ class VoicePipeline:
 
         如果模型不支持 tools，会自动不带 tools 重试一次。
         """
-        from greywind.engines.llm.types import ToolCallObject
+        from greywind.engines.llm.types import ToolCallObject, ToolCallFunctionObject
 
         clean_response = ""
         sentence_buffer = ""
         in_think_block = False
         think_pending = ""
         tool_calls = None
+        claude_tool_calls: list[ToolCallObject] = []  # 收集 Claude 格式的 tool_use 事件
         retry_without_tools = False
         await send_fn({"type": "status", "payload": {"state": "speaking"}})
 
@@ -271,7 +311,7 @@ class VoicePipeline:
             if self._interrupted:
                 break
 
-            # 检测 tool call
+            # 检测 tool call — OpenAI 格式（list[ToolCallObject]）
             if isinstance(chunk, list) and chunk and isinstance(chunk[0], ToolCallObject):
                 tool_calls = chunk
                 continue
@@ -281,6 +321,19 @@ class VoicePipeline:
                 logger.info("当前模型不支持 tool calling，将不带 tools 重试")
                 retry_without_tools = True
                 break
+
+            # 检测 tool call — Claude 格式（dict with tool_use_complete）
+            if isinstance(chunk, dict) and chunk.get("type") == "tool_use_complete":
+                data = chunk["data"]
+                tc = ToolCallObject(
+                    id=data["id"],
+                    function=ToolCallFunctionObject(
+                        name=data["name"],
+                        arguments=json.dumps(data.get("input") or {}),
+                    ),
+                )
+                claude_tool_calls.append(tc)
+                continue
 
             # 兼容 OpenAI (str) 和 Claude (dict with text_delta)
             if isinstance(chunk, str):
@@ -305,6 +358,10 @@ class VoicePipeline:
                     if s.strip():
                         await self._speak(s.strip(), send_fn, send_audio_fn)
                 sentence_buffer = sentences[-1]
+
+        # Claude 格式 tool calls 合并
+        if claude_tool_calls and not tool_calls:
+            tool_calls = claude_tool_calls
 
         # flush 残留
         if think_pending and not in_think_block:
