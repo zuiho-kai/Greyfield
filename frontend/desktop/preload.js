@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("greywind", {
   platform: process.platform,
   setClickShape: (rects) => ipcRenderer.send("set-click-shape", rects),
+  setMouseIgnore: (ignore) => ipcRenderer.send("set-mouse-ignore", ignore),
   nativeDrag: () => ipcRenderer.send("window-drag-native"),
   hasNativeDrag: () => ipcRenderer.invoke("drag:has-native"),
   startDrag: () => ipcRenderer.send("window-drag-start"),

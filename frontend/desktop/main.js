@@ -522,15 +522,23 @@ function createWindow() {
     },
   });
 
-  // 默认不穿透，窗口正常接收所有鼠标事件
-  // 用 setShape 限制可点击区域（模型包围盒 + 输入区），区域外自动穿透
-  win.setIgnoreMouseEvents(false);
+  // 默认穿透 + forward：鼠标事件穿透到桌面，但仍转发给 renderer 做检测
+  // renderer 检测到鼠标在模型/输入区上时，通过 IPC 切回不穿透
+  win.setIgnoreMouseEvents(true, { forward: true });
   let clickThrough = false;
 
+  ipcMain.on("set-mouse-ignore", (_, ignore) => {
+    if (clickThrough) return; // 全局穿透模式下不响应
+    if (ignore) {
+      win.setIgnoreMouseEvents(true, { forward: true });
+    } else {
+      win.setIgnoreMouseEvents(false);
+    }
+  });
+
   ipcMain.on("set-click-shape", (_, rects) => {
-    if (clickThrough) return;
-    // 暂时禁用 setShape，先验证拖拽
-    console.log("[shape] setShape skipped (debug), rects:", rects.length);
+    // 保留旧 IPC 兼容，不再使用 setShape
+    console.log("[shape] set-click-shape received (no-op), rects:", rects.length);
   });
 
 
@@ -673,12 +681,11 @@ function createWindow() {
       { label: clickThrough ? "关闭鼠标穿透" : "开启鼠标穿透", click: () => {
         clickThrough = !clickThrough;
         if (clickThrough) {
-          // 穿透模式：整窗穿透，清空 shape
-          win.setShape([]);
+          // 全局穿透模式：完全穿透，不 forward
           win.setIgnoreMouseEvents(true);
         } else {
-          // 恢复交互：取消穿透，通知 renderer 重新设置 shape
-          win.setIgnoreMouseEvents(false);
+          // 恢复区域穿透：穿透 + forward，renderer 控制交互区
+          win.setIgnoreMouseEvents(true, { forward: true });
           win.webContents.send("refresh-click-shape");
         }
         rebuildTrayMenu();
