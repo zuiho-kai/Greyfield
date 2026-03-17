@@ -9,6 +9,18 @@ from loguru import logger
 from .base import BrowserProvider, ActionResult
 
 
+def browser_tools_for_anthropic() -> list[dict[str, Any]]:
+    """将 OpenAI Function Calling 格式转换为 Anthropic tool 格式"""
+    return [
+        {
+            "name": t["function"]["name"],
+            "description": t["function"]["description"],
+            "input_schema": t["function"].get("parameters", {"type": "object", "properties": {}}),
+        }
+        for t in BROWSER_TOOLS
+    ]
+
+
 # ── 工具定义（OpenAI Function Calling 格式）──
 
 BROWSER_TOOLS = [
@@ -196,6 +208,19 @@ async def dispatch_browser_tool(
         return {"success": False, "error": f"参数解析失败: {arguments}"}
 
     logger.info(f"浏览器工具调用: {tool_name}({args})")
+
+    # 必需参数校验表
+    _required: dict[str, list[str]] = {
+        "browser_goto": ["url"],
+        "browser_click": ["selector"],
+        "browser_type": ["selector", "text"],
+        "browser_scroll": ["direction"],
+        "browser_switch_tab": ["tab_id"],
+        "browser_close_tab": ["tab_id"],
+    }
+    missing = [k for k in _required.get(tool_name, []) if k not in args]
+    if missing:
+        return {"success": False, "error": f"缺少必需参数: {', '.join(missing)}"}
 
     result = None
     if tool_name == "browser_goto":
