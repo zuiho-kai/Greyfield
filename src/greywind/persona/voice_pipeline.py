@@ -1,6 +1,7 @@
 """Voice Pipeline — VAD->ASR->LLM->TTS 流式语音管线"""
 
 import asyncio
+import json
 import re
 from pathlib import Path
 
@@ -70,6 +71,8 @@ class VoicePipeline:
         self.assembler = ctx.assembler
         self.memory = ctx.memory
         self.character = ctx.character
+        self.browser = ctx.browser  # BrowserProvider | None
+        self._browser_config = ctx.config.browser
         self.screen_sense = screen_sense  # 每连接独立，由 ws_handler 传入
         self._screen_detail = getattr(ctx.config.screen, "detail", "low") if ctx.config.screen else "low"
         # 有状态组件：每连接独立
@@ -166,49 +169,72 @@ class VoicePipeline:
                 else:
                     chat_messages.append(m)
 
-            clean_response = ""  # 过滤后的文本，用于写入对话历史
-            sentence_buffer = ""
-            in_think_block = False  # 流式 think block 过滤状态
-            think_pending = ""  # 跨 chunk 不完整标签缓冲
-            await send_fn({"type": "status", "payload": {"state": "speaking"}})
+            # 准备浏览器工具（如果启用）
+            tools = None
+            if self.browser and self._browser_config.enabled:
+                from greywind.execution.browser_tools import BROWSER_TOOLS
+                tools = BROWSER_TOOLS
 
-            async for chunk in self.llm.chat_completion(
-                chat_messages, system=system_prompt
-            ):
+            max_rounds = self._browser_config.max_tool_rounds if self._browser_config else 30
+            for round_idx in range(max_rounds + 1):
                 if self._interrupted:
                     break
-                # 兼容 OpenAI (str) 和 Claude (dict with text_delta)
-                if isinstance(chunk, str):
-                    text = chunk
-                elif isinstance(chunk, dict) and chunk.get("type") == "text_delta":
-                    text = chunk.get("text", "")
-                else:
-                    continue
-                if not text:
-                    continue
-                # 流式过滤 think block：在句子拆分前剥离，防止跨片段泄漏
-                filtered_text, in_think_block, think_pending = _strip_think_streaming(
-                    text, in_think_block, think_pending
-                )
-                if not filtered_text:
-                    continue
-                clean_response += filtered_text
-                sentence_buffer += filtered_text
-                sentences = SENTENCE_DELIMITERS.split(sentence_buffer)
-                if len(sentences) > 1:
-                    for s in sentences[:-1]:
-                        if s.strip():
-                            await self._speak(s.strip(), send_fn, send_audio_fn)
-                    sentence_buffer = sentences[-1]
 
-            # 流结束：flush pending 中可能残留的非标签文本
-            if think_pending and not in_think_block:
-                sentence_buffer += think_pending
-                clean_response += think_pending
-            if sentence_buffer.strip() and not self._interrupted:
-                await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
-            if clean_response and not self._interrupted:
-                self.session.add_turn("assistant", _sanitize_llm_text(clean_response))
+                # 调用 LLM
+                clean_response, tool_calls = await self._stream_llm_response(
+                    chat_messages, system_prompt, tools, send_fn, send_audio_fn,
+                    is_final_round=(round_idx == max_rounds),
+                )
+
+                if clean_response and not self._interrupted:
+                    self.session.add_turn("assistant", _sanitize_llm_text(clean_response))
+
+                # 没有 tool call 或已达上限，结束循环
+                if not tool_calls or round_idx == max_rounds:
+                    break
+
+                # 执行 tool calls，结果回注 messages
+                chat_messages.append({
+                    "role": "assistant",
+                    "content": clean_response if clean_response else None,
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                        }
+                        for tc in tool_calls
+                    ],
+                })
+
+                for tc in tool_calls:
+                    if self._interrupted:
+                        break
+                    result = await self._execute_tool_call(tc)
+                    # 构造 tool result message
+                    tool_msg = {"role": "tool", "tool_call_id": tc.id, "content": ""}
+                    # 截图单独注入为 image，文本结果放 content
+                    screenshot_b64 = result.pop("screenshot_b64", None)
+                    tool_msg["content"] = json.dumps(result, ensure_ascii=False)
+                    chat_messages.append(tool_msg)
+                    # 截图作为 user message 注入（让 LLM 看到）
+                    if screenshot_b64:
+                        chat_messages.append({
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{screenshot_b64}",
+                                        "detail": "low",
+                                    },
+                                },
+                                {"type": "text", "text": "这是执行操作后的页面截图。"},
+                            ],
+                        })
+
+                logger.info(f"Tool call 循环: 第 {round_idx + 1} 轮完成")
+
         except asyncio.CancelledError:
             logger.info("响应被打断")
         except Exception as e:
@@ -218,6 +244,75 @@ class VoicePipeline:
             self._responding = False
             if not self._interrupted:
                 await send_fn({"type": "status", "payload": {"state": "idle"}})
+
+    async def _stream_llm_response(self, chat_messages, system_prompt, tools,
+                                    send_fn, send_audio_fn, is_final_round=False):
+        """流式读取 LLM 响应，返回 (clean_response, tool_calls)"""
+        from greywind.engines.llm.types import ToolCallObject
+
+        clean_response = ""
+        sentence_buffer = ""
+        in_think_block = False
+        think_pending = ""
+        tool_calls = None
+        await send_fn({"type": "status", "payload": {"state": "speaking"}})
+
+        async for chunk in self.llm.chat_completion(
+            chat_messages, system=system_prompt, tools=tools
+        ):
+            if self._interrupted:
+                break
+
+            # 检测 tool call
+            if isinstance(chunk, list) and chunk and isinstance(chunk[0], ToolCallObject):
+                tool_calls = chunk
+                continue
+
+            # 兼容 OpenAI (str) 和 Claude (dict with text_delta)
+            if isinstance(chunk, str):
+                text = chunk
+            elif isinstance(chunk, dict) and chunk.get("type") == "text_delta":
+                text = chunk.get("text", "")
+            else:
+                continue
+            if not text:
+                continue
+            # 流式过滤 think block
+            filtered_text, in_think_block, think_pending = _strip_think_streaming(
+                text, in_think_block, think_pending
+            )
+            if not filtered_text:
+                continue
+            clean_response += filtered_text
+            sentence_buffer += filtered_text
+            sentences = SENTENCE_DELIMITERS.split(sentence_buffer)
+            if len(sentences) > 1:
+                for s in sentences[:-1]:
+                    if s.strip():
+                        await self._speak(s.strip(), send_fn, send_audio_fn)
+                sentence_buffer = sentences[-1]
+
+        # flush 残留
+        if think_pending and not in_think_block:
+            sentence_buffer += think_pending
+            clean_response += think_pending
+        if sentence_buffer.strip() and not self._interrupted:
+            await self._speak(sentence_buffer.strip(), send_fn, send_audio_fn)
+
+        return clean_response, tool_calls
+
+    async def _execute_tool_call(self, tool_call) -> dict:
+        """执行单个 tool call"""
+        from greywind.execution.browser_tools import is_browser_tool, dispatch_browser_tool
+
+        name = tool_call.function.name
+        args = tool_call.function.arguments
+
+        if is_browser_tool(name) and self.browser:
+            return await dispatch_browser_tool(self.browser, name, args)
+
+        logger.warning(f"未知工具调用: {name}")
+        return {"success": False, "error": f"未知工具: {name}"}
 
     async def _speak(self, text, send_fn, send_audio_fn):
         text = _sanitize_llm_text(text)
