@@ -222,7 +222,7 @@ cd frontend/desktop && npm start
 | ASR | 硅基流动 SenseVoiceSmall |
 | TTS | 硅基流动 CosyVoice2 · edge-tts（备用） |
 | VAD | Silero VAD（onnxruntime 本地推理） |
-| 截屏 | Pillow + Vision API |
+| 截屏 | koffi Win32 API 纯内存截屏 + Vision API · 差异检测 |
 | 包管理 | uv（Python） · npm（Node） |
 
 ---

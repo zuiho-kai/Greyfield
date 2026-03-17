@@ -674,7 +674,41 @@ Persona 成立
 
 想让它帮你动手 → C 浏览器操控
 
-17. 一句话总结
+17. 当前进展快照（2026-03-17）
+
+17.1 Spine 阶段：✅ 全部完成
+
+Step 1-6 全部落地，验收标准基本达成：
+
+- 配置系统、JSON 记忆、Context Runtime（thread/session/prompt 装配）均已实现
+- Voice Pipeline 完整流式链路：VAD→ASR→LLM→TTS，含打断、think block 流式过滤
+- Electron 桌面壳：Live2D 渲染、WebSocket、语音 UI、聊天覆盖层、系统托盘、高 DPI、鼠标穿透
+- 已有 dist 构建产物（greywind-desktop-0.1.0-x64.nsis.7z），打包流程跑通
+
+17.2 Module B 屏幕感知：⏳ 基本可用，打磨稳定性中
+
+已完成：
+
+- screen_sense.py：截图缓冲区、像素差异检测（RMSE）、主动触发判断、冷却机制
+- 前端截屏链路经历三轮迭代：desktopCapturer → screenshot-desktop → koffi Win32 API 纯内存截屏
+- 截屏移至主进程（遵守 DEV-86 重数据不经渲染进程）
+- 截屏默认关闭，前端可控开关
+- prompt_assembler 已支持 screen_image_b64 注入
+
+已解决的关键问题：
+
+- 截屏导致 Live2D 闪烁 → 用 koffi 原生 Win32 API 根治，无子进程、无 DWM 刷新
+- 前台窗口标题过滤 + 多屏独立差异检测，避免动态壁纸等误触发
+
+17.3 下一步方向
+
+按 spine-now 第 16 节入口条件，Spine 已具备毕业条件。后续从真实痛点选 Module：
+
+- A 音色克隆 — 让灰风更像灰风
+- B 屏幕感知 — 继续深化（当前已基本可用）
+- C 浏览器操控 — 让灰风能帮你动手
+
+18. 一句话总结
 
 Spine Now 不是在实现灰风的全部。
 Spine Now 只是在制造一个真正能开口、能连续、能活下来的灰风雏形。
