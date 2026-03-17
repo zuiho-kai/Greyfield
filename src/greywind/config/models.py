@@ -61,6 +61,18 @@ class ScreenConfig(BaseModel):
     monitor: str = "active"             # active=鼠标所在屏幕, primary=主屏, all=全部
 
 
+class BrowserConfig(BaseModel):
+    enabled: bool = False
+    provider: str = "playwright"        # playwright | extension
+    screenshot_quality: int = 50
+    screenshot_width: int = 1280
+    idle_timeout: int = 60
+    named_tab_timeout: int = 0          # 0 = 命名标签页不自动关闭
+    max_tabs: int = 10
+    max_tool_rounds: int = 30
+    user_data_dir: str = ""             # 持久化浏览器数据目录，空则用默认路径
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     llm: LLMConfig = LLMConfig()
@@ -68,4 +80,5 @@ class AppConfig(BaseModel):
     tts: TTSConfig = TTSConfig()
     memory: MemoryConfig = MemoryConfig()
     screen: ScreenConfig = ScreenConfig()
+    browser: BrowserConfig = BrowserConfig()
     character: str = "greywind"

@@ -33,6 +33,7 @@ class ServiceContext:
         self.tts = self._create_tts()
         self.asr = self._try_create("ASR", self._create_asr)
         self.vad = self._try_create("VAD", self._create_vad)
+        self.browser = self._try_create("Browser", self._create_browser)
         logger.info("ServiceContext 初始化完成")
 
     @staticmethod
@@ -84,6 +85,27 @@ class ServiceContext:
     def _create_vad(self):
         from greywind.engines.vad.silero import VADEngine
         return VADEngine()
+
+    def _create_browser(self):
+        cfg = self.config.browser
+        if not cfg.enabled:
+            logger.info("浏览器操控已禁用")
+            return None
+        if cfg.provider == "playwright":
+            from greywind.execution.playwright_provider import PlaywrightProvider
+            return PlaywrightProvider(
+                screenshot_quality=cfg.screenshot_quality,
+                screenshot_width=cfg.screenshot_width,
+                idle_timeout=cfg.idle_timeout,
+                max_tabs=cfg.max_tabs,
+                user_data_dir=cfg.user_data_dir or None,
+            )
+        elif cfg.provider == "extension":
+            logger.warning("extension provider 尚未实现，浏览器操控不可用。请使用 playwright provider")
+            return None
+        else:
+            logger.warning(f"未知浏览器 provider: {cfg.provider}")
+            return None
 
 
 def create_service_context(config_path: str = "conf.yaml") -> ServiceContext:

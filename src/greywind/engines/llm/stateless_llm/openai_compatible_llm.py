@@ -5,6 +5,7 @@
 This class is responsible for handling asynchronous interaction with OpenAI API compatible
 endpoints for language generation.
 """
+from __future__ import annotations
 
 from typing import AsyncIterator, List, Dict, Any
 from openai import (

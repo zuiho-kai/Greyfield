@@ -36,6 +36,10 @@ docs/
 │   ├── git-cr.md                      # Git / Worktree / CR
 │   └── network.md                     # 网络与抓取
 ├── competitor-analysis-my-neuro.md     # 竞品分析：my-neuro
+├── design/
+│   └── module-c-browser/
+│       ├── design.md                  # Module C 浏览器操控设计文档
+│       └── mini-sr.md                 # Module C Mini SR（验收清单）
 ├── error-books/
 │   ├── _index.md                      # 速查索引（每次必读）
 │   ├── flow-rules.md                  # 流程子文件索引（每次必读）
@@ -113,6 +117,20 @@ docs/
 - Context Packet 应该长什么样
 
 这篇是 GreyWind 长期连续性的技术基座文档。
+
+### `design/`
+
+Module 设计文档目录。每个新 Module 在进入实现前，设计文档落盘在这里。
+
+它负责回答：
+
+- 该 Module 的愿景对齐、架构卡位、最小可用定义
+- 竞品参考、技术选型、验收标准
+- 与现有模块的交互点和文件变更清单
+
+当前包含：
+
+- `module-c-browser-control.md` — 浏览器操控（Execution Runtime 第一个 provider）
 
 ---
 

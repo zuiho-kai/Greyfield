@@ -50,5 +50,25 @@ class LLMFactory:
                 keep_alive=kwargs.get("keep_alive"),
                 unload_at_exit=kwargs.get("unload_at_exit"),
             )
+        elif llm_provider == "doubao_web":
+            from .stateless_llm.doubao_web_llm import DoubaoWebLLM
+
+            return DoubaoWebLLM(
+                user_data_dir=kwargs.get("user_data_dir"),
+                poll_interval=kwargs.get("poll_interval", 0.5),
+                max_wait=kwargs.get("max_wait", 120),
+            )
+        elif llm_provider == "parallel_web":
+            from .stateless_llm.parallel_web_llm import ParallelWebLLM
+            from .stateless_llm.doubao_web_llm import DoubaoWebLLM
+
+            # 主 LLM 用 kwargs 里的 primary_provider 创建
+            primary_provider = kwargs.pop("primary_provider", "openai_compatible_llm")
+            primary = LLMFactory.create_llm(primary_provider, **kwargs)
+            web_llm = DoubaoWebLLM(
+                user_data_dir=kwargs.get("user_data_dir"),
+                max_wait=kwargs.get("web_max_wait", 120),
+            )
+            return ParallelWebLLM(primary=primary, web_llm=web_llm)
         else:
             raise ValueError(f"Unsupported LLM provider: {llm_provider}")

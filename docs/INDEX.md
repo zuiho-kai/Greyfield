@@ -10,6 +10,9 @@
 | `error-books/` | 工程文档 | 生效 | 错题本体系，按模块拆分的错误案例集 | 开工前读索引 |
 | `worktree-workflow.md` | 工程文档 | 生效 | Worktree 工作流规范 | 开工前看 |
 | `worktree-log.md` | 工程文档 | 生效 | Worktree 跟踪记录表 | 开工时登记 |
+| `competitor-analysis-my-neuro.md` | 参考文档 | 生效 | 竞品分析：my-neuro | 做竞品对比时看 |
+| `design/module-c-browser/design.md` | 设计文档 | Step 5 实现中 | Module C 浏览器操控设计 | 开发浏览器操控时看 |
+| `design/module-c-browser/mini-sr.md` | 验收文档 | 待确认 | Module C Mini SR 验收清单 | 实现前确认 |
 | `rules/` | 工程文档 | 生效 | 通用硬规则（按任务类型分 6 个文件） | 按路由表读 |
 | `archive/greywind-airi-borrowing-strategy.md` | 参考归档 | 回查 | AIRI / proj-airi 借鉴判断的 Markdown 版 | 优先看这份 |
 | `archive/greywind-airi-borrowing-strategy.docx` | 参考文档 | 回查 | AIRI / proj-airi 借鉴判断原始 Word 文件 | 只在需要原稿时看 |
