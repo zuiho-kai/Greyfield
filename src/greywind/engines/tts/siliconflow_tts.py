@@ -44,14 +44,18 @@ class SiliconFlowTTS(TTSInterface):
         from pathlib import Path
 
         p = Path(audio_path)
-        if not p.exists():
-            logger.warning(f"参考音频文件不存在: {audio_path}")
+        if not p.exists() or not p.is_file():
+            logger.warning(f"参考音频文件不存在或不是文件: {audio_path}")
             return ""
         suffix = p.suffix.lstrip(".").lower()
         mime = {"mp3": "audio/mpeg", "wav": "audio/wav", "ogg": "audio/ogg"}.get(
             suffix, "audio/mpeg"
         )
-        raw = p.read_bytes()
+        try:
+            raw = p.read_bytes()
+        except Exception as e:
+            logger.warning(f"参考音频读取失败（回退到预置音色）: {audio_path} — {e}")
+            return ""
         b64 = base64.b64encode(raw).decode()
         logger.info(f"已加载参考音频: {audio_path} ({len(raw)} bytes)")
         return f"data:{mime};base64,{b64}"

@@ -131,7 +131,7 @@ async def voice_upload(body: dict):
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
         tmp.write(base64.b64decode(audio_b64))
         tmp.close()
-        uri = vm.upload(tmp.name, text, custom_name, model=_ctx.config.tts.model)
+        uri = vm.upload(tmp.name, text, custom_name, model=cfg.model or "FunAudioLLM/CosyVoice2-0.5B")
         return {"ok": True, "uri": uri, "custom_name": custom_name}
     except Exception as e:
         logger.error(f"音色上传失败: {e}")
@@ -149,6 +149,9 @@ async def voice_delete(body: dict):
     uri = body.get("uri", "")
     if not uri:
         return {"error": "缺少 uri 参数"}
+    # 禁止删除当前正在使用的音色
+    if uri == _ctx.config.tts.voice:
+        return {"error": "不能删除当前正在使用的音色，请先切换到其他音色"}
     try:
         from greywind.engines.tts.voice_manager import VoiceManager
         vm = VoiceManager(api_key=_ctx.config.tts.api_key)
