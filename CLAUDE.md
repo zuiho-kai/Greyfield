@@ -111,16 +111,16 @@ worktree：[已就绪(路径/分支名) | 需要创建 → 先执行创建命令
 
 ## 🚫 硬规则加载（硬卡点）
 
-所有硬规则已拆到 `docs/hard-rules.md`。执行任务前**必须按任务类型读对应分组**，不读就动手 = 流程违规。
+硬规则按类别拆到 `docs/rules/` 目录。执行任务前**必须按任务类型读对应文件**，不读就动手 = 流程违规。
 
-| 任务类型 | 必读分组 |
+| 任务类型 | 必读文件 |
 |----------|----------|
-| 写代码 / 改文件 | 工具与写入 + 代码质量 |
-| 走流程 / 提问 / 等确认 | 流程与交互 |
-| 修 bug / 调试 | 调试与修复 |
-| git 操作 / CR / PR | Git / Worktree / CR |
-| 抓网页 / 外网请求 | 网络与抓取 |
-| 涉及平台 API | 调试与修复（平台相关条目） |
+| 写代码 / 改文件 | `docs/rules/tool-write.md` + `docs/rules/code-quality.md` |
+| 走流程 / 提问 / 等确认 | `docs/rules/flow-interact.md` |
+| 修 bug / 调试 | `docs/rules/debug-fix.md` |
+| git 操作 / CR / PR | `docs/rules/git-cr.md` |
+| 抓网页 / 外网请求 | `docs/rules/network.md` |
+| 涉及平台 API | `docs/rules/debug-fix.md` |
 
 高频提醒（不替代读原文）：
 - **所有改动必须 worktree**（DEV-4）
@@ -139,6 +139,6 @@ worktree：[已就绪(路径/分支名) | 需要创建 → 先执行创建命令
 | 实施规格 | `docs/greywind-implementation-spec.md` |
 | 系统架构 | `docs/architecture-v2.md` |
 | 上下文运行时 | `docs/context-runtime.md` |
-| 通用硬规则 | `docs/hard-rules.md` |
+| 通用硬规则 | `docs/rules/`（按任务类型分文件） |
 | 错题本入口 | `docs/engineering-lessons.md` |
 | 错题本目录 | `docs/error-books/` |
