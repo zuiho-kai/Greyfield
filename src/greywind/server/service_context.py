@@ -69,6 +69,8 @@ class ServiceContext:
             stream=cfg.stream,
             speed=cfg.speed,
             gain=cfg.gain,
+            reference_audio=cfg.reference_audio,
+            reference_text=cfg.reference_text,
         )
 
     def _create_asr(self):

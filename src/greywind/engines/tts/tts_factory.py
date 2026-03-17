@@ -25,6 +25,8 @@ class TTSFactory:
                 stream=kwargs.get("stream"),
                 speed=kwargs.get("speed"),
                 gain=kwargs.get("gain"),
+                reference_audio=kwargs.get("reference_audio"),
+                reference_text=kwargs.get("reference_text"),
             )
         else:
             raise ValueError(f"Unknown TTS engine type: {engine_type}")
