@@ -17,6 +17,36 @@
 - 不在 `spine-now.md` 里的能力，默认不提前做
 - **守护生长模式**：如果用户提出的想法不符合愿景生长模式（如跳步、提前做未冻结能力、自上而下规划），必须立即指出并说明原因，不能默默执行
 
+## 🚫 Module 开发流程（硬卡点）
+
+启动任何新 Module（不在当前 `spine-now.md` 冻结范围内的能力）前，**必须按顺序走完以下 5 步**。跳步 = 流程违规，触发 DEV-4 计数。
+
+```
+Step 1 — Vision（愿景对齐）
+  读 architecture-v2.md + context-runtime.md
+  确认该 Module 在中轴里的位置和边界
+  输出：一句话定位 + 与中轴的关系
+
+Step 2 — Architecture（架构卡位）
+  确认该 Module 的接口边界、数据流向、与现有模块的交互点
+  输出：模块交互图（文字版即可）+ 新增/修改的文件清单
+
+Step 3 — Spine-now（冻结范围更新）
+  将该 Module 的最小可用定义写入 spine-now.md
+  明确：必须有的能力 / 必须有的体验 / 明确不做的
+  输出：spine-now.md 的 diff
+
+Step 4 — Mini SR（最小规格评审）
+  列出：验收标准（怎样算做完）+ 技术风险点 + 平台能力边界确认
+  用户确认后才能进入实现
+  输出：验收 checklist
+
+Step 5 — Implementation（实现）
+  按 Step 3 冻结的范围写代码，不超范围
+```
+
+每一步的输出必须落盘到文档或对话中，口头过不算。Step 4 用户未确认前禁止进入 Step 5。
+
 ## 名字由来
 
 灰风（GreyWind）的名字来自群星（Stellaris）的**灰蛊风暴（Grey Tempest）**，不是权力的游戏的冰原狼。
