@@ -5,4 +5,11 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   updateScreenSettings: (data) => ipcRenderer.invoke("settings:update-screen", data),
   getRenderSettings: () => ipcRenderer.invoke("render-settings:get"),
   updateRenderSettings: (data) => ipcRenderer.invoke("render-settings:update", data),
+  // 音色管理
+  listVoices: () => ipcRenderer.invoke("voice:list"),
+  uploadVoice: (data) => ipcRenderer.invoke("voice:upload", data),
+  deleteVoice: (uri) => ipcRenderer.invoke("voice:delete", uri),
+  switchVoice: (voice) => ipcRenderer.invoke("voice:switch", voice),
+  previewVoice: (voice) => ipcRenderer.invoke("voice:preview", voice),
+  pickAudioFile: () => ipcRenderer.invoke("voice:pick-file"),
 });

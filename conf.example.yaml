@@ -27,6 +27,9 @@ tts:
   sample_rate: 32000
   speed: 1.0
   gain: 0.0
+  # 音色克隆：填写参考音频路径和对应文字，启用后 voice 字段会被忽略
+  # reference_audio: "data/voice_ref.mp3"
+  # reference_text: "参考音频里说的话，需要准确转写"
 
 character: "greywind"
 

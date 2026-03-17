@@ -34,6 +34,8 @@ class TTSConfig(BaseModel):
     stream: bool = False
     speed: float = 1.0
     gain: float = 0.0
+    reference_audio: Optional[str] = None   # 参考音频路径，用于音色克隆
+    reference_text: Optional[str] = None    # 参考音频对应的文字内容
 
 
 class MemoryConfig(BaseModel):
