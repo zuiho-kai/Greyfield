@@ -10,6 +10,11 @@ const {
   supportsMouseTransparency,
 } = require("./renderer/live2d-interaction-policy.js");
 
+// Windows 控制台切换到 UTF-8，避免中文日志乱码
+if (process.platform === "win32") {
+  try { require("child_process").execSync("chcp 65001", { stdio: "ignore" }); } catch {}
+}
+
 // 捕获未处理异常，防止静默闪退
 process.on("uncaughtException", (err) => {
   console.error("[CRASH] uncaughtException:", err.stack || err.message);

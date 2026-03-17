@@ -156,7 +156,7 @@
       list.innerHTML = "";
       // 预置音色从后端 model 名推导
       const model = (data.current_voice || "").split(":")[0] || "FunAudioLLM/CosyVoice2-0.5B";
-      const presetNames = ["alex", "anna", "bella", "benjamin", "claire", "david", "emily"];
+      const presetNames = ["alex", "anna", "bella", "benjamin", "charles", "claire", "david", "diana"];
       for (const name of presetNames) {
         const uri = model + ":" + name;
         list.appendChild(makeVoiceItem(name, uri, data.current_voice, false));
