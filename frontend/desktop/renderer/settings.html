@@ -2,11 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>灰风 - 屏幕感知设置</title>
+  <title>灰风 - 设置</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #1a1a2e; color: #c8d6e5; font-family: "Microsoft YaHei", sans-serif; font-size: 14px; padding: 20px; }
     h2 { font-size: 16px; margin-bottom: 16px; color: #e2e8f0; }
+    h3 { font-size: 14px; margin: 24px 0 12px; color: #e2e8f0; border-bottom: 1px solid #2d3748; padding-bottom: 6px; }
     .field { margin-bottom: 18px; }
     .field label { display: block; margin-bottom: 6px; font-size: 13px; color: #a0aec0; }
     .field .hint { font-size: 11px; color: #718096; margin-top: 4px; line-height: 1.5; }
@@ -22,10 +23,53 @@
     .ref-table .skip { color: #fc8181; }
     .ref-table .accept { color: #68d391; }
     .status { margin-top: 16px; font-size: 12px; color: #68d391; min-height: 18px; }
+    /* 音色管理 */
+    .voice-list { list-style: none; margin: 8px 0; }
+    .voice-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: #2d3748; border-radius: 4px; margin-bottom: 6px; }
+    .voice-item.active { border-left: 3px solid #667eea; }
+    .voice-name { font-size: 13px; color: #e2e8f0; flex: 1; }
+    .voice-uri { font-size: 10px; color: #718096; margin-top: 2px; word-break: break-all; }
+    .voice-actions { display: flex; gap: 6px; }
+    .btn { padding: 4px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
+    .btn-primary { background: #667eea; color: #fff; }
+    .btn-primary:hover { background: #5a6fd6; }
+    .btn-danger { background: #e53e3e; color: #fff; }
+    .btn-danger:hover { background: #c53030; }
+    .btn-sm { padding: 3px 8px; font-size: 11px; }
+    .upload-form { background: #2d3748; border-radius: 6px; padding: 14px; margin-top: 10px; }
+    .upload-form input[type="text"] { width: 100%; background: #1a1a2e; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 4px; padding: 6px 10px; font-size: 13px; margin-bottom: 8px; }
+    .upload-form .file-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .upload-form .file-path { flex: 1; font-size: 12px; color: #a0aec0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   </style>
 </head>
 <body>
-  <h2>屏幕感知设置</h2>
+  <h2>灰风设置</h2>
+
+  <!-- 音色管理 -->
+  <h3>音色管理</h3>
+  <div class="field">
+    <label>当前音色：<span id="current_voice">加载中...</span></label>
+  </div>
+  <div class="field">
+    <label>可用音色</label>
+    <ul class="voice-list" id="voice_list"></ul>
+    <div class="hint">点击"使用"切换音色，即时生效无需重启。</div>
+  </div>
+  <div class="field">
+    <label>上传新音色</label>
+    <div class="upload-form">
+      <input type="text" id="voice_name" placeholder="音色名称（如：灰风专属）" />
+      <div class="file-row">
+        <button class="btn btn-primary btn-sm" id="pick_file_btn">选择音频</button>
+        <span class="file-path" id="file_path_display">未选择文件</span>
+      </div>
+      <input type="text" id="voice_text" placeholder="音频里说的话（准确转写）" />
+      <button class="btn btn-primary" id="upload_btn">上传并创建音色</button>
+    </div>
+    <div class="hint">支持 mp3/wav/ogg，建议 3-10 秒清晰人声。</div>
+  </div>
+
+  <h3>屏幕感知</h3>
 
   <div class="field">
     <label class="toggle">
@@ -96,6 +140,103 @@
   <div class="status" id="status"></div>
 
   <script>
+    // ── 音色管理 ──
+    let _pickedFilePath = null;
+
+    async function loadVoices() {
+      const data = await window.settingsAPI.listVoices();
+      if (data.error) return;
+      const currentEl = document.getElementById("current_voice");
+      currentEl.textContent = data.using_reference ? "参考音频克隆模式" : (data.current_voice || "未设置");
+      const list = document.getElementById("voice_list");
+      list.innerHTML = "";
+      // 预置音色
+      const presets = [
+        { name: "anna", uri: "FunAudioLLM/CosyVoice2-0.5B:anna" },
+        { name: "alex", uri: "FunAudioLLM/CosyVoice2-0.5B:alex" },
+        { name: "bella", uri: "FunAudioLLM/CosyVoice2-0.5B:bella" },
+        { name: "benjamin", uri: "FunAudioLLM/CosyVoice2-0.5B:benjamin" },
+        { name: "claire", uri: "FunAudioLLM/CosyVoice2-0.5B:claire" },
+        { name: "david", uri: "FunAudioLLM/CosyVoice2-0.5B:david" },
+        { name: "emily", uri: "FunAudioLLM/CosyVoice2-0.5B:emily" },
+      ];
+      for (const p of presets) {
+        list.appendChild(makeVoiceItem(p.name, p.uri, data.current_voice, false));
+      }
+      for (const v of (data.custom_voices || [])) {
+        list.appendChild(makeVoiceItem(v.customName || v.uri, v.uri, data.current_voice, true));
+      }
+    }
+
+    function makeVoiceItem(name, uri, currentVoice, canDelete) {
+      const li = document.createElement("li");
+      li.className = "voice-item" + (uri === currentVoice ? " active" : "");
+      const info = document.createElement("div");
+      info.innerHTML = `<div class="voice-name">${name}${uri === currentVoice ? " (当前)" : ""}</div><div class="voice-uri">${uri}</div>`;
+      li.appendChild(info);
+      const actions = document.createElement("div");
+      actions.className = "voice-actions";
+      if (uri !== currentVoice) {
+        const useBtn = document.createElement("button");
+        useBtn.className = "btn btn-primary btn-sm";
+        useBtn.textContent = "使用";
+        useBtn.onclick = async () => {
+          const r = await window.settingsAPI.switchVoice(uri);
+          if (r.ok) loadVoices();
+        };
+        actions.appendChild(useBtn);
+      }
+      if (canDelete) {
+        const delBtn = document.createElement("button");
+        delBtn.className = "btn btn-danger btn-sm";
+        delBtn.textContent = "删除";
+        delBtn.onclick = async () => {
+          if (!confirm("确定删除此音色？")) return;
+          const r = await window.settingsAPI.deleteVoice(uri);
+          if (r.ok) loadVoices();
+        };
+        actions.appendChild(delBtn);
+      }
+      li.appendChild(actions);
+      return li;
+    }
+
+    document.getElementById("pick_file_btn").addEventListener("click", async () => {
+      const r = await window.settingsAPI.pickAudioFile();
+      if (!r.canceled) {
+        _pickedFilePath = r.filePath;
+        document.getElementById("file_path_display").textContent = r.filePath.split(/[/\\]/).pop();
+      }
+    });
+
+    document.getElementById("upload_btn").addEventListener("click", async () => {
+      const name = document.getElementById("voice_name").value.trim();
+      const text = document.getElementById("voice_text").value.trim();
+      if (!name || !text || !_pickedFilePath) {
+        alert("请填写音色名称、选择音频文件、并填写音频对应的文字");
+        return;
+      }
+      const statusEl = document.getElementById("status");
+      statusEl.textContent = "上传中...";
+      statusEl.style.color = "#667eea";
+      const r = await window.settingsAPI.uploadVoice({ filePath: _pickedFilePath, text, customName: name });
+      if (r.ok) {
+        statusEl.textContent = "上传成功：" + (r.uri || "");
+        statusEl.style.color = "#68d391";
+        document.getElementById("voice_name").value = "";
+        document.getElementById("voice_text").value = "";
+        _pickedFilePath = null;
+        document.getElementById("file_path_display").textContent = "未选择文件";
+        loadVoices();
+      } else {
+        statusEl.textContent = "上传失败：" + (r.error || "未知错误");
+        statusEl.style.color = "#fc8181";
+      }
+    });
+
+    loadVoices();
+
+    // ── 屏幕感知设置 ──
     const REF_VALS = { mouse: 0.008, type: 0.036, notif: 0.043, scroll: 0.060, game: 0.160, switch: 0.825 };
 
     function updateRefTable(threshold) {

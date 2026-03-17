@@ -88,6 +88,102 @@ async def update_screen_settings(body: dict):
     return {"ok": True}
 
 
+# ── 音色管理 API ──
+
+@app.get("/api/voice/list")
+async def voice_list():
+    """列出当前可用音色（预置 + 自定义）"""
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    try:
+        from greywind.engines.tts.voice_manager import VoiceManager
+        vm = VoiceManager(api_key=_ctx.config.tts.api_key)
+        custom = vm.list()
+    except Exception as e:
+        logger.error(f"获取音色列表失败: {e}")
+        custom = []
+    current = _ctx.config.tts.voice or ""
+    has_ref = bool(_ctx.config.tts.reference_audio and _ctx.config.tts.reference_text)
+    return {
+        "current_voice": current,
+        "using_reference": has_ref,
+        "custom_voices": custom,
+    }
+
+
+@app.post("/api/voice/upload")
+async def voice_upload(body: dict):
+    """上传参考音频创建自定义音色（base64 方式）"""
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    text = body.get("text", "")
+    custom_name = body.get("custom_name", "")
+    audio_b64 = body.get("audio_base64", "")
+    filename = body.get("filename", "audio.mp3")
+    if not text or not custom_name or not audio_b64:
+        return {"error": "缺少 text / custom_name / audio_base64 参数"}
+    import tempfile, os, base64
+    tmp = None
+    try:
+        from greywind.engines.tts.voice_manager import VoiceManager
+        vm = VoiceManager(api_key=_ctx.config.tts.api_key)
+        suffix = os.path.splitext(filename)[1] or ".mp3"
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        tmp.write(base64.b64decode(audio_b64))
+        tmp.close()
+        uri = vm.upload(tmp.name, text, custom_name, model=_ctx.config.tts.model)
+        return {"ok": True, "uri": uri, "custom_name": custom_name}
+    except Exception as e:
+        logger.error(f"音色上传失败: {e}")
+        return {"error": str(e)}
+    finally:
+        if tmp and os.path.exists(tmp.name):
+            os.unlink(tmp.name)
+
+
+@app.post("/api/voice/delete")
+async def voice_delete(body: dict):
+    """删除自定义音色"""
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    uri = body.get("uri", "")
+    if not uri:
+        return {"error": "缺少 uri 参数"}
+    try:
+        from greywind.engines.tts.voice_manager import VoiceManager
+        vm = VoiceManager(api_key=_ctx.config.tts.api_key)
+        vm.delete(uri)
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"音色删除失败: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/api/voice/switch")
+async def voice_switch(body: dict):
+    """切换当前使用的音色（热切换，不需要重启）"""
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    voice = body.get("voice", "")
+    if not voice:
+        return {"error": "缺少 voice 参数"}
+    try:
+        from greywind.engines.tts.siliconflow_tts import SiliconFlowTTS
+        tts = _ctx.tts
+        if isinstance(tts, SiliconFlowTTS):
+            tts.default_voice = voice
+            # 切换到预置/自定义音色时，清除 references 模式
+            tts._reference_b64 = None
+            tts.reference_text = None
+            _ctx.config.tts.voice = voice
+            logger.info(f"音色已切换: {voice}")
+            return {"ok": True, "voice": voice}
+        return {"error": "当前 TTS 引擎不支持音色切换"}
+    except Exception as e:
+        logger.error(f"音色切换失败: {e}")
+        return {"error": str(e)}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     if not _ctx:

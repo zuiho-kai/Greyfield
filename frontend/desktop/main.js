@@ -654,9 +654,9 @@ function showSettingsWindow() {
     return;
   }
   settingsWin = new BrowserWindow({
-    width: 480,
-    height: 520,
-    title: "灰风 - 屏幕感知设置",
+    width: 520,
+    height: 680,
+    title: "灰风 - 设置",
     webPreferences: {
       preload: path.join(__dirname, "preload-settings.js"),
       contextIsolation: true,
@@ -822,6 +822,74 @@ function createWindow() {
     return merged;
   });
 
+  // ── 音色管理 IPC ──
+  ipcMain.handle("voice:list", async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:12393/api/voice/list");
+      return await res.json();
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("voice:upload", async (_, { filePath, text, customName }) => {
+    try {
+      const fileBuffer = fs.readFileSync(filePath);
+      const audioB64 = fileBuffer.toString("base64");
+      const fileName = path.basename(filePath);
+      const res = await fetch("http://127.0.0.1:12393/api/voice/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audio_base64: audioB64,
+          filename: fileName,
+          text,
+          custom_name: customName,
+        }),
+      });
+      return await res.json();
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("voice:delete", async (_, uri) => {
+    try {
+      const res = await fetch("http://127.0.0.1:12393/api/voice/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uri }),
+      });
+      return await res.json();
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("voice:switch", async (_, voice) => {
+    try {
+      const res = await fetch("http://127.0.0.1:12393/api/voice/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voice }),
+      });
+      return await res.json();
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("voice:pick-file", async () => {
+    const { dialog } = require("electron");
+    const result = await dialog.showOpenDialog({
+      title: "选择参考音频",
+      filters: [{ name: "音频文件", extensions: ["mp3", "wav", "ogg", "m4a"] }],
+      properties: ["openFile"],
+    });
+    if (result.canceled || !result.filePaths.length) return { canceled: true };
+    return { canceled: false, filePath: result.filePaths[0] };
+  });
+
   // 系统托盘
   tray = new Tray(path.join(__dirname, "renderer", "icon.png").replace(/\\/g, "/"));
   tray.setToolTip("灰风 GreyWind");
@@ -842,7 +910,7 @@ function createWindow() {
         }
         rebuildTrayMenu();
       }},
-      { label: "屏幕感知设置", click: () => showSettingsWindow() },
+      { label: "设置", click: () => showSettingsWindow() },
       { label: "后端日志", click: () => showLogWindow() },
       { label: "Chat History", click: () => showHistoryWindow() },
       { label: "开发工具", click: () => win.webContents.openDevTools({ mode: "detach" }) },
