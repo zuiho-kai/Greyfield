@@ -61,20 +61,28 @@ class ParallelWebLLM(StatelessLLMInterface):
                 continue
             yield chunk
 
-        # 主 LLM 有 tool calls 时不等网页版，直接取消
+        # 收割网页版 LLM 结果
         if has_tool_calls:
-            web_task.cancel()
-            return
-
-        # 等网页版 LLM 完成（如果还没完成的话）
-        try:
-            web_reply = await asyncio.wait_for(web_task, timeout=120)
-        except asyncio.TimeoutError:
-            logger.warning("网页版 LLM 超时 (120s)")
-            web_reply = ""
-        except Exception as e:
-            logger.warning(f"网页版 LLM 出错: {e}")
-            web_reply = ""
+            # 有 tool calls 时不阻塞等待，只取已完成的结果
+            if web_task.done():
+                try:
+                    web_reply = web_task.result()
+                except Exception:
+                    web_reply = ""
+            else:
+                # 豆包还没完成，tool call 轮次会继续对话，旧搜索结果已过时
+                web_task.cancel()
+                web_reply = ""
+        else:
+            # 无 tool calls，正常等待
+            try:
+                web_reply = await asyncio.wait_for(web_task, timeout=120)
+            except asyncio.TimeoutError:
+                logger.warning("网页版 LLM 超时 (120s)")
+                web_reply = ""
+            except Exception as e:
+                logger.warning(f"网页版 LLM 出错: {e}")
+                web_reply = ""
 
         # 追加网页版结果
         if web_reply:
