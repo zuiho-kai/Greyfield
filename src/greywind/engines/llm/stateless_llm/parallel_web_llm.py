@@ -61,6 +61,11 @@ class ParallelWebLLM(StatelessLLMInterface):
                 continue
             yield chunk
 
+        # 主 LLM 有 tool calls 时不等网页版，直接取消
+        if has_tool_calls:
+            web_task.cancel()
+            return
+
         # 等网页版 LLM 完成（如果还没完成的话）
         try:
             web_reply = await asyncio.wait_for(web_task, timeout=120)
@@ -71,6 +76,6 @@ class ParallelWebLLM(StatelessLLMInterface):
             logger.warning(f"网页版 LLM 出错: {e}")
             web_reply = ""
 
-        # 追加网页版结果（如果有内容且主 LLM 没有 tool call）
-        if web_reply and not has_tool_calls:
+        # 追加网页版结果
+        if web_reply:
             yield f"\n\n【豆包搜索结果】\n{web_reply}"

@@ -99,8 +99,8 @@ class ServiceContext:
                 user_data_dir=cfg.user_data_dir or None,
             )
         elif cfg.provider == "extension":
-            from greywind.execution.extension_provider import ExtensionProvider
-            return ExtensionProvider()
+            logger.warning("extension provider 尚未实现，浏览器操控不可用。请使用 playwright provider")
+            return None
         else:
             logger.warning(f"未知浏览器 provider: {cfg.provider}")
             return None

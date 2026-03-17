@@ -268,6 +268,12 @@ class VoicePipeline:
                 tool_calls = chunk
                 continue
 
+            # 过滤不支持 tools 的 sentinel 信号
+            if chunk == "__API_NOT_SUPPORT_TOOLS__":
+                logger.info("当前模型不支持 tool calling，跳过 tools")
+                tool_calls = None
+                continue
+
             # 兼容 OpenAI (str) 和 Claude (dict with text_delta)
             if isinstance(chunk, str):
                 text = chunk
