@@ -189,7 +189,7 @@ async def voice_preview(body: dict):
         from greywind.engines.tts.siliconflow_tts import SiliconFlowTTS
         tts = SiliconFlowTTS(
             api_url=cfg.api_url, api_key=cfg.api_key,
-            default_model=cfg.model, default_voice=voice,
+            default_model=cfg.model or "FunAudioLLM/CosyVoice2-0.5B", default_voice=voice,
             sample_rate=cfg.sample_rate, response_format=cfg.response_format,
             stream=False, speed=cfg.speed, gain=cfg.gain,
         )
