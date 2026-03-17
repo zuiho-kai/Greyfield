@@ -79,3 +79,9 @@
 ❌ 用 heredoc/inline `node -e` 传含单引号的大 JSON，shell 转义连续失败 3 次才换方案
 ✅ 大段 JS（>20 行或含引号）→ 直接 Write 临时 .js 文件再 `node` 执行，不走 heredoc
 > 第一次 shell 转义失败就该切方案，不是第三次。
+
+### DEV-86 gh API 回复 PR review comment 连续 404 不换路 `🟢`
+
+❌ 用 `gh api pulls/{pr}/reviews/{id}/comments/{id}/replies` 回复 review comment，404 连试 3 次不换方案，浪费 token
+✅ gh API 操作 PR comment 前先单条 GET 验证路径可达；第一次 404 就停下，改用 `gh pr comment` 留总评
+> 工具熔断规则的 gh 变体：API 路径不确定时先验证再批量调用，不盲试。

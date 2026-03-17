@@ -50,6 +50,7 @@
 | DEV-57 | Bash heredoc 大段 JS 单引号冲突 | 通用/工具 | 🟢 | tool-rules.md |
 | DEV-58 | 降级链跳步，跳过中间步骤 | 通用/工具 | 🟡×2 | tool-rules.md |
 | DEV-59 | 抓取失败后编造内容 | 通用/工具 | 🟢 | tool-rules.md |
+| DEV-86 | gh API 回复 review comment 连续 404 不换路 | 通用/工具 | 🟢 | tool-rules.md |
 | DEV-1 | 后端终端改了前端文件 | 通用/接口 | 🟢 | interface-rules.md |
 | DEV-2 | 改接口没更新契约文档 | 通用/接口 | 🟢 | interface-rules.md |
 | DEV-11c | 前端凭记忆写后端接口信息 | 前端/接口 | 🟡×2 | interface-rules.md |
