@@ -28,6 +28,7 @@ docs/
 ├── engineering-lessons.md              # 错题本体系入口
 ├── worktree-workflow.md                # Worktree 工作流规范
 ├── worktree-log.md                     # Worktree 跟踪记录表
+├── hard-rules.md                       # 通用硬规则（从 CLAUDE.md 拆出）
 ├── competitor-analysis-my-neuro.md     # 竞品分析：my-neuro
 ├── error-books/
 │   ├── _index.md                      # 速查索引（每次必读）
