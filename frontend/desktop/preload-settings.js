@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   uploadVoice: (data) => ipcRenderer.invoke("voice:upload", data),
   deleteVoice: (uri) => ipcRenderer.invoke("voice:delete", uri),
   switchVoice: (voice) => ipcRenderer.invoke("voice:switch", voice),
+  previewVoice: (voice) => ipcRenderer.invoke("voice:preview", voice),
   pickAudioFile: () => ipcRenderer.invoke("voice:pick-file"),
 });

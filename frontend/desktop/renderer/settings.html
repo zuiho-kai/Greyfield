@@ -36,6 +36,9 @@
     .btn-danger { background: #e53e3e; color: #fff; }
     .btn-danger:hover { background: #c53030; }
     .btn-sm { padding: 3px 8px; font-size: 11px; }
+    .btn-preview { background: #4a5568; color: #e2e8f0; }
+    .btn-preview:hover { background: #5a6a7e; }
+    .btn-preview.playing { background: #d69e2e; color: #1a1a2e; }
     .upload-form { background: #2d3748; border-radius: 6px; padding: 14px; margin-top: 10px; }
     .upload-form input[type="text"] { width: 100%; background: #1a1a2e; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 4px; padding: 6px 10px; font-size: 13px; margin-bottom: 8px; }
     .upload-form .file-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -142,6 +145,7 @@
   <script>
     // ── 音色管理 ──
     let _pickedFilePath = null;
+    let _previewAudio = null;  // 当前试听的 Audio 对象
 
     async function loadVoices() {
       const data = await window.settingsAPI.listVoices();
@@ -150,21 +154,26 @@
       currentEl.textContent = data.using_reference ? "参考音频克隆模式" : (data.current_voice || "未设置");
       const list = document.getElementById("voice_list");
       list.innerHTML = "";
-      // 预置音色
-      const presets = [
-        { name: "anna", uri: "FunAudioLLM/CosyVoice2-0.5B:anna" },
-        { name: "alex", uri: "FunAudioLLM/CosyVoice2-0.5B:alex" },
-        { name: "bella", uri: "FunAudioLLM/CosyVoice2-0.5B:bella" },
-        { name: "benjamin", uri: "FunAudioLLM/CosyVoice2-0.5B:benjamin" },
-        { name: "claire", uri: "FunAudioLLM/CosyVoice2-0.5B:claire" },
-        { name: "david", uri: "FunAudioLLM/CosyVoice2-0.5B:david" },
-        { name: "emily", uri: "FunAudioLLM/CosyVoice2-0.5B:emily" },
-      ];
-      for (const p of presets) {
-        list.appendChild(makeVoiceItem(p.name, p.uri, data.current_voice, false));
+      // 预置音色从后端 model 名推导
+      const model = (data.current_voice || "").split(":")[0] || "FunAudioLLM/CosyVoice2-0.5B";
+      const presetNames = ["alex", "anna", "bella", "benjamin", "claire", "david", "emily"];
+      for (const name of presetNames) {
+        const uri = model + ":" + name;
+        list.appendChild(makeVoiceItem(name, uri, data.current_voice, false));
       }
       for (const v of (data.custom_voices || [])) {
         list.appendChild(makeVoiceItem(v.customName || v.uri, v.uri, data.current_voice, true));
+      }
+    }
+
+    function stopPreview() {
+      if (_previewAudio) {
+        _previewAudio.pause();
+        _previewAudio = null;
+        document.querySelectorAll(".btn-preview.playing").forEach(b => {
+          b.classList.remove("playing");
+          b.textContent = "试听";
+        });
       }
     }
 
@@ -176,11 +185,43 @@
       li.appendChild(info);
       const actions = document.createElement("div");
       actions.className = "voice-actions";
+      // 试听按钮
+      const previewBtn = document.createElement("button");
+      previewBtn.className = "btn btn-preview btn-sm";
+      previewBtn.textContent = "试听";
+      previewBtn.onclick = async () => {
+        if (previewBtn.classList.contains("playing")) {
+          stopPreview();
+          return;
+        }
+        stopPreview();
+        previewBtn.textContent = "生成中...";
+        previewBtn.disabled = true;
+        const r = await window.settingsAPI.previewVoice(uri);
+        previewBtn.disabled = false;
+        if (r.ok && r.audio_base64) {
+          const audioSrc = "data:audio/" + (r.format === "mp3" ? "mpeg" : r.format) + ";base64," + r.audio_base64;
+          _previewAudio = new Audio(audioSrc);
+          previewBtn.textContent = "停止";
+          previewBtn.classList.add("playing");
+          _previewAudio.play();
+          _previewAudio.onended = () => {
+            previewBtn.classList.remove("playing");
+            previewBtn.textContent = "试听";
+            _previewAudio = null;
+          };
+        } else {
+          previewBtn.textContent = "试听";
+          alert("试听失败：" + (r.error || "未知错误"));
+        }
+      };
+      actions.appendChild(previewBtn);
       if (uri !== currentVoice) {
         const useBtn = document.createElement("button");
         useBtn.className = "btn btn-primary btn-sm";
         useBtn.textContent = "使用";
         useBtn.onclick = async () => {
+          stopPreview();
           const r = await window.settingsAPI.switchVoice(uri);
           if (r.ok) loadVoices();
         };

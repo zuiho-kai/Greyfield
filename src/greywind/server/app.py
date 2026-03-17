@@ -159,6 +159,53 @@ async def voice_delete(body: dict):
         return {"error": str(e)}
 
 
+@app.post("/api/voice/preview")
+async def voice_preview(body: dict):
+    """试听指定音色，返回音频 base64（带本地缓存）"""
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    voice = body.get("voice", "")
+    if not voice:
+        return {"error": "缺少 voice 参数"}
+    text = body.get("text", "你好，我是灰风，很高兴认识你。")
+    try:
+        import asyncio, base64, os, hashlib
+        cfg = _ctx.config.tts
+
+        # 缓存：按 voice + text 的 hash 存文件
+        cache_dir = os.path.join("cache", "voice_preview")
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_key = hashlib.md5(f"{voice}:{text}".encode()).hexdigest()
+        cache_path = os.path.join(cache_dir, f"{cache_key}.{cfg.response_format}")
+
+        if os.path.exists(cache_path):
+            with open(cache_path, "rb") as f:
+                audio_b64 = base64.b64encode(f.read()).decode()
+            return {"ok": True, "audio_base64": audio_b64, "format": cfg.response_format, "cached": True}
+
+        from greywind.engines.tts.siliconflow_tts import SiliconFlowTTS
+        tts = SiliconFlowTTS(
+            api_url=cfg.api_url, api_key=cfg.api_key,
+            default_model=cfg.model, default_voice=voice,
+            sample_rate=cfg.sample_rate, response_format=cfg.response_format,
+            stream=False, speed=cfg.speed, gain=cfg.gain,
+        )
+        audio_path = await asyncio.to_thread(tts.generate_audio, text)
+        if not audio_path:
+            return {"error": "音频生成失败"}
+        # 复制到缓存
+        with open(audio_path, "rb") as f:
+            audio_bytes = f.read()
+        with open(cache_path, "wb") as f:
+            f.write(audio_bytes)
+        os.unlink(audio_path)
+        audio_b64 = base64.b64encode(audio_bytes).decode()
+        return {"ok": True, "audio_base64": audio_b64, "format": cfg.response_format, "cached": False}
+    except Exception as e:
+        logger.error(f"音色试听失败: {e}")
+        return {"error": str(e)}
+
+
 @app.post("/api/voice/switch")
 async def voice_switch(body: dict):
     """切换当前使用的音色（热切换，不需要重启）"""

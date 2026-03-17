@@ -879,6 +879,19 @@ function createWindow() {
     }
   });
 
+  ipcMain.handle("voice:preview", async (_, voice) => {
+    try {
+      const res = await fetch("http://127.0.0.1:12393/api/voice/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voice }),
+      });
+      return await res.json();
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
   ipcMain.handle("voice:pick-file", async () => {
     const { dialog } = require("electron");
     const result = await dialog.showOpenDialog({
