@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, desktopCapturer } = require("electron");
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
 const { spawn } = require("child_process");
 const https = require("https");
 const fs = require("fs");
@@ -9,6 +9,18 @@ const {
   resolveIgnoreMouseRequest,
   supportsMouseTransparency,
 } = require("./renderer/live2d-interaction-policy.js");
+
+// 捕获未处理异常，防止静默闪退
+process.on("uncaughtException", (err) => {
+  console.error("[CRASH] uncaughtException:", err.stack || err.message);
+  fs.appendFileSync(path.join(__dirname, "crash.log"),
+    `[${new Date().toISOString()}] uncaughtException: ${err.stack || err.message}\n`);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[CRASH] unhandledRejection:", reason);
+  fs.appendFileSync(path.join(__dirname, "crash.log"),
+    `[${new Date().toISOString()}] unhandledRejection: ${reason}\n`);
+});
 
 // Win32 系统级拖拽（仅 Windows）
 let nativeDrag = null;
@@ -54,12 +66,146 @@ let logWin = null;
 let historyWin = null;
 let settingsWin = null;
 let isQuitting = false;
+let mainWin = null;
 let chatHistory = [];
 const MAX_HISTORY_ITEMS = 500;
 const HISTORY_SAVE_DEBOUNCE_MS = 500;
 let historyFilePath = null;
 let historySaveTimer = null;
 let cachedForegroundTitle = "";
+
+// ── 主进程截屏模块（DEV-86：重数据不经渲染进程；DEV-88：koffi 直调 Win32 API，不 spawn 进程）──
+let screenCaptureTimer = null;
+let screenCaptureEnabled = false;
+const SCREEN_CAPTURE_INTERVAL_MS = 3000;
+
+// Win32 截屏 API（纯内存，无子进程，无 DWM 刷新）
+let win32Screen = null;
+if (process.platform === "win32") {
+  try {
+    const koffi = require("koffi");
+    const gdi32 = koffi.load("gdi32.dll");
+    const user32 = koffi.load("user32.dll");
+
+    const GetDC = user32.func("intptr_t __stdcall GetDC(intptr_t hWnd)");
+    const ReleaseDC = user32.func("int32_t __stdcall ReleaseDC(intptr_t hWnd, intptr_t hDC)");
+    const GetSystemMetrics = user32.func("int32_t __stdcall GetSystemMetrics(int32_t nIndex)");
+    const CreateCompatibleDC = gdi32.func("intptr_t __stdcall CreateCompatibleDC(intptr_t hdc)");
+    const CreateCompatibleBitmap = gdi32.func("intptr_t __stdcall CreateCompatibleBitmap(intptr_t hdc, int32_t cx, int32_t cy)");
+    const SelectObject = gdi32.func("intptr_t __stdcall SelectObject(intptr_t hdc, intptr_t h)");
+    const BitBlt = gdi32.func("bool __stdcall BitBlt(intptr_t hdc, int32_t x, int32_t y, int32_t cx, int32_t cy, intptr_t hdcSrc, int32_t x1, int32_t y1, uint32_t rop)");
+    const DeleteDC = gdi32.func("bool __stdcall DeleteDC(intptr_t hdc)");
+    const DeleteObject = gdi32.func("bool __stdcall DeleteObject(intptr_t ho)");
+    const GetDIBits = gdi32.func("int32_t __stdcall GetDIBits(intptr_t hdc, intptr_t hbm, uint32_t start, uint32_t cLines, void* lpvBits, void* lpbmi, uint32_t usage)");
+
+    const SM_CXSCREEN = 0;
+    const SM_CYSCREEN = 1;
+    const SRCCOPY = 0x00CC0020;
+    const DIB_RGB_COLORS = 0;
+
+    // 预分配复用 Buffer，避免每次 capture 都 alloc 新 Buffer
+    // 新 Buffer 可能在 koffi FFI 调用期间被 V8 GC 回收 → ACCESS_VIOLATION
+    let _cachedW = 0;
+    let _cachedH = 0;
+    let _pixelsBuf = null;
+    let _rgbaBuf = null;  // BGRA→RGBA 转换后的复用 buffer
+    const _bmiBuf = Buffer.alloc(40);
+
+    win32Screen = {
+      capture() {
+        const w = GetSystemMetrics(SM_CXSCREEN);
+        const h = GetSystemMetrics(SM_CYSCREEN);
+
+        // 分辨率变化时重新分配
+        if (w !== _cachedW || h !== _cachedH) {
+          _cachedW = w;
+          _cachedH = h;
+          _pixelsBuf = Buffer.alloc(w * 4 * h);
+          _rgbaBuf = Buffer.alloc(w * 4 * h);
+        }
+
+        // 填充 BITMAPINFOHEADER（复用 buffer）
+        _bmiBuf.writeUInt32LE(40, 0);
+        _bmiBuf.writeInt32LE(w, 4);
+        _bmiBuf.writeInt32LE(-h, 8);             // top-down
+        _bmiBuf.writeUInt16LE(1, 12);
+        _bmiBuf.writeUInt16LE(32, 14);           // 32-bit BGRA
+        _bmiBuf.writeUInt32LE(0, 16);
+
+        const hdcScreen = GetDC(0);
+        const hdcMem = CreateCompatibleDC(hdcScreen);
+        const hBitmap = CreateCompatibleBitmap(hdcScreen, w, h);
+        const hOld = SelectObject(hdcMem, hBitmap);
+
+        BitBlt(hdcMem, 0, 0, w, h, hdcScreen, 0, 0, SRCCOPY);
+        GetDIBits(hdcMem, hBitmap, 0, h, _pixelsBuf, _bmiBuf, DIB_RGB_COLORS);
+
+        // 清理 GDI 资源
+        SelectObject(hdcMem, hOld);
+        DeleteObject(hBitmap);
+        DeleteDC(hdcMem);
+        ReleaseDC(0, hdcScreen);
+
+        // BGRA → RGBA（nativeImage.createFromBitmap 需要 RGBA）
+        // 写入复用 buffer，避免 GC 回收临时 buffer 导致 native 侧 ACCESS_VIOLATION
+        _pixelsBuf.copy(_rgbaBuf);
+        for (let i = 0; i < _rgbaBuf.length; i += 4) {
+          const b = _rgbaBuf[i];
+          _rgbaBuf[i] = _rgbaBuf[i + 2];
+          _rgbaBuf[i + 2] = b;
+          _rgbaBuf[i + 3] = 255;
+        }
+
+        return { pixels: _rgbaBuf, w, h };
+      },
+    };
+    console.log("[screen] Win32 koffi 截屏模块已加载");
+  } catch (e) {
+    console.warn("[screen] koffi 截屏加载失败:", e.message);
+  }
+}
+
+function startScreenCapture(intervalMs) {
+  if (screenCaptureTimer) return;
+  if (!win32Screen) {
+    console.warn("[screen] 截屏模块未加载，跳过");
+    return;
+  }
+  screenCaptureEnabled = true;
+  const interval = intervalMs || SCREEN_CAPTURE_INTERVAL_MS;
+  screenCaptureTimer = setInterval(() => {
+    if (!screenCaptureEnabled) return;
+    try {
+      refreshForegroundTitle();
+      const { pixels, w, h } = win32Screen.capture();
+      const { nativeImage } = require("electron");
+      const img = nativeImage.createFromBitmap(pixels, { width: w, height: h });
+      const jpegBuffer = img.toJPEG(85);
+      const b64 = jpegBuffer.toString("base64");
+      // 通过 IPC 发给 renderer，由 renderer 的 WS 连接发送给后端
+      // 这样只有一个 WS 连接，音频回传正常
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.webContents.send("screen:frame", {
+          image_base64: b64,
+          window_title: cachedForegroundTitle,
+          screen_index: 0,
+        });
+      }
+    } catch (err) {
+      console.debug("[screen] 截屏失败:", err.message);
+    }
+  }, interval);
+  console.log(`[screen] 截屏已启动，间隔 ${interval}ms`);
+}
+
+function stopScreenCapture() {
+  screenCaptureEnabled = false;
+  if (screenCaptureTimer) {
+    clearInterval(screenCaptureTimer);
+    screenCaptureTimer = null;
+  }
+  console.log("[screen] 截屏已停止");
+}
 
 const LIVE2D_SAMPLE = {
   id: "hiyori",
@@ -315,11 +461,16 @@ function scheduleSaveHistory() {
 
 function refreshForegroundTitle() {
   try {
-    const { execSync } = require("child_process");
-    cachedForegroundTitle = execSync(
-      'powershell.exe -NoProfile -NonInteractive -Command "(Get-Process | Where-Object {$_.MainWindowHandle -eq (Add-Type -MemberDefinition \'[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow();\' -Name W -Namespace U -PassThru)::GetForegroundWindow()}).MainWindowTitle"',
-      { timeout: 1000, windowsHide: true, encoding: "utf-8" }
-    ).trim();
+    const { execFile } = require("child_process");
+    execFile(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command",
+       "(Get-Process | Where-Object {$_.MainWindowHandle -eq (Add-Type -MemberDefinition '[DllImport(\"user32.dll\")] public static extern IntPtr GetForegroundWindow();' -Name W -Namespace U -PassThru)::GetForegroundWindow()}).MainWindowTitle"],
+      { timeout: 2000, windowsHide: true },
+      (err, stdout) => {
+        if (!err && stdout) cachedForegroundTitle = stdout.toString().trim();
+      }
+    );
   } catch (_) {
     // 失败时保留上次值
   }
@@ -360,6 +511,25 @@ function appendHistory(entry) {
 }
 
 function startBackend() {
+  // 先清理端口残留进程
+  try {
+    const out = require("child_process").execSync(
+      `netstat -ano | findstr :12393 | findstr LISTENING`,
+      { encoding: "utf8" }
+    );
+    const pids = new Set(
+      out.trim().split("\n").map(l => l.trim().split(/\s+/).pop()).filter(Boolean)
+    );
+    for (const pid of pids) {
+      try {
+        require("child_process").execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" });
+        console.log(`[backend] 已清理端口 12393 残留进程 PID ${pid}`);
+      } catch {}
+    }
+  } catch {
+    // 没有占用，正常
+  }
+
   const pythonExe = resolvePythonExecutable({
     isPackaged: app.isPackaged,
     projectRoot: PROJECT_ROOT,
@@ -521,6 +691,7 @@ function createWindow() {
       webSecurity: false,
     },
   });
+  mainWin = win;
 
   // 默认不穿透，窗口正常接收所有鼠标事件
   // 用 setShape 限制可点击区域（模型包围盒 + 输入区），区域外自动穿透
@@ -535,6 +706,30 @@ function createWindow() {
 
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
+
+  // 监听渲染进程崩溃
+  win.webContents.on("render-process-gone", (event, details) => {
+    const msg = `[CRASH] render-process-gone: reason=${details.reason} exitCode=${details.exitCode}`;
+    console.error(msg);
+    fs.appendFileSync(path.join(__dirname, "crash.log"),
+      `[${new Date().toISOString()}] ${msg}\n`);
+  });
+  win.webContents.on("crashed", (event) => {
+    console.error("[CRASH] webContents crashed");
+    fs.appendFileSync(path.join(__dirname, "crash.log"),
+      `[${new Date().toISOString()}] webContents crashed\n`);
+  });
+  win.on("unresponsive", () => {
+    console.error("[CRASH] window unresponsive");
+    fs.appendFileSync(path.join(__dirname, "crash.log"),
+      `[${new Date().toISOString()}] window unresponsive\n`);
+  });
+  app.on("child-process-gone", (event, details) => {
+    const msg = `[CRASH] child-process-gone: type=${details.type} reason=${details.reason}`;
+    console.error(msg);
+    fs.appendFileSync(path.join(__dirname, "crash.log"),
+      `[${new Date().toISOString()}] ${msg}\n`);
+  });
 
   if (process.argv.includes("--dev")) {
     win.webContents.openDevTools({ mode: "detach" });
@@ -572,50 +767,14 @@ function createWindow() {
   ipcMain.on("chat-history:append", (_, entry) => {
     appendHistory(entry);
   });
-  ipcMain.handle("screen:capture", async (_, opts) => {
-    try {
-      const monitorMode = (opts && opts.monitor) || "active";
-      refreshForegroundTitle();
-
-      // 隐藏灰风窗口避免截到自己
-      const wasVisible = win.isVisible();
-      if (wasVisible) win.setOpacity(0);
-      // 等一帧让窗口透明生效
-      await new Promise((r) => setTimeout(r, 50));
-
-      const sources = await desktopCapturer.getSources({
-        types: ["screen"],
-        thumbnailSize: { width: 1280, height: 720 },
-      });
-      if (wasVisible) win.setOpacity(1);
-      if (!sources.length) return { ok: false, error: "无法获取屏幕源" };
-
-      let selectedSources;
-      if (monitorMode === "all") {
-        selectedSources = sources;
-      } else if (monitorMode === "primary") {
-        const primaryDisplay = screen.getPrimaryDisplay();
-        const found = sources.find((s) => s.display_id === String(primaryDisplay.id));
-        selectedSources = [found || sources[0]];
-      } else {
-        // active: 鼠标所在屏幕
-        const cursorPoint = screen.getCursorScreenPoint();
-        const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
-        const found = sources.find((s) => s.display_id === String(activeDisplay.id));
-        selectedSources = [found || sources[0]];
-      }
-
-      if (selectedSources.length > 1) {
-        // 多屏模式：返回所有屏幕截图数组，由 renderer 逐个发送
-        const allImages = selectedSources.map((s) => s.thumbnail.toJPEG(60).toString("base64"));
-        return { ok: true, image_base64: allImages[0], all_screens: allImages, window_title: cachedForegroundTitle };
-      }
-      const b64 = selectedSources[0].thumbnail.toJPEG(60).toString("base64");
-      return { ok: true, image_base64: b64, window_title: cachedForegroundTitle };
-    } catch (err) {
-      win.setOpacity(1);
-      return { ok: false, error: err?.message || String(err) };
-    }
+  ipcMain.handle("screen:start", async (_, opts) => {
+    const interval = (opts && opts.intervalMs) || SCREEN_CAPTURE_INTERVAL_MS;
+    startScreenCapture(interval);
+    return { ok: true };
+  });
+  ipcMain.handle("screen:stop", async () => {
+    stopScreenCapture();
+    return { ok: true };
   });
   ipcMain.handle("live2d:get-model-url", async () => {
     try {

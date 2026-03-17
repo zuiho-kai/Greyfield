@@ -1,2 +1,2 @@
-cd frontend/desktop
-npm start --dev
+@echo off
+cd frontend/desktop && npm run dev
