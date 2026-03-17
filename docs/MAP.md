@@ -28,6 +28,13 @@ docs/
 ├── engineering-lessons.md              # 错题本体系入口
 ├── worktree-workflow.md                # Worktree 工作流规范
 ├── worktree-log.md                     # Worktree 跟踪记录表
+├── rules/                              # 通用硬规则（按任务类型分文件）
+│   ├── tool-write.md                  # 工具与写入
+│   ├── code-quality.md                # 代码质量
+│   ├── flow-interact.md               # 流程与交互
+│   ├── debug-fix.md                   # 调试与修复
+│   ├── git-cr.md                      # Git / Worktree / CR
+│   └── network.md                     # 网络与抓取
 ├── competitor-analysis-my-neuro.md     # 竞品分析：my-neuro
 ├── error-books/
 │   ├── _index.md                      # 速查索引（每次必读）

@@ -105,47 +105,29 @@ worktree：[已就绪(路径/分支名) | 需要创建 → 先执行创建命令
 
 ## Token 节省规则
 
-- **禁止全量 Read 大文件**（DEV-60）：文件 >200 行 → 必须先 Grep 定位行号再局部 Read（带 `offset` + `limit`），禁止全量 Read
+- **禁止全量 Read 大文件**（DEV-60）：文件 >200 行 → 必须先 Grep 定位行号再局部 Read（带 `offset` + `limit`）
 - **子 agent 精简输入**（DEV-61）：子 agent prompt 只附相关源码片段（≤150 行），不附整个模块，不传 CLAUDE.md
-- **探索前先查索引**（DEV-62）：新 session 开局先读 CLAUDE.md + `docs/MAP.md`，再按需定位文件，禁止上来就 `Glob **/*` 全量探索
-- **能 Edit 不 Write**（DEV-63）：能用 Edit 局部修改就不用 Write 重写整个文件
+- **探索前先查索引**（DEV-62）：新 session 开局先读 CLAUDE.md + `docs/MAP.md`，再按需定位文件
 
-## 通用硬规则
+## 🚫 硬规则加载（硬卡点）
 
-- **Write 强制分步**（DEV-8）：≤50 行可一次 Write；>50 行先 Write 骨架再 Edit 分段填充，每段 ≤50 行。Write 失败 1 次 → 切 Bash heredoc。禁止同一方式连续失败超过 2 次
-- **工具熔断**：同一工具连续失败 2 次同一错误 → 停下换思路，禁止第 3 次盲重试
-- **提问即交权**（DEV-53）：同一轮消息禁止"提问 + 执行"并存。提问后唯一允许的动作是等用户回答
-- **LLM 输出防御**（DEV-BUG-16）：接收 LLM 输出的 Pydantic model 必须加 validator/coerce/strip
-- **分支矩阵全覆盖**（DEV-BUG-17）：含分支逻辑必须列矩阵逐格实现和测试
-- **流式状态机边界检查**（DEV-71）：写/改流式处理逻辑时，必须逐项验证：①操作顺序（过滤在拆分前还是后）②标签/定界符被 chunk 边界拆开 ③流结束时缓冲区 flush ④空 chunk / 单字符 chunk ⑤所有下游（输出、持久化、日志）必须共用同一份 sanitize 函数，禁止各写各的清洗逻辑。缺任一项 = 未完成
-- **防丢失**：对话是临时的，文件是持久的（COMMON-1）
-- **不做口头承诺**（DEV-76）：教训/流程改进发现当下直接写入对应错题本文件 + 更新 `_index.md`。口头说了但没落盘 = 没做（COMMON-12）
-- **两次失败必须搜索**：连续猜方案失败两次后停下搜索根因（COMMON-9）
-- **两次补丁失败必须回退换路**（DEV-81）：连续 2 次补丁未解决问题时强制停下，列出链路副作用，回退到最后已知正常状态，换一条完全不同的链路。禁止在同一条错误链路上继续叠补丁。涉及平台 API（Electron/Win32/DWM）时，必须先用最小空白窗口验证平台行为 + 搜索已知 bug，再动手写应用层代码
-- **平台 API 先最小复现**（DEV-82）：涉及平台 API 异常行为时，第一步建最小可独立复现的示例（脱离业务代码单独验证平台行为）。能复现 = 平台限制，不能复现 = 自己的 bug。确认后再回业务代码修
-- **3 次 fix commit 强制停下**（DEV-83）：同一功能/同一链路/同一文件簇累计 3 次 fix commit 未解决 = 强制停下。执行：①`git log --oneline` 确认 fix 次数 ②列出每次 fix 改了什么、为什么没解决 ③回退到第一次 fix 前的状态 ④换完全不同的技术路径
-- **平台能力边界先确认**（DEV-84）：使用平台 API 前，先确认能力边界：①查官方文档已知限制 ②搜 GitHub Issues 同类问题 ③最小复现验证实际行为。三步都确认后再写应用层代码
-- **禁止无证据的"根治"**（DEV-85）：禁止在 commit message 中使用"根治/彻底修复/完美解决"等词，除非附带验证证据。commit message 只描述改了什么，不做效果承诺
-- **重数据不经渲染进程**（DEV-86）：大体积数据（截图 base64、文件 buffer 等）禁止经过渲染进程中转。必须在主进程/后端完成采集和传输，渲染进程只发控制信号（开始/停止/配置）。原因：大数据通过 IPC 传入渲染进程会阻塞渲染帧，导致 UI 卡顿/闪烁
-- **修复不能为了改动小而降低质量**（DEV-87）：修 bug 时禁止为了"改动最小"而选择脏方案（hack/绕路/在错误的层打补丁）。该改架构就改架构，该移代码就移代码。改动大小不是目标，正确性和可维护性才是
-- **第三方库先验底层实现**（DEV-88）：采用第三方库前，必须先查看其平台相关源码，确认底层机制（是否 spawn 进程、文件 I/O、焦点切换等）。高频调用场景（定时器、流式处理）对副作用零容忍，必须确认无阻塞/无 DWM 刷新等副作用后才能采用
-- **PR/CR 链接直入 worktree**：用户给 PR 链接/编号并要求"修一下/处理 CR/看 review"时，直接视为会产生 git diff 的任务；第一动作必须是门禁声明 + 创建独立 CR worktree，禁止先在主仓库读 diff/评论后补流程
-- **CR 修复必须 worktree**：PR 收到 code review 反馈后，所有修复工作必须在独立 worktree 中进行（`git worktree add ../Greyfield-cr-<PR号> -b fix/pr<PR号>-cr <当前分支>`），修完合回原分支再推送。流程见 `docs/worktree-workflow.md`
-- **CR 闭环**（DEV-68）：CR 处理必须依次完成以下步骤才算闭环，缺一不可：①修复+推送 ②回复 PR review comment ③执行出错自动落盘流程 ④输出"CR 闭环完成"标记
-- **worktree 合回前确认分支**（DEV-67）：worktree 修复合回主仓库前，必须 `git branch` 确认当前分支是目标分支，禁止盲 merge
-- **构建元数据必须取自产物来源**（DEV-64）：构建脚本中影响产物兼容性的元数据（版本号、架构、平台），必须从产物实际来源获取（如 `.venv` 解释器），禁止用宿主机环境推断
-- **所有改动必须 worktree**（DEV-4）：任何会产生 git diff 的工作（功能代码、规则文件、文档、错题本）都必须在独立 worktree 中进行。禁止直接在主仓库目录修改任何文件。唯一例外：worktree 创建命令本身
-- **主仓库禁止切分支**（DEV-74）：主仓库目录禁止 `git checkout <branch>` / `git switch`。需要读其他分支代码 → 在 worktree 里读，不要在主仓库 checkout
-- **改前 grep**：改代码前 grep 全量引用 + grep 同类 pattern 复用（DEV-6）
+硬规则按类别拆到 `docs/rules/` 目录。执行任务前**必须按任务类型读对应文件**，不读就动手 = 流程违规。
+
+| 任务类型 | 必读文件 |
+|----------|----------|
+| 写代码 / 改文件 | `docs/rules/tool-write.md` + `docs/rules/code-quality.md` |
+| 走流程 / 提问 / 等确认 | `docs/rules/flow-interact.md` |
+| 修 bug / 调试 | `docs/rules/debug-fix.md` |
+| git 操作 / CR / PR | `docs/rules/git-cr.md` |
+| 抓网页 / 外网请求 | `docs/rules/network.md` |
+| 涉及平台 API | `docs/rules/debug-fix.md` |
+
+高频提醒（不替代读原文）：
+- **所有改动必须 worktree**（DEV-4）
+- **Write 强制分步**（DEV-8）：>50 行先骨架再分段填充
+- **提问即交权**（DEV-53）：提问后只等回答，不执行
+- **两次失败必须搜索**（COMMON-9）
 - **网络代理**：所有外网请求走 `http://127.0.0.1:7890`
-- **禁止脑补**：所有操作（写内容、做愿景、搜索、设计等）必须基于已确认的信息。抓取/搜索失败时不要用猜测的内容代替，必须先确认再写
-- **网页抓取降级链**：需要抓取网页内容时，按以下顺序尝试，前一步失败再进下一步：
-  1. WebFetch（最快，优先用）
-  2. agent-browser（无头浏览器，能处理 SPA）
-  3. Bash 调用 Scrapling（`python -m scrapling fetch <url>`）
-  4. Bash 调用 Playwright 连接用户本地浏览器（`playwright open <url>`，最后手段）
-  - **禁止链外工具**（DEV-58）：curl/wget/requests 等不在降级链里，任何时候都不得用于抓取网页内容
-  - **禁止编造**（DEV-59）：全链路失败 = 没有数据。如实告知用户，不得从 URL、标题或上下文"推测"页面内容
 
 ## 速查
 
@@ -157,5 +139,6 @@ worktree：[已就绪(路径/分支名) | 需要创建 → 先执行创建命令
 | 实施规格 | `docs/greywind-implementation-spec.md` |
 | 系统架构 | `docs/architecture-v2.md` |
 | 上下文运行时 | `docs/context-runtime.md` |
+| 通用硬规则 | `docs/rules/`（按任务类型分文件） |
 | 错题本入口 | `docs/engineering-lessons.md` |
 | 错题本目录 | `docs/error-books/` |
