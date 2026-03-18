@@ -118,3 +118,12 @@ wsOn("status", (p) => {
   document.getElementById("status-bar").textContent = map[p.state] || p.state;
 });
 wsOn("error", (p) => addMessage("assistant", "[错误] " + p.message));
+
+// 主进程清空聊天记录 → 清空覆盖层 + 通知后端
+window.greywind?.onClearHistory?.(() => {
+  chatBox.innerHTML = "";
+  lastMessageEl = null;
+  lastMessageRole = null;
+  lastMessageAt = 0;
+  wsSend({ type: "clear_history" });
+});

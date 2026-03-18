@@ -64,3 +64,7 @@ window.historyAPI?.onAppend((entry) => {
   }
   scrollToBottom();
 });
+
+window.historyAPI?.onClear(() => {
+  historyEl.innerHTML = "";
+});

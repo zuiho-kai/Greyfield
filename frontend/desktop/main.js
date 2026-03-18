@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu } = require("electron");
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, dialog } = require("electron");
 const { spawn } = require("child_process");
 const https = require("https");
 const fs = require("fs");
@@ -395,12 +395,23 @@ function buildBackendEnv() {
   return env;
 }
 
-function resolveHistoryFilePath() {
+function resolveHistoryDir() {
   const base = app.isPackaged ? app.getPath("userData") : PROJECT_ROOT;
-  const dir = app.isPackaged
+  return app.isPackaged
     ? path.join(base, "chat_history")
     : path.join(base, "cache", "chat_history");
-  return path.join(dir, "history.json");
+}
+
+function todayTag() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function resolveHistoryFilePath() {
+  return path.join(resolveHistoryDir(), `history-${todayTag()}.json`);
 }
 
 function resolveRenderSettingsPath() {
@@ -433,6 +444,17 @@ function ensureHistoryDir() {
 
 function loadHistoryFromDisk() {
   if (!historyFilePath) return;
+  // 迁移旧 history.json → 当天文件
+  const dir = path.dirname(historyFilePath);
+  const legacyPath = path.join(dir, "history.json");
+  if (fs.existsSync(legacyPath) && !fs.existsSync(historyFilePath)) {
+    try {
+      fs.renameSync(legacyPath, historyFilePath);
+      console.log(`Migrated legacy history.json → ${path.basename(historyFilePath)}`);
+    } catch (err) {
+      console.warn("Failed to migrate legacy history:", err?.message || err);
+    }
+  }
   try {
     if (!fs.existsSync(historyFilePath)) return;
     const raw = fs.readFileSync(historyFilePath, "utf-8");
@@ -455,8 +477,28 @@ function saveHistoryToDisk() {
   }
 }
 
+function clearHistory() {
+  chatHistory = [];
+  saveHistoryToDisk();
+  if (historyWin && !historyWin.isDestroyed()) {
+    historyWin.webContents.send("chat-history:clear");
+  }
+  // 通知主窗口清空覆盖层
+  if (mainWin && !mainWin.isDestroyed()) {
+    mainWin.webContents.send("chat-history:clear");
+  }
+  console.log("聊天记录已清空");
+}
+
 function scheduleSaveHistory() {
   if (!historyFilePath) return;
+  // 跨天自动切换文件
+  const expected = resolveHistoryFilePath();
+  if (expected !== historyFilePath) {
+    saveHistoryToDisk(); // 先保存旧文件
+    historyFilePath = expected;
+    chatHistory = [];    // 新的一天，清空内存
+  }
   if (historySaveTimer) clearTimeout(historySaveTimer);
   historySaveTimer = setTimeout(() => {
     historySaveTimer = null;
@@ -786,6 +828,9 @@ function createWindow() {
   ipcMain.on("chat-history:append", (_, entry) => {
     appendHistory(entry);
   });
+  ipcMain.on("chat-history:clear", () => {
+    clearHistory();
+  });
   ipcMain.handle("screen:start", async (_, opts) => {
     const interval = (opts && opts.intervalMs) || SCREEN_CAPTURE_INTERVAL_MS;
     startScreenCapture(interval);
@@ -948,6 +993,17 @@ function createWindow() {
       { label: "设置", click: () => showSettingsWindow() },
       { label: "后端日志", click: () => showLogWindow() },
       { label: "Chat History", click: () => showHistoryWindow() },
+      { label: "清空聊天记录", click: async () => {
+        const { response } = await dialog.showMessageBox({
+          type: "warning",
+          buttons: ["取消", "清空"],
+          defaultId: 0,
+          cancelId: 0,
+          title: "清空聊天记录",
+          message: "确定要清空当天的聊天记录吗？此操作不可撤销。",
+        });
+        if (response === 1) clearHistory();
+      }},
       { label: "开发工具", click: () => win.webContents.openDevTools({ mode: "detach" }) },
       { type: "separator" },
       { label: "退出", click: () => app.quit() },
