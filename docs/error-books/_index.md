@@ -75,4 +75,5 @@
 | DEV-99 | 大量 UI/前端改动一口气写完不分步检查 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-100 | 多问题批量修复不分类并行 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-101 | API 边界防御缺失 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-104 | 代码搬迁只验功能可用，未检查隐式依赖 | 代码习惯 | 🟢 | flow-code-habit.md |
 | REC-1~6 | 记录员典型错误（讨论没落盘等） | 通用/记录 | 🟢 | error-book-recorder.md |
