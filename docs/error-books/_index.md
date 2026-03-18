@@ -61,4 +61,5 @@
 | DEV-33 | pytest/语法检查冒充 ST | 门控/流程 | 🟢 | flow-gate.md |
 | COMMON-15 | 实现完成后跳过 CR 直接进入下一步 | 通用 | 🟢 | common-mistakes.md |
 | COMMON-18 | CR 修复后跳过重新 Review | 通用 | 🟢 | common-mistakes.md |
+| COMMON-19 | 向用户提交决策时违反呈现三原则 | 通用 | 🟢 | common-mistakes.md |
 | REC-1~6 | 记录员典型错误（讨论没落盘等） | 通用/记录 | 🟢 | error-book-recorder.md |
