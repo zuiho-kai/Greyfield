@@ -82,7 +82,8 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 | 🧠 | **记住你** | 跨会话上下文延续 · 不是每次从零开始 | ✅ |
 | 🖥️ | **桌面宠物** | 透明窗口 · 鼠标穿透 · 拖拽 · 高 DPI · 系统托盘 | ✅ |
 | 📦 | **一键启动** | Electron 打包 · `build.bat` 构建 exe | ✅ |
-| 🌐 | **浏览器操控** | Playwright + function calling | 规划中 |
+| 🎤 | **自定义音色** | 音色克隆 · 试听 · 管理 UI | ✅ |
+| 🌐 | **浏览器操控** | Playwright + function calling · 并行搜索 | ✅ |
 | 🖱️ | **桌面操控** | pyautogui · 截图定位 · 操作序列 | 规划中 |
 | 📺 | **Live2D 直播** | OBS 推流 · 弹幕互动 · 自主直播 | 规划中 |
 | 🤖 | **多 Agent 协作** | 底层按需调度多个 AI CLI，对你透明 | 规划中 |
@@ -235,9 +236,10 @@ cd frontend/desktop && npm start
 | 前端 | Electron · pixi.js · pixi-live2d-display |
 | LLM | 硅基流动 Step-3.5-Flash（OpenAI 兼容接口） |
 | ASR | 硅基流动 SenseVoiceSmall |
-| TTS | 硅基流动 CosyVoice2 · edge-tts（备用） |
+| TTS | 硅基流动 CosyVoice2 · 自定义音色克隆 · edge-tts（备用） |
 | VAD | Silero VAD（onnxruntime 本地推理） |
 | 截屏 | koffi Win32 API 纯内存截屏 + Vision API · 差异检测 |
+| 浏览器 | Playwright · function calling · 并行搜索 |
 | 包管理 | uv（Python） · npm（Node） |
 
 ---
@@ -269,8 +271,9 @@ cd frontend/desktop && npm start
 ### Phase 2 — 能看能做
 
 - [x] 屏幕感知（截图 + Vision · 差异检测 · 主动播报）
-- [x] 自定义音色克隆
-- [x] 浏览器操控（Playwright）
+- [x] 自定义音色克隆（音色上传 · 试听缓存 · 管理 UI）
+- [x] 浏览器操控（Playwright + function calling · 并行搜索）
+- [x] 像素级点击穿透（pixi readPixels 透明检测）
 - [ ] 桌面操控（pyautogui）
 - [ ] Live2D 直播（OBS 推流 · 弹幕互动 · 自主直播）
 - [ ] 聊天历史清空按钮 / 菜单项
@@ -393,9 +396,7 @@ Greyfield/
 
 | 方向 | 说明 | 难度 |
 |------|------|:----:|
-| 🌐 **浏览器操控** | Playwright + function calling + 风险分级 | ⭐⭐⭐ |
 | 🖱️ **桌面操控** | pyautogui · 截图定位 · 操作序列 | ⭐⭐⭐ |
-| 🎤 **音色克隆** | 自定义 TTS 音色 · CosyVoice2 fine-tune | ⭐⭐⭐ |
 | 📺 **Live2D 直播** | OBS 推流 · 弹幕互动 · 自主直播 | ⭐⭐ |
 | 🔌 **Skill 系统** | 设计插件机制，让社区能贡献能力而不碰核心 | ⭐⭐ |
 | 📖 **文档 / 翻译** | README · 文档英文化 · 教程 | ⭐ |
