@@ -107,6 +107,10 @@ async function initLive2D() {
       fitModel(app, model);
       app.stage.addChild(model);
       if (placeholder) placeholder.style.display = "none";
+      // 加载成功，通知主进程持久化
+      if (data.modelId) {
+        window.greywind?.confirmModelSwitch?.(data.modelId);
+      }
       console.log("Live2D 模型切换成功");
     } catch (e) {
       if (gen !== switchGeneration) return;

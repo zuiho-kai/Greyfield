@@ -946,21 +946,25 @@ function createWindow() {
       if (!isValidModelId(modelId)) return { ok: false, error: "无效的模型 ID" };
       const p = resolveModelPath(modelId);
       if (!p) return { ok: false, error: "模型不存在：" + modelId };
-      // 校验 model3.json 可解析，防止坏模型持久化
-      try {
-        JSON.parse(fs.readFileSync(p, "utf-8"));
-      } catch (_) {
-        return { ok: false, error: "模型文件损坏，无法解析：" + modelId };
-      }
       const url = pathToFileURL(p).href;
-      currentModel.write(modelId);
-      // 通知主窗口切换模型
+      // 不立即持久化，只返回 url 让前端尝试加载
+      // 前端加载成功后调 live2d:confirm-switch 持久化
       try {
         if (mainWin && !mainWin.isDestroyed()) {
           mainWin.webContents.send("live2d:model-changed", { url, modelId });
         }
       } catch (_) { /* 窗口销毁瞬间忽略 */ }
       return { ok: true, url, modelId };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("live2d:confirm-switch", (_, modelId) => {
+    try {
+      if (!isValidModelId(modelId)) return { ok: false, error: "无效的模型 ID" };
+      currentModel.write(modelId);
+      return { ok: true };
     } catch (err) {
       return { ok: false, error: err?.message || String(err) };
     }
