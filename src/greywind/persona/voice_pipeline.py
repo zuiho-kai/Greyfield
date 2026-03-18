@@ -184,8 +184,8 @@ class VoicePipeline:
                 tools = tool_list
 
             max_rounds = max(
-                self._browser_config.max_tool_rounds if self._browser_config else 0,
-                self._desktop_config.max_tool_rounds if self._desktop_config else 0,
+                self._browser_config.max_tool_rounds if self._browser_config and self._browser_config.enabled else 0,
+                self._desktop_config.max_tool_rounds if self._desktop_config and self._desktop_config.enabled else 0,
                 30,
             )
             for round_idx in range(max_rounds + 1):
@@ -329,8 +329,10 @@ class VoicePipeline:
 
         if is_browser_tool(name) and self.browser:
             return await dispatch_browser_tool(self.browser, name, args)
-        if is_desktop_tool(name) and self.desktop:
+        if is_desktop_tool(name) and self.desktop and self._desktop_config.enabled:
             return await dispatch_desktop_tool(self.desktop, name, args)
+        if is_desktop_tool(name) and not self._desktop_config.enabled:
+            return {"success": False, "error": "桌面操控已关闭"}
 
         logger.warning(f"未知工具调用: {name}")
         return {"success": False, "error": f"未知工具: {name}"}

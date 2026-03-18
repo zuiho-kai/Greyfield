@@ -103,6 +103,17 @@ async def update_desktop_settings(body: dict):
     cfg = _ctx.config.desktop
     if "enabled" in body:
         cfg.enabled = bool(body["enabled"])
+        # 开启时如果 ctx.desktop 为 None，尝试动态创建 provider
+        if cfg.enabled and _ctx.desktop is None:
+            try:
+                from greywind.execution.pyautogui_provider import PyAutoGuiProvider
+                _ctx.desktop = PyAutoGuiProvider(
+                    screenshot_quality=cfg.screenshot_quality,
+                    screenshot_width=cfg.screenshot_width,
+                    action_delay=cfg.action_delay,
+                )
+            except Exception as e:
+                logger.warning(f"DesktopProvider 创建失败: {e}")
     return {"ok": True}
 
 
