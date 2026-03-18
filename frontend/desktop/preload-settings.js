@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   switchVoice: (voice) => ipcRenderer.invoke("voice:switch", voice),
   previewVoice: (voice) => ipcRenderer.invoke("voice:preview", voice),
   pickAudioFile: () => ipcRenderer.invoke("voice:pick-file"),
+  // Live2D 模型管理
+  listModels: () => ipcRenderer.invoke("live2d:list-models"),
+  switchModel: (modelId) => ipcRenderer.invoke("live2d:switch-model", modelId),
+  importModel: () => ipcRenderer.invoke("live2d:import-model"),
+  deleteModel: (modelId) => ipcRenderer.invoke("live2d:delete-model", modelId),
   // 通用操作（原托盘菜单项）
   getClickThrough: () => ipcRenderer.invoke("app:get-click-through"),
   setClickThrough: (val) => ipcRenderer.invoke("app:set-click-through", val),

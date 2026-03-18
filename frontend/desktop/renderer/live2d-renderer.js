@@ -74,6 +74,49 @@ async function initLive2D() {
     placeholder.textContent = msg;
     document.body.dataset.modelReady = "false";
   }
+
+  // 监听模型切换事件
+  let switchGeneration = 0;
+  window.greywind?.onLive2DModelChanged?.(async (data) => {
+    if (!data?.url || !app) return;
+    const gen = ++switchGeneration;
+    console.log("Live2D 模型切换:", data.url);
+    try {
+      if (placeholder) {
+        placeholder.style.display = "block";
+        placeholder.textContent = "模型切换中...";
+      }
+      // 销毁旧模型
+      if (live2dModel) {
+        app.stage.removeChild(live2dModel);
+        live2dModel.destroy();
+        live2dModel = null;
+        document.body.dataset.modelReady = "false";
+      }
+      // 加载新模型
+      const model = await Live2DModel.from(data.url);
+      // 并发保护：加载完成后检查是否已过期
+      if (gen !== switchGeneration) {
+        model.destroy();
+        return;
+      }
+      live2dModel = model;
+      document.body.dataset.modelReady = "true";
+      modelBaseWidth = model.internalModel.originalWidth;
+      modelBaseHeight = model.internalModel.originalHeight;
+      fitModel(app, model);
+      app.stage.addChild(model);
+      if (placeholder) placeholder.style.display = "none";
+      console.log("Live2D 模型切换成功");
+    } catch (e) {
+      if (gen !== switchGeneration) return;
+      console.error("Live2D 模型切换失败:", e);
+      if (placeholder) {
+        placeholder.textContent = "模型切换失败: " + (e?.message || e);
+      }
+      document.body.dataset.modelReady = "false";
+    }
+  });
 }
 
 function fitModel(app, model) {
