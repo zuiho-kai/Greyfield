@@ -1020,6 +1020,7 @@ function createWindow() {
   ipcMain.handle("app:get-click-through", () => clickThrough);
   ipcMain.handle("app:set-click-through", (_, val) => {
     clickThrough = !!val;
+    if (win.isDestroyed()) return { ok: false, error: "主窗口已销毁" };
     if (clickThrough) {
       win.setIgnoreMouseEvents(true);
     } else {
@@ -1037,7 +1038,9 @@ function createWindow() {
   // 设置窗口用的 IPC：打开子窗口 / 工具
   ipcMain.on("app:show-log", () => showLogWindow());
   ipcMain.on("app:show-history", () => showHistoryWindow());
-  ipcMain.on("app:open-devtools", () => win.webContents.openDevTools({ mode: "detach" }));
+  ipcMain.on("app:open-devtools", () => {
+    if (!win.isDestroyed()) win.webContents.openDevTools({ mode: "detach" });
+  });
   ipcMain.handle("app:clear-history", async () => {
     const parentWin = settingsWin && !settingsWin.isDestroyed() ? settingsWin : null;
     const opts = {
@@ -1054,7 +1057,9 @@ function createWindow() {
     if (response === 1) { clearHistory(); return { cleared: true }; }
     return { cleared: false };
   });
-  tray.on("click", () => win.isVisible() ? win.hide() : win.show());
+  tray.on("click", () => {
+    if (!win.isDestroyed()) win.isVisible() ? win.hide() : win.show();
+  });
 
   return win;
 }

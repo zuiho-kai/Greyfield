@@ -24,9 +24,9 @@
 | DEV-77 | 文档引用外部链接未验证有效性 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-78 | 流程文档 shell 命令未标注执行目录 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-86 | 重数据经渲染进程中转导致 UI 卡顿 | 代码习惯 | 🟢 | flow-code-habit.md |
-| DEV-87 | 为了改动小而选择脏方案 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-102 | 为了改动小而选择脏方案 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-88 | 未验证第三方库底层实现就采用 | 代码习惯 | 🟢 | flow-code-habit.md |
-| DEV-89 | 副作用时序：先扣费/计数后调用外部服务 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-103 | 副作用时序：先扣费/计数后调用外部服务 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-71 | 流式状态机边界条件遗漏 | 流式/运行时 | 🟡×3 | streaming-runtime.md |
 | DEV-72 | 新功能前端无条件启动，未与后端配置协商 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-67 | worktree 操作前未确认当前分支 | git/CR | 🟢 | git-worktree.md |
