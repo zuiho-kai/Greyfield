@@ -81,6 +81,17 @@
 ❌ 前端 types / api 写完就算完，不逐字段比对后端 schema
 ✅ 新增前后端联动功能后，必须做对齐 checklist：① types 字段 ↔ schemas 逐字段比对 ② API 路径+method+body 比对 ③ WebSocket 事件 payload 比对
 
+### COMMON-15 实现完成后跳过 CR 直接进入下一步
+
+❌ 代码写完 → 直接更新进度 → 准备下一步，被用户提醒才回头做 Review
+✅ 代码写完 → Code Review → 修复循环至 P0/P1 归零 → 才能更新进度或进入下一步
+> Code Review 不是可选步骤，是出口条件。
+
+### COMMON-18 CR 修复后跳过重新 Review
+
+❌ CR 发现 P1 → 修复 → 直接宣布完成，跳过"重新 Review 修改后的代码"
+✅ 修复后必须重新 Review 修改点，循环直到 P0/P1 归零。正确顺序：CR 发现问题 → 修复 → 重新 CR → 归零 → 提交
+
 ---
 
 错题本条目格式：
