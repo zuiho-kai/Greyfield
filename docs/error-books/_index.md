@@ -67,7 +67,7 @@
 | DEV-44 | 设计文档与代码签名不同步 | 通用/设计 | 🟢 | flow-design.md |
 | DEV-76 | 口头承诺不落盘 | 门控/流程 | 🟢 | flow-gate.md |
 | DEV-90 | 语法检查冒充真实验证 | 门控/流程 | 🟢 | flow-gate.md |
-| DEV-96 | 搬运/迁移时按文件名批量跳过不逐条审查 | 门控/流程 | 🟢 | flow-gate.md |
+| DEV-96 | 搬运/迁移时批量操作关闭逐条审查 | 门控/流程 | 🟢 | flow-gate.md |
 | DEV-33 | pytest/语法检查冒充 ST | 门控/流程 | 🟢 | flow-gate.md |
 | COMMON-15 | 实现完成后跳过 CR 直接进入下一步 | 通用 | 🟢 | common-mistakes.md |
 | COMMON-18 | CR 修复后跳过重新 Review | 通用 | 🟢 | common-mistakes.md |
