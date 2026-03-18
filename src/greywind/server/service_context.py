@@ -34,6 +34,7 @@ class ServiceContext:
         self.asr = self._try_create("ASR", self._create_asr)
         self.vad = self._try_create("VAD", self._create_vad)
         self.browser = self._try_create("Browser", self._create_browser)
+        self.desktop = self._try_create("Desktop", self._create_desktop)
         logger.info("ServiceContext 初始化完成")
 
     @staticmethod
@@ -106,6 +107,18 @@ class ServiceContext:
         else:
             logger.warning(f"未知浏览器 provider: {cfg.provider}")
             return None
+
+    def _create_desktop(self):
+        cfg = self.config.desktop
+        if not cfg.enabled:
+            logger.info("桌面操控已禁用")
+            return None
+        from greywind.execution.pyautogui_provider import PyAutoGuiProvider
+        return PyAutoGuiProvider(
+            screenshot_quality=cfg.screenshot_quality,
+            screenshot_width=cfg.screenshot_width,
+            action_delay=cfg.action_delay,
+        )
 
 
 def create_service_context(config_path: str = "conf.yaml") -> ServiceContext:

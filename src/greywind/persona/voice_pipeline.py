@@ -73,6 +73,8 @@ class VoicePipeline:
         self.character = ctx.character
         self.browser = ctx.browser  # BrowserProvider | None
         self._browser_config = ctx.config.browser
+        self.desktop = ctx.desktop  # DesktopProvider | None
+        self._desktop_config = ctx.config.desktop
         self.screen_sense = screen_sense  # 每连接独立，由 ws_handler 传入
         self._screen_detail = getattr(ctx.config.screen, "detail", "low") if ctx.config.screen else "low"
         # 有状态组件：每连接独立
@@ -169,13 +171,24 @@ class VoicePipeline:
                 else:
                     chat_messages.append(m)
 
-            # 准备浏览器工具（如果启用）
+            # 准备工具（浏览器 + 桌面，按启用情况合并）
             tools = None
+            tool_list = []
             if self.browser and self._browser_config.enabled:
                 from greywind.execution.browser_tools import BROWSER_TOOLS
-                tools = BROWSER_TOOLS
+                tool_list.extend(BROWSER_TOOLS)
+            if self.desktop and self._desktop_config.enabled:
+                from greywind.execution.desktop_tools import DESKTOP_TOOLS
+                tool_list.extend(DESKTOP_TOOLS)
+            if tool_list:
+                tools = tool_list
 
-            max_rounds = self._browser_config.max_tool_rounds if self._browser_config else 30
+            candidates = []
+            if self._browser_config and self._browser_config.enabled:
+                candidates.append(self._browser_config.max_tool_rounds)
+            if self._desktop_config and self._desktop_config.enabled:
+                candidates.append(self._desktop_config.max_tool_rounds)
+            max_rounds = max(candidates) if candidates else 30
             for round_idx in range(max_rounds + 1):
                 if self._interrupted:
                     break
@@ -229,7 +242,7 @@ class VoicePipeline:
                                         "detail": "low",
                                     },
                                 },
-                                {"type": "text", "text": "这是执行操作后的页面截图。"},
+                                {"type": "text", "text": "这是执行操作后的截图。"},
                             ],
                         })
 
@@ -310,12 +323,17 @@ class VoicePipeline:
     async def _execute_tool_call(self, tool_call) -> dict:
         """执行单个 tool call"""
         from greywind.execution.browser_tools import is_browser_tool, dispatch_browser_tool
+        from greywind.execution.desktop_tools import is_desktop_tool, dispatch_desktop_tool
 
         name = tool_call.function.name
         args = tool_call.function.arguments
 
         if is_browser_tool(name) and self.browser:
             return await dispatch_browser_tool(self.browser, name, args)
+        if is_desktop_tool(name) and self.desktop and self._desktop_config.enabled:
+            return await dispatch_desktop_tool(self.desktop, name, args)
+        if is_desktop_tool(name) and not self._desktop_config.enabled:
+            return {"success": False, "error": "桌面操控已关闭"}
 
         logger.warning(f"未知工具调用: {name}")
         return {"success": False, "error": f"未知工具: {name}"}

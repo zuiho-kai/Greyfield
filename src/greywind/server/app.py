@@ -88,6 +88,37 @@ async def update_screen_settings(body: dict):
     return {"ok": True}
 
 
+@app.get("/api/desktop-settings")
+async def get_desktop_settings():
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    cfg = _ctx.config.desktop
+    return {"enabled": cfg.enabled}
+
+
+@app.post("/api/desktop-settings")
+async def update_desktop_settings(body: dict):
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    cfg = _ctx.config.desktop
+    if "enabled" in body:
+        cfg.enabled = bool(body["enabled"])
+        # 开启时如果 ctx.desktop 为 None，尝试动态创建 provider
+        if cfg.enabled and _ctx.desktop is None:
+            try:
+                from greywind.execution.pyautogui_provider import PyAutoGuiProvider
+                _ctx.desktop = PyAutoGuiProvider(
+                    screenshot_quality=cfg.screenshot_quality,
+                    screenshot_width=cfg.screenshot_width,
+                    action_delay=cfg.action_delay,
+                )
+            except Exception as e:
+                cfg.enabled = False
+                logger.warning(f"DesktopProvider 创建失败: {e}")
+                return {"ok": False, "error": f"桌面操控启用失败: {e}"}
+    return {"ok": True}
+
+
 # ── 音色管理 API ──
 
 @app.get("/api/voice/list")

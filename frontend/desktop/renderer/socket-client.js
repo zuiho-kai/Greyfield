@@ -153,6 +153,13 @@ if (window.greywind?.onScreenSettingsChanged) {
   });
 }
 
+// 监听桌面操控设置变更
+if (window.greywind?.onDesktopSettingsChanged) {
+  window.greywind.onDesktopSettingsChanged((data) => {
+    wsSend({ type: "desktop_toggle", payload: { enabled: !!data.enabled } });
+  });
+}
+
 // 主进程截屏后通过 IPC 发来 base64，renderer 通过自己的 WS 转发给后端
 // 这样只有一个 WS 连接，后端的 proactive_loop 音频回传正常
 if (window.greywind?.onScreenFrame) {

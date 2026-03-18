@@ -73,6 +73,14 @@ class BrowserConfig(BaseModel):
     user_data_dir: str = ""             # 持久化浏览器数据目录，空则用默认路径
 
 
+class DesktopConfig(BaseModel):
+    enabled: bool = False
+    screenshot_quality: int = 50        # JPEG 压缩质量
+    screenshot_width: int = 1280        # 截图缩放目标宽度
+    action_delay: float = 1.0           # 操作后等待 UI 稳定的秒数
+    max_tool_rounds: int = 30           # tool call 最大循环轮次
+
+
 class AppConfig(BaseModel):
     server: ServerConfig = ServerConfig()
     llm: LLMConfig = LLMConfig()
@@ -81,4 +89,5 @@ class AppConfig(BaseModel):
     memory: MemoryConfig = MemoryConfig()
     screen: ScreenConfig = ScreenConfig()
     browser: BrowserConfig = BrowserConfig()
+    desktop: DesktopConfig = DesktopConfig()
     character: str = "greywind"

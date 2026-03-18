@@ -1,4 +1,4 @@
-"""浏览器操控通用接口 — BrowserProvider 抽象基类 + ActionResult"""
+"""执行层通用接口 — BrowserProvider / DesktopProvider 抽象基类 + ActionResult"""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -8,7 +8,7 @@ from typing import Optional, List
 
 @dataclass
 class ActionResult:
-    """浏览器动作执行结果"""
+    """动作执行结果（浏览器/桌面共用）"""
     success: bool
     screenshot_b64: Optional[str] = None
     text: Optional[str] = None
@@ -90,3 +90,51 @@ class BrowserProvider(ABC):
     @abstractmethod
     def is_connected(self) -> bool:
         """是否已连接"""
+
+
+class DesktopProvider(ABC):
+    """桌面操控通用接口，所有 provider 实现此接口"""
+
+    @abstractmethod
+    async def screenshot(self, region: tuple[int, int, int, int] | None = None) -> ActionResult:
+        """截取全屏或指定区域 (x, y, w, h)"""
+
+    @abstractmethod
+    async def click(self, x: int, y: int) -> ActionResult:
+        """单击指定坐标"""
+
+    @abstractmethod
+    async def double_click(self, x: int, y: int) -> ActionResult:
+        """双击指定坐标"""
+
+    @abstractmethod
+    async def right_click(self, x: int, y: int) -> ActionResult:
+        """右键点击指定坐标"""
+
+    @abstractmethod
+    async def type_text(self, text: str) -> ActionResult:
+        """在当前焦点输入文字（支持中文）"""
+
+    @abstractmethod
+    async def hotkey(self, *keys: str) -> ActionResult:
+        """按组合键，如 hotkey('ctrl', 'c')"""
+
+    @abstractmethod
+    async def drag(self, x1: int, y1: int, x2: int, y2: int) -> ActionResult:
+        """从 (x1,y1) 拖拽到 (x2,y2)"""
+
+    @abstractmethod
+    async def scroll(self, x: int, y: int, direction: str, amount: int = 3) -> ActionResult:
+        """在指定位置滚动鼠标滚轮"""
+
+    @abstractmethod
+    async def move(self, x: int, y: int) -> ActionResult:
+        """移动鼠标到指定位置"""
+
+    @abstractmethod
+    async def find_window(self, title: str | None = None) -> ActionResult:
+        """查找/列出窗口"""
+
+    @abstractmethod
+    async def focus_window(self, title: str) -> ActionResult:
+        """激活指定窗口"""
