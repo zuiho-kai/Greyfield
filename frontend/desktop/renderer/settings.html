@@ -60,6 +60,22 @@
     <div class="hint">开启后鼠标点击会穿过灰风窗口，直接操作底层应用。</div>
   </div>
 
+  <!-- Live2D 模型 -->
+  <h3>Live2D 模型</h3>
+  <div class="field">
+    <label>当前模型：<span id="current_model">加载中...</span></label>
+  </div>
+  <div class="field">
+    <label>可用模型</label>
+    <ul class="voice-list" id="model_list"></ul>
+    <div class="hint">点击"使用"切换模型，即时生效无需重启。</div>
+  </div>
+  <div class="field">
+    <button class="btn btn-primary" id="import_model_btn">导入模型</button>
+    <div class="hint">选择包含 .model3.json 的文件夹，自动复制到模型目录。</div>
+  </div>
+  <div class="status" id="model_status"></div>
+
   <!-- 音色管理 -->
   <h3>音色管理</h3>
   <div class="field">
@@ -175,6 +191,85 @@
   </div>
 
   <script>
+    // ── Live2D 模型管理 ──
+    const modelStatusEl = document.getElementById("model_status");
+    let _modelStatusTimer = null;
+
+    function showModelStatus(text, color, autoClear) {
+      if (_modelStatusTimer) { clearTimeout(_modelStatusTimer); _modelStatusTimer = null; }
+      modelStatusEl.textContent = text;
+      modelStatusEl.style.color = color;
+      if (autoClear) {
+        _modelStatusTimer = setTimeout(() => { modelStatusEl.textContent = ""; }, 2000);
+      }
+    }
+
+    async function loadModels() {
+      const data = await window.settingsAPI.listModels();
+      if (!data?.ok) return;
+      const currentEl = document.getElementById("current_model");
+      currentEl.textContent = data.currentId || "默认模型";
+      const list = document.getElementById("model_list");
+      list.replaceChildren();
+      for (const m of data.models) {
+        const li = document.createElement("li");
+        const isCurrent = m.id === data.currentId;
+        li.className = "voice-item" + (isCurrent ? " active" : "");
+        const info = document.createElement("div");
+        const nameDiv = document.createElement("div");
+        nameDiv.className = "voice-name";
+        nameDiv.textContent = m.id + (isCurrent ? " (当前)" : "");
+        info.appendChild(nameDiv);
+        li.appendChild(info);
+        const actions = document.createElement("div");
+        actions.className = "voice-actions";
+        if (!isCurrent) {
+          const useBtn = document.createElement("button");
+          useBtn.className = "btn btn-primary btn-sm";
+          useBtn.textContent = "使用";
+          useBtn.onclick = async () => {
+            const r = await window.settingsAPI.switchModel(m.id);
+            if (r.ok) {
+              showModelStatus("已切换到：" + m.id, "#68d391", true);
+              loadModels();
+            } else {
+              showModelStatus("切换失败：" + (r.error || "未知错误"), "#fc8181", false);
+            }
+          };
+          actions.appendChild(useBtn);
+        }
+        const delBtn = document.createElement("button");
+        delBtn.className = "btn btn-danger btn-sm";
+        delBtn.textContent = "删除";
+        delBtn.onclick = async () => {
+          if (!confirm("确定删除模型 " + m.id + "？")) return;
+          const r = await window.settingsAPI.deleteModel(m.id);
+          if (r.ok) loadModels();
+          else showModelStatus("删除失败：" + (r.error || "未知错误"), "#fc8181", false);
+        };
+        actions.appendChild(delBtn);
+        li.appendChild(actions);
+        list.appendChild(li);
+      }
+    }
+
+    document.getElementById("import_model_btn").addEventListener("click", async () => {
+      showModelStatus("选择文件夹中...", "#667eea", false);
+      const r = await window.settingsAPI.importModel();
+      if (r.canceled) {
+        showModelStatus("", "", false);
+        return;
+      }
+      if (r.ok) {
+        showModelStatus("导入成功：" + r.modelId, "#68d391", true);
+        loadModels();
+      } else {
+        showModelStatus("导入失败：" + (r.error || "未知错误"), "#fc8181", false);
+      }
+    });
+
+    loadModels();
+
     // ── 音色管理 ──
     let _pickedFilePath = null;
     let _previewAudio = null;  // 当前试听的 Audio 对象

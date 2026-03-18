@@ -385,6 +385,77 @@ function ensureLive2DModelOnce() {
   return live2dEnsurePromise;
 }
 
+// ── Live2D 模型管理 ──
+
+const currentModel = {
+  file() { return path.join(live2dCacheBase(), ".current"); },
+  read() {
+    const f = this.file();
+    if (fs.existsSync(f)) {
+      const id = fs.readFileSync(f, "utf-8").trim();
+      if (id) return id;
+    }
+    return null;
+  },
+  write(id) {
+    ensureDir(live2dCacheBase());
+    fs.writeFileSync(this.file(), id, "utf-8");
+  },
+  clear() {
+    fs.rmSync(this.file(), { force: true });
+  },
+};
+
+function isValidModelId(id) {
+  if (!id || typeof id !== "string") return false;
+  if (id === "." || id === "..") return false;
+  if (/[/\\]/.test(id)) return false;
+  return true;
+}
+
+function listLive2DModels() {
+  const base = live2dCacheBase();
+  if (!fs.existsSync(base)) return [];
+  const entries = fs.readdirSync(base, { withFileTypes: true });
+  const models = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const modelJson = findModelJson(path.join(base, entry.name));
+    if (modelJson) {
+      models.push({ id: entry.name, modelJsonPath: modelJson });
+    }
+  }
+  return models;
+}
+
+function resolveModelPath(modelId) {
+  if (!isValidModelId(modelId)) return null;
+  const dir = path.join(live2dCacheBase(), modelId);
+  if (!fs.existsSync(dir)) return null;
+  return findModelJson(dir);
+}
+
+async function getActiveModelUrl() {
+  // 优先环境变量
+  if (LIVE2D_ENV.modelPath) {
+    const p = await ensureLive2DModelOnce();
+    return { ok: true, url: pathToFileURL(p).href };
+  }
+  // 读持久化选择
+  const id = currentModel.read();
+  if (id) {
+    const p = resolveModelPath(id);
+    if (p) return { ok: true, url: pathToFileURL(p).href, modelId: id };
+  }
+  // fallback：自动下载默认模型
+  const p = await ensureLive2DModelOnce();
+  return { ok: true, url: pathToFileURL(p).href };
+}
+
+async function copyDirAsync(src, dest) {
+  await fs.promises.cp(src, dest, { recursive: true });
+}
+
 function buildBackendEnv() {
   const env = { ...process.env };
   const srcPath = path.join(PROJECT_ROOT, "src");
@@ -854,8 +925,100 @@ function createWindow() {
   });
   ipcMain.handle("live2d:get-model-url", async () => {
     try {
-      const modelPath = await ensureLive2DModelOnce();
-      return { ok: true, url: pathToFileURL(modelPath).href };
+      return await getActiveModelUrl();
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("live2d:list-models", () => {
+    try {
+      const models = listLive2DModels();
+      const id = currentModel.read();
+      return { ok: true, models, currentId: id };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("live2d:switch-model", async (_, modelId) => {
+    try {
+      if (!isValidModelId(modelId)) return { ok: false, error: "无效的模型 ID" };
+      const p = resolveModelPath(modelId);
+      if (!p) return { ok: false, error: "模型不存在：" + modelId };
+      const url = pathToFileURL(p).href;
+      // 不立即持久化，只返回 url 让前端尝试加载
+      // 前端加载成功后调 live2d:confirm-switch 持久化
+      try {
+        if (mainWin && !mainWin.isDestroyed()) {
+          mainWin.webContents.send("live2d:model-changed", { url, modelId });
+        }
+      } catch (_) { /* 窗口销毁瞬间忽略 */ }
+      return { ok: true, url, modelId };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("live2d:confirm-switch", (_, modelId) => {
+    try {
+      if (!isValidModelId(modelId)) return { ok: false, error: "无效的模型 ID" };
+      currentModel.write(modelId);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("live2d:import-model", async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: "选择 Live2D 模型文件夹",
+        properties: ["openDirectory"],
+      });
+      if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
+      const srcDir = result.filePaths[0];
+      const modelJson = findModelJson(srcDir);
+      if (!modelJson) return { ok: false, error: "所选文件夹中未找到 .model3.json 文件" };
+      const folderName = path.basename(srcDir);
+      if (!isValidModelId(folderName)) return { ok: false, error: "文件夹名称不合法" };
+      const destDir = path.join(live2dCacheBase(), folderName);
+      if (fs.existsSync(destDir)) {
+        return { ok: false, error: "已存在同名模型：" + folderName };
+      }
+      await copyDirAsync(srcDir, destDir);
+      // 校验复制后能找到模型
+      const copied = findModelJson(destDir);
+      if (!copied) {
+        fs.rmSync(destDir, { recursive: true, force: true });
+        return { ok: false, error: "复制后未找到模型文件，已回滚" };
+      }
+      return { ok: true, modelId: folderName };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("live2d:delete-model", async (_, modelId) => {
+    try {
+      if (!isValidModelId(modelId)) return { ok: false, error: "无效的模型 ID" };
+      const dir = path.join(live2dCacheBase(), modelId);
+      if (!fs.existsSync(dir)) return { ok: false, error: "模型不存在" };
+      const wasCurrent = currentModel.read() === modelId;
+      if (wasCurrent) {
+        currentModel.clear();
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
+      // 删除的是当前模型 → 通知前端切回默认模型
+      if (wasCurrent && mainWin && !mainWin.isDestroyed()) {
+        try {
+          const fallback = await getActiveModelUrl();
+          if (fallback.ok) {
+            mainWin.webContents.send("live2d:model-changed", { url: fallback.url, modelId: fallback.modelId || null });
+          }
+        } catch (_) { /* 忽略 */ }
+      }
+      return { ok: true };
     } catch (err) {
       return { ok: false, error: err?.message || String(err) };
     }

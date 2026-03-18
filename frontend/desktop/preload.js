@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld("greywind", {
   addHistory: (entry) => ipcRenderer.send("chat-history:add", entry),
   appendHistory: (entry) => ipcRenderer.send("chat-history:append", entry),
   getLive2DModelUrl: () => ipcRenderer.invoke("live2d:get-model-url"),
+  onLive2DModelChanged: (fn) => ipcRenderer.on("live2d:model-changed", (_, data) => fn(data)),
+  confirmModelSwitch: (modelId) => ipcRenderer.invoke("live2d:confirm-switch", modelId),
   captureScreen: null, // 已废弃，截屏在主进程完成（DEV-86）
   startScreenCapture: (opts) => ipcRenderer.invoke("screen:start", opts),
   stopScreenCapture: () => ipcRenderer.invoke("screen:stop"),
