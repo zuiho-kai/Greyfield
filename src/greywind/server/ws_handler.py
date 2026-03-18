@@ -138,6 +138,25 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                                 pipeline.proactive_loop(send_msg_safe, send_audio_safe)
                             )
 
+            elif msg_type == "desktop_toggle":
+                enabled = payload.get("enabled", True)
+                if enabled and not pipeline.desktop:
+                    # 初始化时 desktop.enabled=False 导致未创建，动态补建
+                    try:
+                        from greywind.execution.pyautogui_provider import PyAutoGuiProvider
+                        cfg = ctx.config.desktop
+                        pipeline.desktop = PyAutoGuiProvider(
+                            screenshot_quality=cfg.screenshot_quality,
+                            screenshot_width=cfg.screenshot_width,
+                            action_delay=cfg.action_delay,
+                        )
+                        logger.info("DesktopProvider 动态创建成功")
+                    except Exception as e:
+                        logger.warning(f"DesktopProvider 动态创建失败: {e}")
+                ctx.config.desktop.enabled = enabled
+                pipeline._desktop_config.enabled = enabled
+                logger.info(f"桌面操控即时切换: enabled={enabled}")
+
             elif msg_type == "interrupt":
                 await pipeline.interrupt()
 

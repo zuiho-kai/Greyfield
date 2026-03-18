@@ -142,6 +142,17 @@
 
   <div class="status" id="status"></div>
 
+  <!-- 桌面操控 -->
+  <h3>桌面操控</h3>
+  <div class="field">
+    <label class="toggle">
+      <input type="checkbox" id="desktop_enabled" />
+      启用桌面操控
+    </label>
+    <div class="hint">开启后灰风可以帮你操作桌面：点击、打字、拖拽、切窗口等。需要安装 desktop 依赖。</div>
+  </div>
+  <div class="status" id="desktop_status"></div>
+
   <script>
     // ── 音色管理 ──
     let _pickedFilePath = null;
@@ -376,6 +387,28 @@
       if (!cfg) return;
       document.getElementById("hi_dpi").checked = !!cfg.hiDpi;
       document.getElementById("bubble_blur").checked = cfg.bubbleBlur !== false;
+    });
+
+    // ── 桌面操控设置 ──
+    const desktopCheckbox = document.getElementById("desktop_enabled");
+    const desktopStatus = document.getElementById("desktop_status");
+
+    desktopCheckbox.addEventListener("change", async () => {
+      const data = { enabled: desktopCheckbox.checked };
+      try {
+        await window.settingsAPI.updateDesktopSettings(data);
+        desktopStatus.textContent = desktopCheckbox.checked ? "已启用（即时生效）" : "已关闭";
+        desktopStatus.style.color = "#68d391";
+        setTimeout(() => { desktopStatus.textContent = ""; }, 2000);
+      } catch (e) {
+        desktopStatus.textContent = "保存失败: " + e.message;
+        desktopStatus.style.color = "#fc8181";
+      }
+    });
+
+    window.settingsAPI.getDesktopSettings().then((cfg) => {
+      if (!cfg || cfg.error) return;
+      desktopCheckbox.checked = cfg.enabled;
     });
   </script>
 </body>

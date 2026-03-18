@@ -88,6 +88,24 @@ async def update_screen_settings(body: dict):
     return {"ok": True}
 
 
+@app.get("/api/desktop-settings")
+async def get_desktop_settings():
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    cfg = _ctx.config.desktop
+    return {"enabled": cfg.enabled}
+
+
+@app.post("/api/desktop-settings")
+async def update_desktop_settings(body: dict):
+    if not _ctx:
+        return {"error": "后端未就绪"}
+    cfg = _ctx.config.desktop
+    if "enabled" in body:
+        cfg.enabled = bool(body["enabled"])
+    return {"ok": True}
+
+
 # ── 音色管理 API ──
 
 @app.get("/api/voice/list")

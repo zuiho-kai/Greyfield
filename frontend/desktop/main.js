@@ -831,6 +831,32 @@ function createWindow() {
     }
   });
 
+  ipcMain.handle("settings:get-desktop", async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:12393/api/desktop-settings");
+      return await res.json();
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
+  ipcMain.handle("settings:update-desktop", async (_, data) => {
+    try {
+      const res = await fetch("http://127.0.0.1:12393/api/desktop-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (win && !win.isDestroyed()) {
+        win.webContents.send("desktop-settings-changed", data);
+      }
+      return result;
+    } catch (err) {
+      return { error: err?.message || String(err) };
+    }
+  });
+
   ipcMain.handle("render-settings:get", () => loadRenderSettings());
   ipcMain.handle("render-settings:update", (_, data) => {
     const merged = { ...loadRenderSettings(), ...data };

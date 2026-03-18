@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("settingsAPI", {
   getScreenSettings: () => ipcRenderer.invoke("settings:get-screen"),
   updateScreenSettings: (data) => ipcRenderer.invoke("settings:update-screen", data),
+  getDesktopSettings: () => ipcRenderer.invoke("settings:get-desktop"),
+  updateDesktopSettings: (data) => ipcRenderer.invoke("settings:update-desktop", data),
   getRenderSettings: () => ipcRenderer.invoke("render-settings:get"),
   updateRenderSettings: (data) => ipcRenderer.invoke("render-settings:update", data),
   // 音色管理

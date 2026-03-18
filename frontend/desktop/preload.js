@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("greywind", {
   stopScreenCapture: () => ipcRenderer.invoke("screen:stop"),
   getScreenSettings: () => ipcRenderer.invoke("settings:get-screen"),
   onScreenSettingsChanged: (fn) => ipcRenderer.on("screen-settings-changed", (_, data) => fn(data)),
+  onDesktopSettingsChanged: (fn) => ipcRenderer.on("desktop-settings-changed", (_, data) => fn(data)),
   onScreenFrame: (fn) => ipcRenderer.on("screen:frame", (_, data) => fn(data)),
   onRefreshClickShape: (fn) => ipcRenderer.on("refresh-click-shape", () => fn()),
   getRenderSettings: () => ipcRenderer.invoke("render-settings:get"),
