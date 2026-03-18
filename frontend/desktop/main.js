@@ -698,15 +698,29 @@ function createWindow() {
   });
   mainWin = win;
 
-  // 默认不穿透，窗口正常接收所有鼠标事件
-  // 用 setShape 限制可点击区域（模型包围盒 + 输入区），区域外自动穿透
-  win.setIgnoreMouseEvents(false);
+  // 区域穿透：仅 Windows/macOS 支持 forward 模式
+  // Linux 不支持 forward，回退到不穿透（全窗口可交互）
+  const supportsForward = process.platform === "win32" || process.platform === "darwin";
+  if (supportsForward) {
+    win.setIgnoreMouseEvents(true, { forward: true });
+  } else {
+    win.setIgnoreMouseEvents(false);
+  }
   let clickThrough = false;
 
+  ipcMain.on("set-mouse-ignore", (_, ignore) => {
+    if (clickThrough) return; // 全局穿透模式下不响应
+    if (!supportsForward) return; // Linux 不切换
+    if (ignore) {
+      win.setIgnoreMouseEvents(true, { forward: true });
+    } else {
+      win.setIgnoreMouseEvents(false);
+    }
+  });
+
   ipcMain.on("set-click-shape", (_, rects) => {
-    if (clickThrough) return;
-    // 暂时禁用 setShape，先验证拖拽
-    console.log("[shape] setShape skipped (debug), rects:", rects.length);
+    // 保留旧 IPC 兼容，不再使用 setShape
+    console.log("[shape] set-click-shape received (no-op), rects:", rects.length);
   });
 
 
@@ -918,12 +932,15 @@ function createWindow() {
       { label: clickThrough ? "关闭鼠标穿透" : "开启鼠标穿透", click: () => {
         clickThrough = !clickThrough;
         if (clickThrough) {
-          // 穿透模式：整窗穿透，清空 shape
-          win.setShape([]);
+          // 全局穿透模式：完全穿透，不 forward
           win.setIgnoreMouseEvents(true);
         } else {
-          // 恢复交互：取消穿透，通知 renderer 重新设置 shape
-          win.setIgnoreMouseEvents(false);
+          // 恢复区域穿透：Linux 回退到不穿透
+          if (supportsForward) {
+            win.setIgnoreMouseEvents(true, { forward: true });
+          } else {
+            win.setIgnoreMouseEvents(false);
+          }
           win.webContents.send("refresh-click-shape");
         }
         rebuildTrayMenu();

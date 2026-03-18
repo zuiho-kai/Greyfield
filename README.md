@@ -126,6 +126,21 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 
 ### 安装
 
+**Windows 一键安装：**
+
+```bash
+git clone https://github.com/zuiho-kai/Greyfield.git
+cd Greyfield
+
+# 双击 install.bat 自动安装全部依赖（Python + 前端）
+
+# 配置
+cp conf.example.yaml conf.yaml
+# 编辑 conf.yaml，把三处 "你的硅基流动API Key" 替换为你的 Key
+```
+
+**手动安装：**
+
 ```bash
 git clone https://github.com/zuiho-kai/Greyfield.git
 cd Greyfield
@@ -254,8 +269,8 @@ cd frontend/desktop && npm start
 ### Phase 2 — 能看能做
 
 - [x] 屏幕感知（截图 + Vision · 差异检测 · 主动播报）
-- [ ] 自定义音色克隆
-- [ ] 浏览器操控（Playwright）
+- [x] 自定义音色克隆
+- [x] 浏览器操控（Playwright）
 - [ ] 桌面操控（pyautogui）
 - [ ] Live2D 直播（OBS 推流 · 弹幕互动 · 自主直播）
 - [ ] 聊天历史清空按钮 / 菜单项

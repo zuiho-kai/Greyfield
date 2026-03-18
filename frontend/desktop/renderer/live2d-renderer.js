@@ -10,6 +10,8 @@ let live2dModel = null;
 // 模型原始尺寸，用于 resize 计算
 let modelBaseWidth = 0;
 let modelBaseHeight = 0;
+// PIXI app 引用，供穿透检测读 GL context
+let pixiApp = null;
 
 const { Live2DModel } = PIXI.live2d;
 const interactionPolicy = window.GreywindLive2DInteractionPolicy;
@@ -43,7 +45,9 @@ async function initLive2D() {
     antialias: false,
     resolution: dpr,
     autoDensity: true,
+    preserveDrawingBuffer: true,
   });
+  pixiApp = app;
 
   try {
     if (placeholder) {
@@ -104,10 +108,9 @@ wsOn("status", (p) => {
 
 initLive2D();
 
-// ── 拖拽 ──
-// 默认不穿透，窗口始终接收鼠标。穿透由托盘菜单手动切换。
-// 用 setShape 限制可点击区域为模型包围盒 + 输入区。
-(async function setupDrag() {
+// ── 拖拽 + 区域穿透 ──
+// 默认穿透 + forward：鼠标在模型/输入区/聊天气泡上时取消穿透，离开时恢复穿透
+(async function setupDragAndClickThrough() {
   let dragging = false;
   let dragStartScreenX = 0;
   let dragStartScreenY = 0;
@@ -171,48 +174,65 @@ initLive2D();
     if (document.hidden) endDrag();
   });
 
-  // ── setShape：限制可点击区域为模型包围盒 + 输入区 ──
-  function updateClickShape() {
-    if (!window.greywind?.setClickShape) return;
-    const rects = [];
-    // 模型包围盒
-    if (live2dModel) {
-      const mx = Math.round(live2dModel.x);
-      const my = Math.round(live2dModel.y);
-      const mw = Math.round(modelBaseWidth * live2dModel.scale.x);
-      const mh = Math.round(modelBaseHeight * live2dModel.scale.y);
-      rects.push({ x: mx, y: my, width: mw, height: mh });
-    }
-    // 输入区
+  // ── 区域穿透：始终 forward，只在交互区域内临时取消穿透 ──
+  // 思路：mousemove 持续检测位置，进入交互区时取消穿透，离开时恢复
+  // 关键：取消穿透后鼠标仍在窗口上，所以 mousemove 能持续触发来检测离开
+  let isIgnoring = true; // 初始状态与 main.js 一致：穿透 + forward
+
+  let pixelDebugCounter = 0;
+  function isPointInInteractiveArea(x, y) {
+    // 输入区（优先检测，不需要像素判断）
     const inputArea = document.getElementById("input-area");
     if (inputArea) {
       const r = inputArea.getBoundingClientRect();
-      rects.push({ x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) });
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
     }
-    // 聊天气泡区
+    // 聊天气泡
     const chatBox = document.getElementById("chat-box");
     if (chatBox && chatBox.children.length > 0) {
       const r = chatBox.getBoundingClientRect();
-      rects.push({ x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) });
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
     }
-    console.log("[shape] updateClickShape rects:", JSON.stringify(rects));
-    window.greywind.setClickShape(rects);
+    // Live2D 模型：用 PIXI renderer 的 GL context 读像素 alpha
+    const gl = pixiApp?.renderer?.gl;
+    if (gl && canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = pixiApp.renderer.resolution || 1;
+      const cx = Math.round((x - rect.left) * dpr);
+      const cy = Math.round((y - rect.top) * dpr);
+      if (cx >= 0 && cy >= 0 && cx < gl.drawingBufferWidth && cy < gl.drawingBufferHeight) {
+        const pixel = new Uint8Array(4);
+        gl.readPixels(cx, gl.drawingBufferHeight - 1 - cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        if (pixel[3] > 10) return true;
+      }
+    }
+    return false;
   }
 
-  // 模型加载后设置一次，之后不需要频繁更新
-  // 用 MutationObserver 监听聊天气泡变化时更新
-  const chatBox = document.getElementById("chat-box");
-  if (chatBox) {
-    new MutationObserver(() => updateClickShape()).observe(chatBox, { childList: true });
-  }
-  // 初始延迟设置（等模型加载完）
-  const shapeInterval = setInterval(() => {
-    if (live2dModel) {
-      updateClickShape();
-      clearInterval(shapeInterval);
+  // mousemove 在两种状态下都能触发：
+  // - 穿透+forward 时：Electron 转发事件到 renderer
+  // - 不穿透时：正常 DOM 事件
+  document.addEventListener("mousemove", (e) => {
+    const onInteractive = isPointInInteractiveArea(e.clientX, e.clientY);
+    if (onInteractive && isIgnoring) {
+      isIgnoring = false;
+      window.greywind?.setMouseIgnore?.(false);
+    } else if (!onInteractive && !isIgnoring) {
+      isIgnoring = true;
+      window.greywind?.setMouseIgnore?.(true);
     }
-  }, 500);
+  });
 
-  // 穿透模式关闭后，主进程通知 renderer 重新设置 shape
-  window.greywind?.onRefreshClickShape?.(() => updateClickShape());
+  // 鼠标离开窗口时恢复穿透
+  document.addEventListener("mouseleave", () => {
+    if (!isIgnoring) {
+      isIgnoring = true;
+      window.greywind?.setMouseIgnore?.(true);
+    }
+  });
+
+  // 穿透模式关闭后，主进程通知 renderer 重置状态
+  window.greywind?.onRefreshClickShape?.(() => {
+    isIgnoring = true;
+  });
 })();
