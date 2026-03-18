@@ -83,7 +83,7 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 | 🖥️ | **桌面宠物** | 透明窗口 · 鼠标穿透 · 拖拽 · 高 DPI · 系统托盘 | ✅ |
 | 📦 | **一键启动** | Electron 打包 · `build.bat` 构建 exe | ✅ |
 | 🎤 | **自定义音色** | 音色克隆 · 试听 · 管理 UI | ✅ |
-| 🌐 | **浏览器操控** | Playwright + function calling · 并行搜索（需 `uv sync --extra browser` + 配置启用） | ✅ |
+| 🌐 | **浏览器操控** | Playwright + function calling · 并行搜索 | ✅ |
 | 🖱️ | **桌面操控** | pyautogui · 截图定位 · 操作序列 | 规划中 |
 | 📺 | **Live2D 直播** | OBS 推流 · 弹幕互动 · 自主直播 | 规划中 |
 | 🤖 | **多 Agent 协作** | 底层按需调度多个 AI CLI，对你透明 | 规划中 |
@@ -272,7 +272,7 @@ cd frontend/desktop && npm start
 
 - [x] 屏幕感知（截图 + Vision · 差异检测 · 主动播报）
 - [x] 自定义音色克隆（音色上传 · 试听缓存 · 管理 UI）
-- [x] 浏览器操控（Playwright + function calling · 并行搜索；需 `uv sync --extra browser` + `browser.enabled: true`）
+- [x] 浏览器操控（Playwright + function calling · 并行搜索）
 - [x] 桌面宠物点击穿透（Electron 透明窗口 + 前端命中检测；Linux 回退为全窗口可交互）
 - [ ] 桌面操控（pyautogui）
 - [ ] Live2D 直播（OBS 推流 · 弹幕互动 · 自主直播）

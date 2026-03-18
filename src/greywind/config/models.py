@@ -62,7 +62,7 @@ class ScreenConfig(BaseModel):
 
 
 class BrowserConfig(BaseModel):
-    enabled: bool = False
+    enabled: bool = True
     provider: str = "playwright"        # playwright | extension
     screenshot_quality: int = 50
     screenshot_width: int = 1280

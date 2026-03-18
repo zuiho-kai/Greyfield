@@ -22,10 +22,8 @@ dependencies = [
     "pyautogui>=0.9.54",
     "pyperclip>=1.8.0",
     "pygetwindow>=0.0.9",
+    "playwright>=1.58.0",
 ]
-
-[project.optional-dependencies]
-browser = ["playwright>=1.58.0"]
 
 [build-system]
 requires = ["hatchling"]
