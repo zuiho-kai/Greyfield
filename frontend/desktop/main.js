@@ -1035,14 +1035,18 @@ function createWindow() {
   ipcMain.on("app:show-history", () => showHistoryWindow());
   ipcMain.on("app:open-devtools", () => win.webContents.openDevTools({ mode: "detach" }));
   ipcMain.handle("app:clear-history", async () => {
-    const { response } = await dialog.showMessageBox({
+    const parentWin = settingsWin && !settingsWin.isDestroyed() ? settingsWin : null;
+    const opts = {
       type: "warning",
       buttons: ["取消", "清空"],
       defaultId: 0,
       cancelId: 0,
       title: "清空聊天记录",
       message: "确定要清空当天的聊天记录吗？此操作不可撤销。",
-    });
+    };
+    const { response } = parentWin
+      ? await dialog.showMessageBox(parentWin, opts)
+      : await dialog.showMessageBox(opts);
     if (response === 1) { clearHistory(); return { cleared: true }; }
     return { cleared: false };
   });
