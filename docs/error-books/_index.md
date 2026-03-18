@@ -61,4 +61,7 @@
 | DEV-33 | pytest/语法检查冒充 ST | 门控/流程 | 🟢 | flow-gate.md |
 | COMMON-15 | 实现完成后跳过 CR 直接进入下一步 | 通用 | 🟢 | common-mistakes.md |
 | COMMON-18 | CR 修复后跳过重新 Review | 通用 | 🟢 | common-mistakes.md |
+| DEV-91 | 终端应用套用库的 optional deps 模式 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-92 | 默认值/fallback 覆盖用户显式配置 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-93 | 配置变更+副作用失败不回滚，状态分裂 | 代码习惯 | 🟢 | flow-code-habit.md |
 | REC-1~6 | 记录员典型错误（讨论没落盘等） | 通用/记录 | 🟢 | error-book-recorder.md |
