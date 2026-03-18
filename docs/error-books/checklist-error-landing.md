@@ -4,7 +4,7 @@
 
 ## 触发条件
 
-① Code Review 发现 P0 ② 测试失败 ③ 同一错误连续出现 2 次 ④ 用户指出流程违规 ⑤ 实现与设计不一致被发现
+① Code Review 发现 P0 ② 测试失败 ③ 同一错误连续出现 2 次 ④ 用户指出流程违规 ⑤ 实现与设计不一致被发现 ⑥ 文档完成状态/描述与实际实现不一致（含 README badge、Roadmap 标记）
 
 ## 执行步骤
 
@@ -54,7 +54,7 @@ checklist 修改：[需要改第 X 条 / 新增 / 不需要]
 根据归因路径决定写哪里：
 - 路径 A → 错题本记录跳步原因 + 强化 CLAUDE.md 中对应 checklist 的触发条件
 - 路径 B → 修改 CLAUDE.md 中对应 checklist 条目 + 错题本更新已有条目的描述
-- 路径 C → CLAUDE.md 新增 checklist 条目 + 错题本新增条目
+- 路径 C → CLAUDE.md 新增 checklist 条目 + 错题本新增条目 + 如涉及 README 完成状态须同步评估是否需要在 CLAUDE.md 高频提醒或硬规则中加主动看护
 - 路径 D → 错题本新增条目 + 如有必要更新设计文档
 - 所有路径：错题本写摘要（≤行数上限），按模块写入对应 `docs/error-books/{module}.md`（模块对照见 `_index.md`）
 

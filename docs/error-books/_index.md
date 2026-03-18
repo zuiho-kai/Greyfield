@@ -77,3 +77,4 @@
 | DEV-101 | API 边界防御缺失 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-104 | 代码搬迁只验功能可用，未检查隐式依赖 | 代码习惯 | 🟢 | flow-code-habit.md |
 | REC-1~6 | 记录员典型错误（讨论没落盘等） | 通用/记录 | 🟢 | error-book-recorder.md |
+| DEV-94 | README 完成状态与实际启用条件/实现方案不一致 | 代码习惯 | 🟢 | flow-code-habit.md |

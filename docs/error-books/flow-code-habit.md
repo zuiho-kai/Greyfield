@@ -108,6 +108,12 @@
 ✅ 修 bug 时禁止为了"改动最小"而选择脏方案。该改架构就改架构，该换工具就换工具。改动大小不是目标，正确性才是
 > 归因 A：DEV-81 的变体。知道 `screenshot-desktop` 底层是 spawn cmd.exe + C# exe，但为了"改动小"选择只移调用位置而不换实现。根因未解决，闪烁依旧
 
+### DEV-94 README 完成状态与实际启用条件/实现方案不一致 `🟢`
+
+❌ 功能标 ✅ 但未核实启用前提（需额外安装、配置开关）或文案描述与实际实现不符（写 readPixels 实际已换方案）
+✅ 标 ✅ 前必须核实：①默认安装路径能否直接使用（检查 pyproject.toml extras / conf.example.yaml 默认值）②文案技术描述与当前代码一致（grep 实现确认）。有前提条件的在括号里注明
+> 归因 C：PR #48 bot review 发现。浏览器操控需 extra + 配置启用但标了无条件 ✅；点击穿透写 pixi readPixels 但实际已改为前端命中检测
+
 ### DEV-88 未验证第三方库底层实现就采用 `🟢`
 
 ❌ 用 `screenshot-desktop` 截屏，没有先看它在 Windows 上的实现（spawn cmd.exe 执行 .bat 编译 C# 再运行），直接假设它是轻量级的纯内存操作
