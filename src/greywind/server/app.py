@@ -113,7 +113,9 @@ async def update_desktop_settings(body: dict):
                     action_delay=cfg.action_delay,
                 )
             except Exception as e:
+                cfg.enabled = False
                 logger.warning(f"DesktopProvider 创建失败: {e}")
+                return {"ok": False, "error": f"桌面操控启用失败: {e}"}
     return {"ok": True}
 
 

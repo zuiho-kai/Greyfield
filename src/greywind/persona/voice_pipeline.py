@@ -183,11 +183,12 @@ class VoicePipeline:
             if tool_list:
                 tools = tool_list
 
-            max_rounds = max(
-                self._browser_config.max_tool_rounds if self._browser_config and self._browser_config.enabled else 0,
-                self._desktop_config.max_tool_rounds if self._desktop_config and self._desktop_config.enabled else 0,
-                30,
-            )
+            candidates = []
+            if self._browser_config and self._browser_config.enabled:
+                candidates.append(self._browser_config.max_tool_rounds)
+            if self._desktop_config and self._desktop_config.enabled:
+                candidates.append(self._desktop_config.max_tool_rounds)
+            max_rounds = max(candidates) if candidates else 30
             for round_idx in range(max_rounds + 1):
                 if self._interrupted:
                     break

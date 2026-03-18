@@ -3,8 +3,8 @@ chcp 65001 >nul
 echo ===== GreyWind Install Dependencies =====
 echo.
 
-echo [1/2] Python (uv sync)...
-call uv sync
+echo [1/2] Python (uv sync --all-extras)...
+call uv sync --all-extras
 if errorlevel 1 (
     echo Python install failed
     pause
