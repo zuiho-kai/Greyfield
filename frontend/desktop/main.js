@@ -72,6 +72,7 @@ let historyWin = null;
 let settingsWin = null;
 let isQuitting = false;
 let mainWin = null;
+let clickThrough = false;
 let chatHistory = [];
 const MAX_HISTORY_ITEMS = 500;
 const HISTORY_SAVE_DEBOUNCE_MS = 500;
@@ -637,6 +638,8 @@ function stopBackend() {
 }
 
 function killProcessTree(pid) {
+  pid = Number(pid);
+  if (!Number.isInteger(pid) || pid <= 0) return;
   if (process.platform === "win32") {
     // 同步杀进程树，确保 before-quit 时不会残留
     try {
@@ -709,6 +712,7 @@ function showSettingsWindow() {
     settingsWin.focus();
     return;
   }
+  // 不设 parent：设置窗口独立于主窗口，主窗口隐藏时设置仍可操作
   settingsWin = new BrowserWindow({
     width: 520,
     height: 680,
@@ -757,7 +761,6 @@ function createWindow() {
   } else {
     win.setIgnoreMouseEvents(false);
   }
-  let clickThrough = false;
 
   ipcMain.on("set-mouse-ignore", (_, ignore) => {
     if (clickThrough) return; // 全局穿透模式下不响应
@@ -1016,7 +1019,7 @@ function createWindow() {
   // 设置窗口用的 IPC：鼠标穿透
   ipcMain.handle("app:get-click-through", () => clickThrough);
   ipcMain.handle("app:set-click-through", (_, val) => {
-    clickThrough = val;
+    clickThrough = !!val;
     if (clickThrough) {
       win.setIgnoreMouseEvents(true);
     } else {
@@ -1025,6 +1028,7 @@ function createWindow() {
       } else {
         win.setIgnoreMouseEvents(false);
       }
+      // send 是异步的，renderer 收到时 invoke 可能还没返回，但穿透状态已在主进程生效
       win.webContents.send("refresh-click-shape");
     }
     return { ok: true };
