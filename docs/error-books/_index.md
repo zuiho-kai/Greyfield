@@ -23,6 +23,10 @@
 | DEV-69 | 文档中硬编码环境相关值（分支名、路径格式） | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-77 | 文档引用外部链接未验证有效性 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-78 | 流程文档 shell 命令未标注执行目录 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-86 | 重数据经渲染进程中转导致 UI 卡顿 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-102 | 为了改动小而选择脏方案 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-88 | 未验证第三方库底层实现就采用 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-103 | 副作用时序：先扣费/计数后调用外部服务 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-71 | 流式状态机边界条件遗漏 | 流式/运行时 | 🟡×3 | streaming-runtime.md |
 | DEV-72 | 新功能前端无条件启动，未与后端配置协商 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-67 | worktree 操作前未确认当前分支 | git/CR | 🟢 | git-worktree.md |
@@ -58,10 +62,18 @@
 | DEV-44 | 设计文档与代码签名不同步 | 通用/设计 | 🟢 | flow-design.md |
 | DEV-76 | 口头承诺不落盘 | 门控/流程 | 🟢 | flow-gate.md |
 | DEV-90 | 语法检查冒充真实验证 | 门控/流程 | 🟢 | flow-gate.md |
+| DEV-96 | 搬运/迁移时批量操作关闭逐条审查 | 门控/流程 | 🟢 | flow-gate.md |
 | DEV-33 | pytest/语法检查冒充 ST | 门控/流程 | 🟢 | flow-gate.md |
 | COMMON-15 | 实现完成后跳过 CR 直接进入下一步 | 通用 | 🟢 | common-mistakes.md |
 | COMMON-18 | CR 修复后跳过重新 Review | 通用 | 🟢 | common-mistakes.md |
+| COMMON-19 | 向用户提交决策时违反呈现三原则 | 通用 | 🟢 | common-mistakes.md |
 | DEV-91 | 终端应用套用库的 optional deps 模式 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-92 | 默认值/fallback 覆盖用户显式配置 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-93 | 配置变更+副作用失败不回滚，状态分裂 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-97 | 修 bug 缺边界分析，修复引入新问题 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-98 | 外部 client/资源未用 context manager + 返回值盲信 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-99 | 大量 UI/前端改动一口气写完不分步检查 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-100 | 多问题批量修复不分类并行 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-101 | API 边界防御缺失 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-104 | 代码搬迁只验功能可用，未检查隐式依赖 | 代码习惯 | 🟢 | flow-code-habit.md |
 | REC-1~6 | 记录员典型错误（讨论没落盘等） | 通用/记录 | 🟢 | error-book-recorder.md |

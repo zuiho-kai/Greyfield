@@ -72,6 +72,7 @@ let historyWin = null;
 let settingsWin = null;
 let isQuitting = false;
 let mainWin = null;
+let clickThrough = false;
 let chatHistory = [];
 const MAX_HISTORY_ITEMS = 500;
 const HISTORY_SAVE_DEBOUNCE_MS = 500;
@@ -637,11 +638,18 @@ function stopBackend() {
 }
 
 function killProcessTree(pid) {
+  pid = Number(pid);
+  if (!Number.isInteger(pid) || pid <= 0) return;
   if (process.platform === "win32") {
-    spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
-      stdio: "ignore",
-      windowsHide: true,
-    });
+    // 同步杀进程树，确保 before-quit 时不会残留
+    try {
+      require("child_process").execSync(
+        `taskkill /PID ${pid} /T /F`,
+        { stdio: "ignore", windowsHide: true, timeout: 5000 }
+      );
+    } catch (_) {
+      // 进程可能已退出
+    }
     return;
   }
   try {
@@ -704,6 +712,7 @@ function showSettingsWindow() {
     settingsWin.focus();
     return;
   }
+  // 不设 parent：设置窗口独立于主窗口，主窗口隐藏时设置仍可操作
   settingsWin = new BrowserWindow({
     width: 520,
     height: 680,
@@ -752,7 +761,6 @@ function createWindow() {
   } else {
     win.setIgnoreMouseEvents(false);
   }
-  let clickThrough = false;
 
   ipcMain.on("set-mouse-ignore", (_, ignore) => {
     if (clickThrough) return; // 全局穿透模式下不响应
@@ -1001,46 +1009,57 @@ function createWindow() {
   tray = new Tray(path.join(__dirname, "renderer", "icon.png").replace(/\\/g, "/"));
   tray.setToolTip("灰风 GreyWind");
 
-  function rebuildTrayMenu() {
-    tray.setContextMenu(Menu.buildFromTemplate([
-      { label: "显示/隐藏", click: () => win.isVisible() ? win.hide() : win.show() },
-      { label: clickThrough ? "关闭鼠标穿透" : "开启鼠标穿透", click: () => {
-        clickThrough = !clickThrough;
-        if (clickThrough) {
-          // 全局穿透模式：完全穿透，不 forward
-          win.setIgnoreMouseEvents(true);
-        } else {
-          // 恢复区域穿透：Linux 回退到不穿透
-          if (supportsForward) {
-            win.setIgnoreMouseEvents(true, { forward: true });
-          } else {
-            win.setIgnoreMouseEvents(false);
-          }
-          win.webContents.send("refresh-click-shape");
-        }
-        rebuildTrayMenu();
-      }},
-      { label: "设置", click: () => showSettingsWindow() },
-      { label: "后端日志", click: () => showLogWindow() },
-      { label: "Chat History", click: () => showHistoryWindow() },
-      { label: "清空聊天记录", click: async () => {
-        const { response } = await dialog.showMessageBox({
-          type: "warning",
-          buttons: ["取消", "清空"],
-          defaultId: 0,
-          cancelId: 0,
-          title: "清空聊天记录",
-          message: "确定要清空当天的聊天记录吗？此操作不可撤销。",
-        });
-        if (response === 1) clearHistory();
-      }},
-      { label: "开发工具", click: () => win.webContents.openDevTools({ mode: "detach" }) },
-      { type: "separator" },
-      { label: "退出", click: () => app.quit() },
-    ]));
-  }
-  rebuildTrayMenu();
-  tray.on("click", () => win.isVisible() ? win.hide() : win.show());
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: "显示/隐藏", click: () => win.isVisible() ? win.hide() : win.show() },
+    { label: "设置", click: () => showSettingsWindow() },
+    { type: "separator" },
+    { label: "退出", click: () => app.quit() },
+  ]));
+
+  // 设置窗口用的 IPC：鼠标穿透
+  ipcMain.handle("app:get-click-through", () => clickThrough);
+  ipcMain.handle("app:set-click-through", (_, val) => {
+    clickThrough = !!val;
+    if (win.isDestroyed()) return { ok: false, error: "主窗口已销毁" };
+    if (clickThrough) {
+      win.setIgnoreMouseEvents(true);
+    } else {
+      if (supportsForward) {
+        win.setIgnoreMouseEvents(true, { forward: true });
+      } else {
+        win.setIgnoreMouseEvents(false);
+      }
+      // send 是异步的，renderer 收到时 invoke 可能还没返回，但穿透状态已在主进程生效
+      win.webContents.send("refresh-click-shape");
+    }
+    return { ok: true };
+  });
+
+  // 设置窗口用的 IPC：打开子窗口 / 工具
+  ipcMain.on("app:show-log", () => showLogWindow());
+  ipcMain.on("app:show-history", () => showHistoryWindow());
+  ipcMain.on("app:open-devtools", () => {
+    if (!win.isDestroyed()) win.webContents.openDevTools({ mode: "detach" });
+  });
+  ipcMain.handle("app:clear-history", async () => {
+    const parentWin = settingsWin && !settingsWin.isDestroyed() ? settingsWin : null;
+    const opts = {
+      type: "warning",
+      buttons: ["取消", "清空"],
+      defaultId: 0,
+      cancelId: 0,
+      title: "清空聊天记录",
+      message: "确定要清空当天的聊天记录吗？此操作不可撤销。",
+    };
+    const { response } = parentWin
+      ? await dialog.showMessageBox(parentWin, opts)
+      : await dialog.showMessageBox(opts);
+    if (response === 1) { clearHistory(); return { cleared: true }; }
+    return { cleared: false };
+  });
+  tray.on("click", () => {
+    if (!win.isDestroyed()) win.isVisible() ? win.hide() : win.show();
+  });
 
   return win;
 }

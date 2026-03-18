@@ -14,4 +14,11 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   switchVoice: (voice) => ipcRenderer.invoke("voice:switch", voice),
   previewVoice: (voice) => ipcRenderer.invoke("voice:preview", voice),
   pickAudioFile: () => ipcRenderer.invoke("voice:pick-file"),
+  // 通用操作（原托盘菜单项）
+  getClickThrough: () => ipcRenderer.invoke("app:get-click-through"),
+  setClickThrough: (val) => ipcRenderer.invoke("app:set-click-through", val),
+  showLog: () => ipcRenderer.send("app:show-log"),
+  showHistory: () => ipcRenderer.send("app:show-history"),
+  openDevtools: () => ipcRenderer.send("app:open-devtools"),
+  clearHistory: () => ipcRenderer.invoke("app:clear-history"),
 });
