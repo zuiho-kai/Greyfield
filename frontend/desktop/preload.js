@@ -21,4 +21,5 @@ contextBridge.exposeInMainWorld("greywind", {
   onRefreshClickShape: (fn) => ipcRenderer.on("refresh-click-shape", () => fn()),
   getRenderSettings: () => ipcRenderer.invoke("render-settings:get"),
   onRenderSettingsChanged: (fn) => ipcRenderer.on("render-settings-changed", (_, data) => fn(data)),
+  onClearHistory: (fn) => ipcRenderer.on("chat-history:clear", () => fn()),
 });
