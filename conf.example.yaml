@@ -35,3 +35,23 @@ character: "greywind"
 
 memory:
   backend: "json"
+
+# 屏幕感知
+screen:
+  enabled: false
+
+# 浏览器操控
+browser:
+  enabled: false
+  provider: "playwright"
+  screenshot_quality: 50
+  screenshot_width: 1280
+  max_tool_rounds: 30
+
+# 桌面操控
+desktop:
+  enabled: false
+  screenshot_quality: 50
+  screenshot_width: 1280
+  action_delay: 1.0
+  max_tool_rounds: 30
