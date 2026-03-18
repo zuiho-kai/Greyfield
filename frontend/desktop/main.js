@@ -946,6 +946,12 @@ function createWindow() {
       if (!isValidModelId(modelId)) return { ok: false, error: "无效的模型 ID" };
       const p = resolveModelPath(modelId);
       if (!p) return { ok: false, error: "模型不存在：" + modelId };
+      // 校验 model3.json 可解析，防止坏模型持久化
+      try {
+        JSON.parse(fs.readFileSync(p, "utf-8"));
+      } catch (_) {
+        return { ok: false, error: "模型文件损坏，无法解析：" + modelId };
+      }
       const url = pathToFileURL(p).href;
       currentModel.write(modelId);
       // 通知主窗口切换模型
@@ -989,15 +995,25 @@ function createWindow() {
     }
   });
 
-  ipcMain.handle("live2d:delete-model", (_, modelId) => {
+  ipcMain.handle("live2d:delete-model", async (_, modelId) => {
     try {
       if (!isValidModelId(modelId)) return { ok: false, error: "无效的模型 ID" };
       const dir = path.join(live2dCacheBase(), modelId);
       if (!fs.existsSync(dir)) return { ok: false, error: "模型不存在" };
-      if (currentModel.read() === modelId) {
+      const wasCurrent = currentModel.read() === modelId;
+      if (wasCurrent) {
         currentModel.clear();
       }
       fs.rmSync(dir, { recursive: true, force: true });
+      // 删除的是当前模型 → 通知前端切回默认模型
+      if (wasCurrent && mainWin && !mainWin.isDestroyed()) {
+        try {
+          const fallback = await getActiveModelUrl();
+          if (fallback.ok) {
+            mainWin.webContents.send("live2d:model-changed", { url: fallback.url, modelId: fallback.modelId || null });
+          }
+        } catch (_) { /* 忽略 */ }
+      }
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err?.message || String(err) };
