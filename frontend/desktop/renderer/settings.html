@@ -43,10 +43,22 @@
     .upload-form input[type="text"] { width: 100%; background: #1a1a2e; color: #e2e8f0; border: 1px solid #4a5568; border-radius: 4px; padding: 6px 10px; font-size: 13px; margin-bottom: 8px; }
     .upload-form .file-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .upload-form .file-path { flex: 1; font-size: 12px; color: #a0aec0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tool-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tool-buttons .btn { padding: 6px 16px; font-size: 13px; }
   </style>
 </head>
 <body>
   <h2>灰风设置</h2>
+
+  <!-- 通用 -->
+  <h3>通用</h3>
+  <div class="field">
+    <label class="toggle">
+      <input type="checkbox" id="click_through" />
+      鼠标穿透
+    </label>
+    <div class="hint">开启后鼠标点击会穿过灰风窗口，直接操作底层应用。</div>
+  </div>
 
   <!-- 音色管理 -->
   <h3>音色管理</h3>
@@ -152,6 +164,15 @@
     <div class="hint">开启后灰风可以帮你操作桌面：点击、打字、拖拽、切窗口等。需要安装 desktop 依赖。</div>
   </div>
   <div class="status" id="desktop_status"></div>
+
+  <!-- 工具 -->
+  <h3>工具</h3>
+  <div class="field tool-buttons">
+    <button class="btn btn-primary" id="btn_log">后端日志</button>
+    <button class="btn btn-primary" id="btn_history">聊天记录</button>
+    <button class="btn btn-danger" id="btn_clear_history">清空聊天记录</button>
+    <button class="btn btn-preview" id="btn_devtools">开发工具</button>
+  </div>
 
   <script>
     // ── 音色管理 ──
@@ -409,6 +430,27 @@
     window.settingsAPI.getDesktopSettings().then((cfg) => {
       if (!cfg || cfg.error) return;
       desktopCheckbox.checked = cfg.enabled;
+    });
+
+    // ── 通用：鼠标穿透 ──
+    const ctCheckbox = document.getElementById("click_through");
+    window.settingsAPI.getClickThrough().then((val) => {
+      ctCheckbox.checked = !!val;
+    });
+    ctCheckbox.addEventListener("change", () => {
+      window.settingsAPI.setClickThrough(ctCheckbox.checked);
+    });
+
+    // ── 工具按钮 ──
+    document.getElementById("btn_log").addEventListener("click", () => window.settingsAPI.showLog());
+    document.getElementById("btn_history").addEventListener("click", () => window.settingsAPI.showHistory());
+    document.getElementById("btn_devtools").addEventListener("click", () => window.settingsAPI.openDevtools());
+    document.getElementById("btn_clear_history").addEventListener("click", async () => {
+      const r = await window.settingsAPI.clearHistory();
+      if (r && r.cleared) {
+        document.getElementById("btn_clear_history").textContent = "已清空";
+        setTimeout(() => { document.getElementById("btn_clear_history").textContent = "清空聊天记录"; }, 2000);
+      }
     });
   </script>
 </body>
