@@ -498,6 +498,10 @@ function scheduleSaveHistory() {
     saveHistoryToDisk(); // 先保存旧文件
     historyFilePath = expected;
     chatHistory = [];    // 新的一天，清空内存
+    // 通知历史窗口刷新
+    if (historyWin && !historyWin.isDestroyed()) {
+      historyWin.webContents.send("chat-history:init", chatHistory);
+    }
   }
   if (historySaveTimer) clearTimeout(historySaveTimer);
   historySaveTimer = setTimeout(() => {
