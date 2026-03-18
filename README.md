@@ -133,7 +133,7 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 git clone https://github.com/zuiho-kai/Greyfield.git
 cd Greyfield
 
-# 双击 install.bat 自动安装全部依赖（Python + 前端）
+# 双击 一键安装依赖.bat 自动安装全部依赖（Python + 前端）
 
 # 配置
 cp conf.example.yaml conf.yaml
