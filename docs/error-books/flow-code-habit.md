@@ -120,31 +120,49 @@
 ✅ 乐观预检 + 悲观执行：预检条件 → 调用外部服务 → 成功后才执行副作用
 > 从 bot_civ DEV-37 搬运。CR checklist 增加"副作用时序检查"
 
-### DEV-91 修 bug 缺边界分析，修复引入新问题 `🟢`
+### DEV-91 终端应用套用库的 optional deps 模式 `🟢`
+
+❌ 把 pyautogui/pyperclip 等放进 `[project.optional-dependencies]`，但安装链路（bat/README）只跑 `uv sync`，导致功能可开启但运行时缺依赖。库的 optional deps 模式套到了终端应用上
+✅ 终端用户应用的依赖全部放 `[project.dependencies]`，`uv sync` 一把装完。optional deps 只适用于公共库（让下游选择装什么）。决策前先问：这个项目的用户是开发者还是终端用户？
+> 归因 A：过度设计。把"不是所有人都需要"的直觉套用了库的模式，没有考虑项目的安装链路和用户画像。PR #50 CR 发现
+
+### DEV-92 默认值/fallback 覆盖用户显式配置 `🟢`
+
+❌ `max(browser_rounds, desktop_rounds, 30)` 硬编码 30 作为兜底，用户显式配 `max_tool_rounds: 5` 被静默覆盖，配置形同虚设
+✅ 写 max/min/fallback 时必须推演"用户显式配低值/高值"的场景。兜底值只在无有效配置时生效，不能与用户显式值取 max/min
+> 归因 A：只考虑 happy path（"保底不能太低"），没推演用户故意限制的场景。PR #50 CR 发现
+
+### DEV-93 配置变更 + 副作用操作失败时不回滚，前后端状态分裂 `🟢`
+
+❌ `cfg.enabled = True` 后创建 provider 失败，config 保持 True 但实际 provider 为 None，前端显示"已启用"但功能不可用
+✅ 配置变更 + 副作用操作必须原子化：副作用失败时回滚配置并返回错误。前端看到的状态必须与后端实际状态一致
+> 归因 A：try/except 只 log warning 没回滚，没推演"前端看到什么 vs 后端实际是什么"。PR #50 CR 发现
+
+### DEV-97 修 bug 缺边界分析，修复引入新问题 `🟢`
 
 ❌ P1 修复当"小修"，未对新代码做边界分析（null/作用域/类型），修完又冒出新 P1
 ✅ 每条修复必须列影响面 + 边界值分析。改一个变量的赋值语义 = 改变所有依赖它的代码行为
 > 从 bot_civ DEV-BUG-19 搬运
 
-### DEV-92 外部 client/资源未用 context manager + 返回值盲信 `🟢`
+### DEV-98 外部 client/资源未用 context manager + 返回值盲信 `🟢`
 
 ❌ new 外部 client 不关闭（资源泄漏）；信任外部 API 返回结构不做空值防御
 ✅ 凡 new 外部 client 默认 context manager；外部 API 返回值必做空值/空列表防御
 > 从 bot_civ DEV-BUG-22 搬运
 
-### DEV-93 大量 UI/前端改动一口气写完不分步检查 `🟢`
+### DEV-99 大量 UI/前端改动一口气写完不分步检查 `🟢`
 
 ❌ 多个文件的 UI 改动一口气写完再验证 → 问题堆积
 ✅ 前端改动 >2 个文件时分步写分步检查，不一口气写完
 > 从 bot_civ DEV-14 搬运
 
-### DEV-94 多问题批量修复不分类并行 `🟢`
+### DEV-100 多问题批量修复不分类并行 `🟢`
 
 ❌ 拿到多个问题逐个串行排查，不分类
 ✅ 先花 1 分钟分类（纯样式 / 前端逻辑 / 后端 / 配置），同类并行处理
-> 从 bot_civ DEV-12f 搬运
+> 从 bot_civ DEV-12 搬运
 
-### DEV-95 API 边界防御缺失 `🟢`
+### DEV-101 API 边界防御缺失 `🟢`
 
 ❌ API 层只关注"能调通"，不加边界约束（非法值穿透、错误码映射不全）
 ✅ 写 API 端点时：①读 service 完整签名透传所有参数 ②数值字段加范围校验 ③错误语义映射正确状态码 ④错误映射写完后 grep 所有 raise/return error 逐条验证覆盖
