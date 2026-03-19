@@ -99,7 +99,7 @@ class AsyncLLM(StatelessLLMInterface):
                 ]
             logger.debug(f"Messages: {messages_with_system}")
 
-            available_tools = tools if self.support_tools else NOT_GIVEN
+            available_tools = tools if (self.support_tools and tools) else NOT_GIVEN
 
             stream: AsyncStream[
                 ChatCompletionChunk
