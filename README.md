@@ -1,8 +1,5 @@
 <div align="center">
 
-<!-- TODO: logo / banner -->
-<!-- <img src="assets/banner.png" width="100%" alt="GreyWind Banner"> -->
-
 # 灰风 GreyWind
 
 **你桌面上的 AI。能看你的屏幕，能听你说话，能帮你干活，还能记住你。**
@@ -12,12 +9,14 @@
 [![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)](https://www.electronjs.org)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Active_Development-orange)](https://github.com/zuiho-kai/Greyfield)
+[![Contributors](https://img.shields.io/github/contributors/zuiho-kai/Greyfield?color=blue)](https://github.com/zuiho-kai/Greyfield/graphs/contributors)
 
 [English](./README_EN.md) | **中文**
 
-</div>
+<!-- TODO: 录一个 30 秒演示 gif 替换下面的静态截图 -->
+<!-- <img src="docs/screenshots/demo.gif" width="80%" alt="灰风演示"> -->
 
-<br>
+</div>
 
 <p align="center">
   <img src="docs/screenshots/preview-idle.png" width="32%" alt="待机状态">
@@ -27,30 +26,16 @@
 <p align="center"><em>待机 · 聊天 · 系统托盘</em></p>
 
 <p align="center">
-  <a href="#为什么叫灰风">名字由来</a> · <a href="#快速开始">快速开始</a> · <a href="#文档">文档</a> · <a href="#参与开发">参与开发</a>
+  <!-- <a href="https://github.com/zuiho-kai/Greyfield/releases">⬇️ 下载 exe</a> · -->
+  <a href="#快速开始">📖 快速开始</a> · <a href="https://github.com/zuiho-kai/Greyfield/discussions">💬 加入讨论</a> · <a href="#参与开发">🤝 参与开发</a>
 </p>
 
 ---
 
-## 为什么做灰风
+我受够了每次打开 AI 都要重新介绍自己。灰风是一个一直在你桌面上的 AI——能看你的屏幕，能听你说话，关掉再打开，她还是同一个人。不是网页标签，不是终端，是桌面上的一个角色。
 
-我受够了每次打开 AI 都要重新介绍自己。
-
-ChatGPT 是一个网页标签。Claude 是一个对话框。Codex 是一个终端。用完关掉，下次再打开，它已经不认识你了。
-
-我想要的很简单：
-
-- **一个一直在桌面上的 AI**，我能看见它
-- **它能看我的屏幕**，知道我在干什么
-- **我可以直接对它说话**，它也能说话
-- **关掉再打开，它还是同一个人**
-- **需要时它能帮我操作电脑**，而不只是聊天
-
-所以我做了灰风。
-
----
-
-## 为什么叫灰风
+<details>
+<summary><strong>为什么叫灰风？</strong></summary>
 
 > *德萨努人创造了一种全新的纳米机器人，他们称之为"纳-迪-沙"，在他们的语言中，意思是灰色风暴。*
 >
@@ -62,13 +47,11 @@ ChatGPT 是一个网页标签。Claude 是一个对话框。Codex 是一个终�
 
 L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中不仅重建了造物主文明，更化身为一个独一无二的个体。她强大到足以席卷整个星系，却选择时刻伴你左右，知晓你所有的历史。
 
-这种"一人成军"的力量与"时刻陪伴"的亲密感，正是这个项目的灵魂：
-
 - **时刻陪伴** — 不是用完即走的网页标签，而是一直在你桌面上、能看见你、能记住每一次对话的个体。关掉再打开，它还是同一个"她"。
 - **强而有力** — 不只是聊天机器人。背后调度着 Claude Code、Codex 等 CLI，能看你的屏幕、能操作你的电脑，整个蜂巢执行系统在运转。
 - **纳米蜂巢** — 正如灰蛊风暴是无数纳米机器人组成的格式塔个体，灰风也是由感知壳、上下文运行时、多模型执行层共同构成的统一系统。对外只有一个完整人格，对内是无数"纳米机器人"在协同。
 
-灰风，是从《群星》的科幻史诗里走出来的一份念想：一个由纳米蜂巢构成的、强而有力的、会一直陪在你身边的桌面 AI。
+</details>
 
 ---
 
@@ -84,7 +67,8 @@ L 星团深处，由纳米机器人构成的灰蛊风暴，在漫长的等待中
 | 📦 | **一键启动** | Electron 打包 · `build.bat` 构建 exe | ✅ |
 | 🎤 | **自定义音色** | 音色克隆 · 试听 · 管理 UI | ✅ |
 | 🌐 | **浏览器操控** | Playwright + function calling · 并行搜索（需 `uv sync --extra browser` + 配置启用） | ✅ |
-| 🖱️ | **桌面操控** | pyautogui · 截图定位 · 操作序列 | 规划中 |
+| 🖱️ | **桌面操控** | pyautogui · 截图定位 · 操作序列（需配置启用） | ✅ |
+| 🎭 | **Live2D 模型切换** | 设置窗口导入 / 切换 / 删除模型 | ✅ |
 | 📺 | **Live2D 直播** | OBS 推流 · 弹幕互动 · 自主直播 | 规划中 |
 | 🤖 | **多 Agent 协作** | 底层按需调度多个 AI CLI，对你透明 | 规划中 |
 
@@ -205,88 +189,53 @@ cd frontend/desktop && npm start
 
 ```mermaid
 graph TB
-  subgraph User["👤 用户"]
-    voice["🎤 语音"]
-    text["⌨️ 文字"]
-    screen["🖥️ 屏幕"]
+  subgraph User["用户"]
+    voice["语音"]
+    text["文字"]
+    screen["屏幕"]
   end
 
   subgraph Electron["Electron 前端"]
-    subgraph MainProcess["主进程 (main.js)"]
-      backend_spawn["启动 Python 后端"]
-      ipc["IPC 桥接"]
-      screenshot["截屏 (koffi Win32)"]
-      model_mgr["Live2D 模型管理"]
-    end
-    subgraph Renderer["渲染进程"]
-      live2d["Live2D 渲染\n(pixi.js + cubism4)"]
-      voice_ui["语音 UI\n麦克风 · 播放 · 口型同步"]
-      chat["聊天气泡\n(chat-overlay.js)"]
-      ws_client["WebSocket 客户端\n(socket-client.js)"]
-      interaction["交互策略\n点击穿透 · 拖拽"]
-    end
+    screenshot["截屏 koffi Win32"]
+    live2d["Live2D 渲染"]
+    voice_ui["语音 UI"]
+    chat["聊天气泡"]
+    ws_client["WebSocket 客户端"]
   end
 
-  subgraph Python["Python 后端 (FastAPI)"]
-    ws_handler["WebSocket 路由\n(ws_handler.py)"]
-    subgraph Pipeline["语音管线 (voice_pipeline.py)"]
-      vad["VAD\nSilero 本地推理"]
-      asr["ASR\n硅基流动 SenseVoice"]
-      llm["LLM\n硅基流动 Step-3.5"]
-      tts["TTS\nCosyVoice2 / edge-tts"]
-    end
-    subgraph Context["上下文运行时"]
-      session["SessionManager\n对话历史"]
-      assembler["PromptAssembler\nsystem + history + 截图"]
-      memory["Memory\nJSON 人格注入"]
-    end
-    subgraph Exec["执行层"]
-      browser["Playwright\n浏览器操控"]
-      desktop["pyautogui\n桌面操控 (规划中)"]
-      screen_sense["ScreenSense\n屏幕变化检测"]
-    end
+  subgraph Python["Python 后端 FastAPI"]
+    ws_handler["WebSocket 路由"]
+    vad["VAD Silero"]
+    asr["ASR 硅基流动"]
+    llm["LLM Step-3.5"]
+    tts["TTS CosyVoice2"]
+    assembler["PromptAssembler"]
+    session["SessionManager"]
+    memory["Memory JSON"]
+    browser["Playwright 浏览器"]
+    screen_sense["ScreenSense 屏幕检测"]
   end
 
-  voice --> voice_ui
+  voice --> voice_ui --> ws_client
   text --> ws_client
-  screen --> screenshot
+  screen --> screenshot --> ws_client
 
-  voice_ui -->|"audio_chunk (base64)"| ws_client
-  ws_client <-->|"WebSocket\nws://127.0.0.1:12393"| ws_handler
-  screenshot -->|"screen_capture"| ws_client
+  ws_client -->|请求| ws_handler
+  ws_handler -->|响应| ws_client
 
-  ws_handler --> vad
-  vad -->|语音段| asr
-  asr -->|文字| llm
-  llm -->|"按句分割"| tts
-  tts -->|"音频字节"| ws_handler
+  ws_handler --> vad --> asr --> llm --> tts --> ws_handler
 
-  llm <--> assembler
-  assembler <--> session
-  assembler <--> memory
-  llm -->|"tool_calls"| browser
+  llm --> assembler
+  assembler --> llm
+  assembler --> session
+  assembler --> memory
+  llm -->|tool_calls| browser
   screen_sense --> assembler
 
-  ws_handler -->|"reply_audio"| ws_client
-  ws_handler -->|"reply_text"| ws_client
-  ws_handler -->|"status"| ws_client
-  ws_handler -->|"transcript"| ws_client
-
-  ws_client -->|音频| voice_ui
-  ws_client -->|文字| chat
-  ws_client -->|状态| live2d
-  voice_ui -->|"ParamMouthOpenY"| live2d
-
-  MainProcess -->|spawn| Python
-  ipc <--> Renderer
-
-  style Electron fill:#2b2b3d,stroke:#7c7cff,color:#fff
-  style Python fill:#1a2e1a,stroke:#4caf50,color:#fff
-  style Pipeline fill:#2a3a2a,stroke:#66bb6a,color:#fff
-  style Context fill:#2a3a2a,stroke:#66bb6a,color:#fff
-  style Exec fill:#2a3a2a,stroke:#66bb6a,color:#fff
-  style MainProcess fill:#2b2b4d,stroke:#9c9cff,color:#fff
-  style Renderer fill:#2b2b4d,stroke:#9c9cff,color:#fff
+  ws_client --> voice_ui
+  ws_client --> chat
+  ws_client --> live2d
+  voice_ui -->|口型| live2d
 ```
 
 灰风不重新发明 coding CLI。它用已有的最强 CLI 做执行，自己只做两件事：
@@ -359,7 +308,7 @@ Greyfield/
 │   │   └── vad/silero.py            #   Silero VAD 本地推理
 │   ├── execution/
 │   │   ├── playwright_provider.py   #   浏览器操控
-│   │   └── pyautogui_provider.py    #   桌面操控（规划中）
+│   │   └── pyautogui_provider.py   #   桌面操控
 │   ├── memory/                      #   记忆存储（当前 JSON）
 │   └── config/                      #   配置加载 + Pydantic 校验
 ├── frontend/desktop/                # Electron 前端
@@ -424,7 +373,8 @@ Greyfield/
 - [x] 自定义音色克隆（音色上传 · 试听缓存 · 管理 UI）
 - [x] 浏览器操控（Playwright + function calling · 并行搜索；需 `uv sync --extra browser` + `browser.enabled: true`）
 - [x] 桌面宠物点击穿透（Electron 透明窗口 + 前端命中检测；Linux 回退为全窗口可交互）
-- [ ] 桌面操控（pyautogui）
+- [x] 桌面操控（pyautogui · 截图定位 · 操作序列；需配置启用）
+- [x] Live2D 模型切换（设置窗口导入 / 切换 / 删除）
 - [ ] Live2D 直播（OBS 推流 · 弹幕互动 · 自主直播）
 - [ ] 聊天历史清空按钮 / 菜单项
 - [ ] 聊天历史按日期分文件（天 / 周滚动）
@@ -571,7 +521,7 @@ cd frontend/desktop && npm start
 
 ---
 
-<!-- [![Star History Chart](https://api.star-history.com/svg?repos=zuiho-kai/Greyfield&type=Date)](https://star-history.com/#zuiho-kai/Greyfield&Date) -->
+[![Star History Chart](https://api.star-history.com/svg?repos=zuiho-kai/Greyfield&type=Date)](https://star-history.com/#zuiho-kai/Greyfield&Date)
 
 ---
 
