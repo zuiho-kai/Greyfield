@@ -35,7 +35,13 @@
       "preload.js",
       "preload-history.js",
       "preload-log.js",
-      "renderer/**/*"
+      "renderer/**/*",
+      "node_modules/**/*",
+      "!node_modules/koffi/build/koffi/**/*",
+      "node_modules/koffi/build/koffi/win32_x64/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/koffi/**/*.node"
     ],
     "extraResources": [
       {
@@ -45,11 +51,11 @@
     ]
   },
   "dependencies": {
-    "koffi": "^2.15.2",
-    "ws": "^8.19.0"
+    "koffi": "^2.15.2"
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "ws": "^8.19.0"
   }
 }
