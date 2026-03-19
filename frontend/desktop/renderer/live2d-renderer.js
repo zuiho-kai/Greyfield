@@ -14,7 +14,6 @@ let modelBaseHeight = 0;
 let pixiApp = null;
 
 const { Live2DModel } = PIXI.live2d;
-const interactionPolicy = window.GreywindLive2DInteractionPolicy;
 
 // pixi-live2d-display 需要注册 Ticker 才能驱动模型更新
 Live2DModel.registerTicker(PIXI.Ticker);
@@ -124,13 +123,13 @@ async function initLive2D() {
 }
 
 function fitModel(app, model) {
-  const scale = Math.min(
-    app.screen.width / modelBaseWidth,
-    app.screen.height / modelBaseHeight
-  ) * 0.8;
+  if (!modelBaseWidth || !modelBaseHeight) return;
+  // 全屏窗口：模型按原比例缩放，定位到屏幕右下角
+  const targetH = app.screen.height * 0.85;
+  const scale = targetH / modelBaseHeight;
   model.scale.set(scale);
-  model.x = (app.screen.width - modelBaseWidth * scale) / 2;
-  model.y = (app.screen.height - modelBaseHeight * scale) / 2;
+  model.x = app.screen.width - modelBaseWidth * scale - 20;
+  model.y = app.screen.height - modelBaseHeight * scale - 20;
 }
 
 // 表情：根据状态调整参数
@@ -157,76 +156,46 @@ initLive2D();
 
 // ── 拖拽 + 区域穿透 ──
 // 默认穿透 + forward：鼠标在模型/输入区/聊天气泡上时取消穿透，离开时恢复穿透
-(async function setupDragAndClickThrough() {
+(function setupDragAndClickThrough() {
   let dragging = false;
-  let dragStartScreenX = 0;
-  let dragStartScreenY = 0;
-  let dragRafPending = false;
-  let dragLatestDx = 0;
-  let dragLatestDy = 0;
-  const useNativeDrag = await window.greywind?.hasNativeDrag?.() || false;
-  console.log("[drag] useNativeDrag:", useNativeDrag);
-
-  function endDrag() {
-    if (!dragging) return;
-    dragging = false;
-    window.greywind?.endDrag?.();
-  }
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let modelStartX = 0;
+  let modelStartY = 0;
 
   const dragOverlay = document.getElementById("drag-overlay");
 
-  // 在 overlay 上监听拖拽（完全绕过 PIXI 事件系统）
+  // 拖拽模型（不移动窗口）
   dragOverlay.addEventListener("pointerdown", (e) => {
-    console.log("[drag] pointerdown on overlay, button:", e.button, "native:", useNativeDrag);
-    if (e.button !== 0) return;
-
-    if (useNativeDrag) {
-      // Win32 原生拖拽：SendMessage WM_NCLBUTTONDOWN，零闪烁
-      window.greywind.nativeDrag();
-      return;
-    }
-
-
+    if (e.button !== 0 || !live2dModel) return;
     dragging = true;
-    dragStartScreenX = e.screenX;
-    dragStartScreenY = e.screenY;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    modelStartX = live2dModel.x;
+    modelStartY = live2dModel.y;
     dragOverlay.style.cursor = "grabbing";
-    window.greywind?.startDrag?.();
-    console.log("[drag] startDrag sent, screen:", e.screenX, e.screenY);
+    dragOverlay.setPointerCapture(e.pointerId);
   });
 
   dragOverlay.addEventListener("pointermove", (e) => {
-    if (!dragging) return;
-    dragLatestDx = e.screenX - dragStartScreenX;
-    dragLatestDy = e.screenY - dragStartScreenY;
-    console.log("[drag] pointermove dx:", dragLatestDx, "dy:", dragLatestDy);
-    if (!dragRafPending) {
-      dragRafPending = true;
-      requestAnimationFrame(() => {
-        dragRafPending = false;
-        window.greywind?.dragMove?.(dragLatestDx, dragLatestDy);
-      });
-    }
+    if (!dragging || !live2dModel) return;
+    live2dModel.x = modelStartX + (e.clientX - dragStartX);
+    live2dModel.y = modelStartY + (e.clientY - dragStartY);
   });
 
   function onDragEnd() {
-    endDrag();
+    dragging = false;
     dragOverlay.style.cursor = "grab";
   }
   dragOverlay.addEventListener("pointerup", onDragEnd);
   dragOverlay.addEventListener("pointercancel", onDragEnd);
   dragOverlay.addEventListener("lostpointercapture", onDragEnd);
-  window.addEventListener("blur", () => endDrag());
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) endDrag();
-  });
 
   // ── 区域穿透：始终 forward，只在交互区域内临时取消穿透 ──
   // 思路：mousemove 持续检测位置，进入交互区时取消穿透，离开时恢复
   // 关键：取消穿透后鼠标仍在窗口上，所以 mousemove 能持续触发来检测离开
   let isIgnoring = true; // 初始状态与 main.js 一致：穿透 + forward
 
-  let pixelDebugCounter = 0;
   function isPointInInteractiveArea(x, y) {
     // 输入区（优先检测，不需要像素判断）
     const inputArea = document.getElementById("input-area");
