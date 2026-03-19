@@ -201,24 +201,92 @@ cd frontend/desktop && npm start
 
 ## 怎么跑的
 
-```
-你（语音 / 文字 / 屏幕）
- ↓
-┌─────────────────────────────────────────┐
-│          灰风 · Persona Shell           │
-│   Live2D · 语音 · 口型 · 表情 · 打断    │
-└──────────────────┬──────────────────────┘
-                   ↓
-┌──────────────────────────────────────────┐
-│          Context Runtime                 │
-│   谁在说话 · 在哪条线 · 上次聊到哪       │
-└──────────────────┬───────────────────────┘
-                   ↓
-┌──────────────────────────────────────────┐
-│          执行层（对你不可见）              │
-│   Claude Code · Codex · Gemini CLI       │
-│   Browser · Desktop · Shell · File       │
-└──────────────────────────────────────────┘
+### 系统架构
+
+```mermaid
+graph TB
+  subgraph User["👤 用户"]
+    voice["🎤 语音"]
+    text["⌨️ 文字"]
+    screen["🖥️ 屏幕"]
+  end
+
+  subgraph Electron["Electron 前端"]
+    subgraph MainProcess["主进程 (main.js)"]
+      backend_spawn["启动 Python 后端"]
+      ipc["IPC 桥接"]
+      screenshot["截屏 (koffi Win32)"]
+      model_mgr["Live2D 模型管理"]
+    end
+    subgraph Renderer["渲染进程"]
+      live2d["Live2D 渲染\n(pixi.js + cubism4)"]
+      voice_ui["语音 UI\n麦克风 · 播放 · 口型同步"]
+      chat["聊天气泡\n(chat-overlay.js)"]
+      ws_client["WebSocket 客户端\n(socket-client.js)"]
+      interaction["交互策略\n点击穿透 · 拖拽"]
+    end
+  end
+
+  subgraph Python["Python 后端 (FastAPI)"]
+    ws_handler["WebSocket 路由\n(ws_handler.py)"]
+    subgraph Pipeline["语音管线 (voice_pipeline.py)"]
+      vad["VAD\nSilero 本地推理"]
+      asr["ASR\n硅基流动 SenseVoice"]
+      llm["LLM\n硅基流动 Step-3.5"]
+      tts["TTS\nCosyVoice2 / edge-tts"]
+    end
+    subgraph Context["上下文运行时"]
+      session["SessionManager\n对话历史"]
+      assembler["PromptAssembler\nsystem + history + 截图"]
+      memory["Memory\nJSON 人格注入"]
+    end
+    subgraph Exec["执行层"]
+      browser["Playwright\n浏览器操控"]
+      desktop["pyautogui\n桌面操控 (规划中)"]
+      screen_sense["ScreenSense\n屏幕变化检测"]
+    end
+  end
+
+  voice --> voice_ui
+  text --> ws_client
+  screen --> screenshot
+
+  voice_ui -->|"audio_chunk (base64)"| ws_client
+  ws_client <-->|"WebSocket\nws://127.0.0.1:12393"| ws_handler
+  screenshot -->|"screen_capture"| ws_client
+
+  ws_handler --> vad
+  vad -->|语音段| asr
+  asr -->|文字| llm
+  llm -->|"按句分割"| tts
+  tts -->|"音频字节"| ws_handler
+
+  llm <--> assembler
+  assembler <--> session
+  assembler <--> memory
+  llm -->|"tool_calls"| browser
+  screen_sense --> assembler
+
+  ws_handler -->|"reply_audio"| ws_client
+  ws_handler -->|"reply_text"| ws_client
+  ws_handler -->|"status"| ws_client
+  ws_handler -->|"transcript"| ws_client
+
+  ws_client -->|音频| voice_ui
+  ws_client -->|文字| chat
+  ws_client -->|状态| live2d
+  voice_ui -->|"ParamMouthOpenY"| live2d
+
+  MainProcess -->|spawn| Python
+  ipc <--> Renderer
+
+  style Electron fill:#2b2b3d,stroke:#7c7cff,color:#fff
+  style Python fill:#1a2e1a,stroke:#4caf50,color:#fff
+  style Pipeline fill:#2a3a2a,stroke:#66bb6a,color:#fff
+  style Context fill:#2a3a2a,stroke:#66bb6a,color:#fff
+  style Exec fill:#2a3a2a,stroke:#66bb6a,color:#fff
+  style MainProcess fill:#2b2b4d,stroke:#9c9cff,color:#fff
+  style Renderer fill:#2b2b4d,stroke:#9c9cff,color:#fff
 ```
 
 灰风不重新发明 coding CLI。它用已有的最强 CLI 做执行，自己只做两件事：
@@ -227,6 +295,88 @@ cd frontend/desktop && npm start
 2. **上下文运行时** — 让 AI 在跨会话时还是同一个角色，而不是每次重来
 
 > 架构细节：[architecture-v2.md](./docs/architecture-v2.md) · 上下文设计：[context-runtime.md](./docs/context-runtime.md)
+
+### 调用链路
+
+一次完整的语音对话，从你开口到灰风回话：
+
+```
+你说话
+  ↓
+[前端] 麦克风录制 (voice-ui.js)
+  navigator.mediaDevices → AudioContext → PCM16 16kHz
+  每 4096 样本 → base64 → WebSocket "audio_chunk"
+  ↓
+[后端] WebSocket 路由 (ws_handler.py)
+  base64 解码 → float32 → pipeline.feed_audio()
+  ↓
+[后端] VAD 语音检测 (voice_pipeline.py → silero VAD)
+  检测到语音段结束 → 送 ASR
+  ↓
+[后端] ASR 转录 (voice_pipeline.py → 硅基流动 SenseVoiceSmall)
+  音频 → 文字 → 发 "transcript" 给前端
+  ↓
+[后端] LLM 对话 (voice_pipeline.py → prompt_assembler + LLM)
+  组装 system prompt + 对话历史 + 截图(可选)
+  流式接收 → 按句子分割 → 每句送 TTS
+  ↓
+[后端] TTS 合成 (voice_pipeline.py → CosyVoice2 / edge-tts)
+  文字 → 音频字节 → "reply_audio_meta" + 二进制音频
+  ↓
+[前端] 音频播放 + 口型同步 (voice-ui.js)
+  AudioContext 解码 → Analyser 频率分析
+  音量 → Live2D ParamMouthOpenY → 嘴巴动
+  ↓
+[前端] 聊天显示 (chat-overlay.js)
+  "reply_text" → 气泡 → 9 秒后淡出
+```
+
+屏幕感知（开启时）：主进程定时截屏 → 差异检测 → 超阈值送后端 → LLM 判断是否主动说话。
+
+浏览器操控（开启时）：LLM 返回 tool_calls → 后端执行 Playwright → 截图回传 LLM → 循环直到完成。
+
+### 文件结构
+
+```
+Greyfield/
+├── src/greywind/                    # Python 后端
+│   ├── run.py                       #   启动入口（uvicorn）
+│   ├── server/
+│   │   ├── app.py                   #   FastAPI 应用 + 路由注册
+│   │   ├── ws_handler.py            #   WebSocket 消息路由
+│   │   └── service_context.py       #   DI 容器（引擎实例化）
+│   ├── persona/
+│   │   ├── voice_pipeline.py        #   核心管线：VAD→ASR→LLM→TTS
+│   │   └── screen_sense.py          #   屏幕变化检测
+│   ├── context_runtime/
+│   │   ├── session_manager.py       #   对话历史管理
+│   │   ├── prompt_assembler.py      #   消息组装（system + history + 截图）
+│   │   └── thread_resolver.py       #   线程 ID 解析
+│   ├── engines/
+│   │   ├── llm/                     #   LLM 工厂 + 多 provider
+│   │   ├── asr/                     #   ASR 工厂 + 实现
+│   │   ├── tts/                     #   TTS 工厂 + 实现
+│   │   └── vad/silero.py            #   Silero VAD 本地推理
+│   ├── execution/
+│   │   ├── playwright_provider.py   #   浏览器操控
+│   │   └── pyautogui_provider.py    #   桌面操控（规划中）
+│   ├── memory/                      #   记忆存储（当前 JSON）
+│   └── config/                      #   配置加载 + Pydantic 校验
+├── frontend/desktop/                # Electron 前端
+│   ├── main.js                      #   主进程（启动后端、IPC、截屏）
+│   ├── preload.js                   #   渲染进程 IPC 桥接
+│   └── renderer/
+│       ├── index.html               #   主窗口
+│       ├── live2d-renderer.js       #   Live2D 模型加载 + 表情
+│       ├── voice-ui.js              #   麦克风 + 音频播放 + 口型同步
+│       ├── socket-client.js         #   WebSocket 客户端
+│       ├── chat-overlay.js          #   聊天气泡
+│       ├── live2d-interaction-policy.js  # 点击穿透 + 拖拽
+│       └── lib/                     #   pixi.js + cubism4（预编译）
+├── conf.example.yaml                # 配置模板
+├── models/                          # Live2D 模型目录
+└── docs/                            # 设计文档
+```
 
 ### 技术栈
 
@@ -368,28 +518,6 @@ uv run python -m greywind.run
 
 # 终端 2：启动前端
 cd frontend/desktop && npm start
-```
-
-### 项目结构
-
-```
-Greyfield/
-├── src/greywind/           # Python 后端
-│   ├── config/             #   配置加载 + Pydantic 校验
-│   ├── engines/            #   ASR / TTS / VAD / LLM / Live2D 引擎
-│   ├── persona/            #   人格注入 · 语音管线 · 口型 · 表情
-│   ├── context_runtime/    #   Thread / Session / Prompt 装配
-│   ├── memory/             #   记忆存储（当前 JSON）
-│   ├── server/             #   FastAPI + WebSocket 服务
-│   └── run.py              #   入口
-├── frontend/desktop/       # Electron 前端
-│   ├── main.js             #   主进程
-│   ├── preload.js          #   预加载脚本
-│   └── renderer/           #   渲染进程（Live2D · 聊天 · 语音 UI）
-├── conf.example.yaml       # 配置模板
-├── models/                 # Live2D 模型目录
-├── docs/                   # 设计文档
-└── build.bat               # Windows 打包脚本
 ```
 
 ### 当前最需要的方向
