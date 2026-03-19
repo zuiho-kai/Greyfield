@@ -4,6 +4,19 @@ from typing import List, Dict, Any, Optional
 
 from greywind.config.models import CharacterConfig
 
+# 工具使用引导（当有工具可用时注入 system prompt）
+_TOOL_GUIDANCE = """【工具使用】
+你拥有以下能力，在合适的时候主动使用：
+{capabilities}
+
+使用原则：
+- 用户问实时信息（天气、新闻、股价等）→ 你没有实时数据，必须用工具去查
+- 用户让你操作电脑（打开软件、点击、输入等）→ 用桌面工具执行
+- 用户让你上网搜索/打开网页 → 用浏览器工具执行
+- 你不确定的事实性问题 → 先用工具查证，再回答
+- 闲聊、情绪表达、观点类问题 → 直接回答，不需要工具
+- 工具返回结果后，用你自己的风格简短总结给用户，不要原样复述"""
+
 
 class PromptAssembler:
     def assemble(
@@ -16,6 +29,7 @@ class PromptAssembler:
         user_input: str,
         screen_image_b64: Optional[str] = None,
         screen_detail: str = "low",
+        enabled_tools: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """组装完整的 messages 列表，供 LLM 调用"""
         system_parts = []
@@ -23,6 +37,13 @@ class PromptAssembler:
         # 角色设定
         if character.persona:
             system_parts.append(character.persona.strip())
+
+        # 工具使用引导（仅当有工具可用时注入）
+        if enabled_tools:
+            cap_lines = "\n".join(f"- {t}" for t in enabled_tools)
+            system_parts.append(
+                _TOOL_GUIDANCE.format(capabilities=cap_lines).strip()
+            )
 
         # 记忆注入
         if memory_prompt:

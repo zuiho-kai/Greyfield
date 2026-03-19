@@ -62,14 +62,14 @@ class ScreenConfig(BaseModel):
 
 
 class BrowserConfig(BaseModel):
-    enabled: bool = False
+    enabled: bool = True
     provider: str = "playwright"        # playwright | extension
     screenshot_quality: int = 50
     screenshot_width: int = 1280
     idle_timeout: int = 60
     named_tab_timeout: int = 0          # 0 = 命名标签页不自动关闭
     max_tabs: int = 10
-    max_tool_rounds: int = 30
+    max_tool_rounds: int = 15
     user_data_dir: str = ""             # 持久化浏览器数据目录，空则用默认路径
 
 
@@ -78,7 +78,7 @@ class DesktopConfig(BaseModel):
     screenshot_quality: int = 50        # JPEG 压缩质量
     screenshot_width: int = 1280        # 截图缩放目标宽度
     action_delay: float = 1.0           # 操作后等待 UI 稳定的秒数
-    max_tool_rounds: int = 30           # tool call 最大循环轮次
+    max_tool_rounds: int = 15           # tool call 最大循环轮次
 
 
 class AppConfig(BaseModel):

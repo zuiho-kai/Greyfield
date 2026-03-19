@@ -150,6 +150,13 @@ class VoicePipeline:
             screen_b64 = None
             if self.screen_sense:
                 screen_b64 = self.screen_sense.get_latest_frame()
+            # 构建启用的工具能力描述（供 prompt 引导）
+            enabled_tool_descriptions = []
+            if self.browser and self._browser_config.enabled:
+                enabled_tool_descriptions.append("浏览器：可以打开网页、搜索信息、点击、输入、阅读网页内容")
+            if self.desktop and self._desktop_config.enabled:
+                enabled_tool_descriptions.append("桌面操控：可以截图、点击、输入、拖拽、快捷键、操作窗口")
+
             messages = self.assembler.assemble(
                 character=self.character,
                 memory_prompt=self.memory.get_system_prompt(),
@@ -159,6 +166,7 @@ class VoicePipeline:
                 user_input=user_text,
                 screen_image_b64=screen_b64,
                 screen_detail=self._screen_detail,
+                enabled_tools=enabled_tool_descriptions or None,
             )
             self.session.add_turn("user", user_text)
 
@@ -188,7 +196,8 @@ class VoicePipeline:
                 candidates.append(self._browser_config.max_tool_rounds)
             if self._desktop_config and self._desktop_config.enabled:
                 candidates.append(self._desktop_config.max_tool_rounds)
-            max_rounds = max(candidates) if candidates else 30
+            # fallback 15：无工具启用时 tools=None，第一轮就会 break，此值不会实际生效
+            max_rounds = max(candidates) if candidates else 15
             for round_idx in range(max_rounds + 1):
                 if self._interrupted:
                     break
@@ -201,6 +210,8 @@ class VoicePipeline:
 
                 if clean_response and not self._interrupted:
                     self.session.add_turn("assistant", _sanitize_llm_text(clean_response))
+                elif round_idx == max_rounds and not clean_response:
+                    logger.warning("最后一轮（无 tools）LLM 返回空文本，可能模型不兼容 tool result 上下文")
 
                 # 没有 tool call 或已达上限，结束循环
                 if not tool_calls or round_idx == max_rounds:
@@ -270,8 +281,10 @@ class VoicePipeline:
         tool_calls = None
         await send_fn({"type": "status", "payload": {"state": "speaking"}})
 
+        # 最后一轮不传 tools，强制 LLM 直接输出文本回复
+        effective_tools = None if is_final_round else tools
         async for chunk in self.llm.chat_completion(
-            chat_messages, system=system_prompt, tools=tools
+            chat_messages, system=system_prompt, tools=effective_tools
         ):
             if self._interrupted:
                 break
