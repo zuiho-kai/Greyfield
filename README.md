@@ -187,56 +187,9 @@ cd frontend/desktop && npm start
 
 ### 系统架构
 
-```mermaid
-graph TB
-  subgraph User["用户"]
-    voice["语音"]
-    text["文字"]
-    screen["屏幕"]
-  end
-
-  subgraph Electron["Electron 前端"]
-    screenshot["截屏 koffi Win32"]
-    live2d["Live2D 渲染"]
-    voice_ui["语音 UI"]
-    chat["聊天气泡"]
-    ws_client["WebSocket 客户端"]
-  end
-
-  subgraph Python["Python 后端 FastAPI"]
-    ws_handler["WebSocket 路由"]
-    vad["VAD Silero"]
-    asr["ASR 硅基流动"]
-    llm["LLM Step-3.5"]
-    tts["TTS CosyVoice2"]
-    assembler["PromptAssembler"]
-    session["SessionManager"]
-    memory["Memory JSON"]
-    browser["Playwright 浏览器"]
-    screen_sense["ScreenSense 屏幕检测"]
-  end
-
-  voice --> voice_ui --> ws_client
-  text --> ws_client
-  screen --> screenshot --> ws_client
-
-  ws_client -->|请求| ws_handler
-  ws_handler -->|响应| ws_client
-
-  ws_handler --> vad --> asr --> llm --> tts --> ws_handler
-
-  llm --> assembler
-  assembler --> llm
-  assembler --> session
-  assembler --> memory
-  llm -->|tool_calls| browser
-  screen_sense --> assembler
-
-  ws_client --> voice_ui
-  ws_client --> chat
-  ws_client --> live2d
-  voice_ui -->|口型| live2d
-```
+<p align="center">
+  <img src="docs/screenshots/architecture.svg" width="100%" alt="灰风系统架构">
+</p>
 
 灰风不重新发明 coding CLI。它用已有的最强 CLI 做执行，自己只做两件事：
 

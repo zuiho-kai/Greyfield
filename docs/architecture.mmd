@@ -1,0 +1,75 @@
+graph TB
+  subgraph User["👤 用户"]
+    voice["🎤 语音"]
+    text["⌨️ 文字"]
+    screen["🖥️ 屏幕"]
+  end
+
+  subgraph Electron["Electron 前端"]
+    subgraph MainProcess["主进程 (main.js)"]
+      backend_spawn["启动 Python 后端"]
+      ipc["IPC 桥接"]
+      screenshot["截屏 (koffi Win32)"]
+      model_mgr["Live2D 模型管理"]
+    end
+    subgraph Renderer["渲染进程"]
+      live2d["Live2D 渲染\n(pixi.js + cubism4)"]
+      voice_ui["语音 UI\n麦克风 · 播放 · 口型同步"]
+      chat["聊天气泡\n(chat-overlay.js)"]
+      ws_client["WebSocket 客户端\n(socket-client.js)"]
+      interaction["交互策略\n点击穿透 · 拖拽"]
+    end
+  end
+
+  subgraph Python["Python 后端 (FastAPI)"]
+    ws_handler["WebSocket 路由\n(ws_handler.py)"]
+    subgraph Pipeline["语音管线 (voice_pipeline.py)"]
+      vad["VAD\nSilero 本地推理"]
+      asr["ASR\n硅基流动 SenseVoice"]
+      llm["LLM\n硅基流动 Step-3.5"]
+      tts["TTS\nCosyVoice2 / edge-tts"]
+    end
+    subgraph Context["上下文运行时"]
+      session["SessionManager\n对话历史"]
+      assembler["PromptAssembler\nsystem + history + 截图"]
+      memory["Memory\nJSON 人格注入"]
+    end
+    subgraph Exec["执行层"]
+      browser["Playwright\n浏览器操控"]
+      desktop["pyautogui\n桌面操控"]
+      screen_sense["ScreenSense\n屏幕变化检测"]
+    end
+  end
+
+  voice --> voice_ui
+  text --> ws_client
+  screen --> screenshot
+
+  voice_ui -->|"audio_chunk (base64)"| ws_client
+  ws_client <-->|"WebSocket\nws://127.0.0.1:12393"| ws_handler
+  screenshot -->|"screen_capture"| ws_client
+
+  ws_handler --> vad
+  vad -->|语音段| asr
+  asr -->|文字| llm
+  llm -->|"按句分割"| tts
+  tts -->|"音频字节"| ws_handler
+
+  llm <--> assembler
+  assembler <--> session
+  assembler <--> memory
+  llm -->|"tool_calls"| browser
+  screen_sense --> assembler
+
+  ws_handler -->|"reply_audio"| ws_client
+  ws_handler -->|"reply_text"| ws_client
+  ws_handler -->|"status"| ws_client
+  ws_handler -->|"transcript"| ws_client
+
+  ws_client -->|音频| voice_ui
+  ws_client -->|文字| chat
+  ws_client -->|状态| live2d
+  voice_ui -->|"ParamMouthOpenY"| live2d
+
+  MainProcess -->|spawn| Python
+  ipc <--> Renderer
