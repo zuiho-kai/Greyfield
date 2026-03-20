@@ -6,28 +6,28 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { background: transparent; overflow: hidden; height: 100vh; width: 100vw; }
-    body { font-family: system-ui, sans-serif; color: #eee; display: flex; flex-direction: column; }
+    body { font-family: system-ui, sans-serif; color: #eee; }
     :root { --msg-blur: blur(8px); }
 
-    #live2d-area { flex: 1; position: relative; overflow: hidden; }
+    #live2d-area { position: fixed; inset: 0; overflow: hidden; }
     #live2d-canvas { width: 100%; height: 100%; }
     #drag-overlay { position: absolute; inset: 0; z-index: 10; cursor: grab; }
     #placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2.5em; opacity: 0.3; pointer-events: none; }
-    #status-bar { position: absolute; top: 6px; right: 10px; font-size: 11px; opacity: 0.5; pointer-events: none; }
+    #status-bar { position: fixed; top: 6px; right: 10px; font-size: 11px; opacity: 0.5; pointer-events: none; z-index: 20; }
 
     #chat-box {
-      position: absolute; bottom: 50px; left: 8px; right: 8px;
+      position: fixed; bottom: 50px; right: 0; width: 400px;
       max-height: 35%; overflow-y: auto; overflow-x: hidden;
       display: flex; flex-direction: column; gap: 4px;
       pointer-events: none;
-      -webkit-app-region: no-drag;
       scrollbar-width: none;
+      z-index: 30;
     }
     #chat-box::-webkit-scrollbar { width: 0; height: 0; }
     .msg {
       padding: 5px 8px; border-radius: 8px; max-width: 80%;
       font-size: 13px; line-height: 1.3; pointer-events: auto;
-      -webkit-app-region: no-drag;
+
       backdrop-filter: var(--msg-blur);
       transition: opacity 0.25s ease, transform 0.25s ease;
       white-space: pre-wrap; word-break: break-word;
@@ -38,10 +38,12 @@
     .msg.assistant { align-self: flex-start; background: rgba(45, 45, 68, 0.85); }
 
     #input-area {
+      position: fixed; bottom: 0; right: 0; width: 400px;
       display: flex; gap: 4px; padding: 6px 8px;
       background: rgba(22, 33, 62, 0.8);
       backdrop-filter: blur(10px);
-      -webkit-app-region: no-drag;
+
+      z-index: 30;
     }
     #text-input {
       flex: 1; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.15);
@@ -50,7 +52,7 @@
     }
     button {
       padding: 6px 12px; border: none; border-radius: 6px;
-      cursor: pointer; font-size: 13px; -webkit-app-region: no-drag;
+      cursor: pointer; font-size: 13px;
     }
     #send-btn { background: rgba(58, 134, 255, 0.85); color: #fff; }
     #mic-btn { background: rgba(45, 45, 68, 0.85); color: #fff; min-width: 36px; }
@@ -62,9 +64,9 @@
     <canvas id="live2d-canvas"></canvas>
     <div id="drag-overlay"></div>
     <div id="placeholder">灰风</div>
-    <div id="status-bar">未连接</div>
-    <div id="chat-box"></div>
   </div>
+  <div id="status-bar">未连接</div>
+  <div id="chat-box"></div>
   <div id="input-area">
     <button id="mic-btn">MIC</button>
     <input id="text-input" type="text" placeholder="输入消息..." />

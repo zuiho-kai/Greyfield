@@ -27,36 +27,6 @@ process.on("unhandledRejection", (reason) => {
     `[${new Date().toISOString()}] unhandledRejection: ${reason}\n`);
 });
 
-// Win32 系统级拖拽（仅 Windows）
-let nativeDrag = null;
-if (process.platform === "win32") {
-  try {
-    const koffi = require("koffi");
-    const user32 = koffi.load("user32.dll");
-    const ReleaseCapture = user32.func("bool __stdcall ReleaseCapture()");
-    const SendMessageW = user32.func("intptr_t __stdcall SendMessageW(intptr_t hwnd, uint32_t msg, intptr_t wParam, intptr_t lParam)");
-    const PostMessageW = user32.func("bool __stdcall PostMessageW(intptr_t hwnd, uint32_t msg, intptr_t wParam, intptr_t lParam)");
-    const GetKeyState = user32.func("int16_t __stdcall GetKeyState(int32_t nVirtKey)");
-    const WM_NCLBUTTONDOWN = 0x00A1;
-    const WM_SYSCOMMAND = 0x0112;
-    const SC_MOVE = 0xF010;
-    const HTCAPTION = 2;
-    const VK_LBUTTON = 0x01;
-    nativeDrag = (hwndBuffer) => {
-      const hwnd = hwndBuffer.length >= 8
-        ? Number(hwndBuffer.readBigInt64LE(0))
-        : hwndBuffer.readInt32LE(0);
-      const lbState = GetKeyState(VK_LBUTTON);
-      console.log("[main] hwnd:", hwnd, "lButton state:", lbState);
-      ReleaseCapture();
-      // 用 WM_SYSCOMMAND SC_MOVE 作为备选
-      SendMessageW(hwnd, WM_SYSCOMMAND, SC_MOVE + HTCAPTION, 0);
-    };
-  } catch (e) {
-    console.warn("koffi 加载失败，回退到 JS 拖拽:", e.message);
-  }
-}
-
 // 打包后后端资源在 resources/backend/；开发时向上两级到项目根
 const PROJECT_ROOT = resolveProjectRoot({
   isPackaged: app.isPackaged,
@@ -183,19 +153,25 @@ function startScreenCapture(intervalMs) {
     if (!screenCaptureEnabled) return;
     try {
       refreshForegroundTitle();
-      const { pixels, w, h } = win32Screen.capture();
-      const { nativeImage } = require("electron");
-      const img = nativeImage.createFromBitmap(pixels, { width: w, height: h });
-      const jpegBuffer = img.toJPEG(85);
-      const b64 = jpegBuffer.toString("base64");
-      // 通过 IPC 发给 renderer，由 renderer 的 WS 连接发送给后端
-      // 这样只有一个 WS 连接，音频回传正常
-      if (mainWin && !mainWin.isDestroyed()) {
-        mainWin.webContents.send("screen:frame", {
-          image_base64: b64,
-          window_title: cachedForegroundTitle,
-          screen_index: 0,
-        });
+      // 全屏透明窗口：截屏前隐藏自身，避免模型出现在截图里
+      if (mainWin && !mainWin.isDestroyed()) mainWin.setOpacity(0);
+      try {
+        const { pixels, w, h } = win32Screen.capture();
+        const { nativeImage } = require("electron");
+        const img = nativeImage.createFromBitmap(pixels, { width: w, height: h });
+        const jpegBuffer = img.toJPEG(85);
+        const b64 = jpegBuffer.toString("base64");
+        // 通过 IPC 发给 renderer，由 renderer 的 WS 连接发送给后端
+        // 这样只有一个 WS 连接，音频回传正常
+        if (mainWin && !mainWin.isDestroyed()) {
+          mainWin.webContents.send("screen:frame", {
+            image_base64: b64,
+            window_title: cachedForegroundTitle,
+            screen_index: 0,
+          });
+        }
+      } finally {
+        if (mainWin && !mainWin.isDestroyed()) mainWin.setOpacity(1);
       }
     } catch (err) {
       console.debug("[screen] 截屏失败:", err.message);
@@ -799,15 +775,13 @@ function showSettingsWindow() {
 }
 
 function createWindow() {
-  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
-  const winW = 400;
-  const winH = 500;
+  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().size;
 
   const win = new BrowserWindow({
-    width: winW,
-    height: winH,
-    x: screenW - winW - 20,
-    y: screenH - winH - 20,
+    width: screenW,
+    height: screenH,
+    x: 0,
+    y: 0,
     title: "灰风 GreyWind",
     transparent: true,
     frame: false,
@@ -879,31 +853,6 @@ function createWindow() {
     win.webContents.openDevTools({ mode: "detach" });
   }
 
-
-  // 窗口拖拽：JS setPosition 方案（始终注册作为回退）
-  let dragStartPos = null;
-  ipcMain.on("window-drag-start", () => {
-    dragStartPos = win.getPosition();
-  });
-  ipcMain.on("window-drag-move", (_, dx, dy) => {
-    if (!dragStartPos) return;
-    win.setPosition(dragStartPos[0] + Math.round(dx), dragStartPos[1] + Math.round(dy));
-  });
-  ipcMain.on("window-drag-end", () => {
-    dragStartPos = null;
-  });
-
-  // Win32 原生拖拽（零闪烁，无假 resize）
-  if (nativeDrag) {
-    ipcMain.on("window-drag-native", () => {
-      console.log("[main] nativeDrag called");
-      nativeDrag(win.getNativeWindowHandle());
-      console.log("[main] nativeDrag returned");
-    });
-  }
-
-  // 告诉 renderer 是否支持原生拖拽
-  ipcMain.handle("drag:has-native", () => !!nativeDrag);
 
   ipcMain.on("chat-history:add", (_, entry) => {
     pushHistory(entry);
