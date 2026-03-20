@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   updateDesktopSettings: (data) => ipcRenderer.invoke("settings:update-desktop", data),
   getRenderSettings: () => ipcRenderer.invoke("render-settings:get"),
   updateRenderSettings: (data) => ipcRenderer.invoke("render-settings:update", data),
+  resetModelTransform: () => ipcRenderer.invoke("render-settings:reset-model-transform"),
   // 音色管理
   listVoices: () => ipcRenderer.invoke("voice:list"),
   uploadVoice: (data) => ipcRenderer.invoke("voice:upload", data),
