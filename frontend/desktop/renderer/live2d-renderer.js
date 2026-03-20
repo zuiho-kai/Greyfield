@@ -148,8 +148,9 @@ async function initLive2D() {
       document.body.dataset.modelReady = "true";
       modelBaseWidth = model.internalModel.originalWidth;
       modelBaseHeight = model.internalModel.originalHeight;
-      // 切换模型时重置用户偏移，避免旧模型的偏移量污染新模型
+      // 切换模型时重置用户偏移，避免旧模型的偏移量污染新模型，并立即写盘
       userTransform = { userScale: 1.0, userOffsetX: 0, userOffsetY: 0 };
+      window.greywind?.updateRenderSettings?.({ userScale: 1.0, userOffsetX: 0, userOffsetY: 0 });
       fitModel(app, model);
       app.stage.addChild(model);
       if (placeholder) placeholder.style.display = "none";
@@ -331,3 +332,16 @@ initLive2D();
     isIgnoring = true;
   });
 })();
+
+// 退出前 flush 防抖 timer，避免拖拽/缩放后立即关闭导致 transform 丢失
+window.addEventListener("beforeunload", () => {
+  if (saveTransformTimer) {
+    clearTimeout(saveTransformTimer);
+    saveTransformTimer = null;
+    window.greywind?.updateRenderSettings?.({
+      userScale: userTransform.userScale,
+      userOffsetX: userTransform.userOffsetX,
+      userOffsetY: userTransform.userOffsetY,
+    });
+  }
+});
