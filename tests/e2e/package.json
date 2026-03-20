@@ -1,0 +1,14 @@
+{
+  "name": "greywind-e2e-tests",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "electron": "^30.0.0",
+    "pngjs": "^7.0.0",
+    "ws": "^8.17.0"
+  }
+}

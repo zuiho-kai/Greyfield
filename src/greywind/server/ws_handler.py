@@ -161,7 +161,7 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                 await pipeline.interrupt()
 
             elif msg_type == "clear_history":
-                ctx.session.clear()
+                pipeline.session.clear()
                 await send_msg({"type": "status", "payload": {"state": "idle"}})
 
             else:
