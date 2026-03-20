@@ -209,7 +209,18 @@ class VoicePipeline:
                 )
 
                 if clean_response and not self._interrupted:
-                    self.session.add_turn("assistant", _sanitize_llm_text(clean_response))
+                    # 如果有 tool_calls，也保存到 session
+                    tool_calls_data = None
+                    if tool_calls:
+                        tool_calls_data = [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                            }
+                            for tc in tool_calls
+                        ]
+                    self.session.add_turn("assistant", _sanitize_llm_text(clean_response), tool_calls_data)
                 elif round_idx == max_rounds and not clean_response:
                     logger.warning("最后一轮（无 tools）LLM 返回空文本，可能模型不兼容 tool result 上下文")
 

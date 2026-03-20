@@ -60,10 +60,14 @@ class PromptAssembler:
 
         # 最近对话
         for turn in recent_dialogue:
-            messages.append({
+            msg: Dict[str, Any] = {
                 "role": turn["role"],
                 "content": turn["content"],
-            })
+            }
+            # 恢复 tool_calls（如果有）
+            if turn.get("tool_calls"):
+                msg["tool_calls"] = turn["tool_calls"]
+            messages.append(msg)
 
         # 当前用户输入（可能附带截图）
         if screen_image_b64:

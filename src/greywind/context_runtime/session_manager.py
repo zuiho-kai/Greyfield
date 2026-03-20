@@ -28,13 +28,16 @@ class SessionManager:
     def state(self, value: str):
         self._state = value
 
-    def add_turn(self, role: str, content: str) -> None:
+    def add_turn(self, role: str, content: str, tool_calls: List[Dict[str, Any]] | None = None) -> None:
         """添加一轮对话"""
-        self._recent_dialogue.append({
+        entry: Dict[str, Any] = {
             "role": role,
             "content": content,
             "timestamp": time.time(),
-        })
+        }
+        if tool_calls:
+            entry["tool_calls"] = tool_calls
+        self._recent_dialogue.append(entry)
         if len(self._recent_dialogue) > self._max_recent * 2:
             self._recent_dialogue = self._recent_dialogue[-self._max_recent * 2:]
 
