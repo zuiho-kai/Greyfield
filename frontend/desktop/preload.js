@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld("greywind", {
   onScreenFrame: (fn) => ipcRenderer.on("screen:frame", (_, data) => fn(data)),
   onRefreshClickShape: (fn) => ipcRenderer.on("refresh-click-shape", () => fn()),
   getRenderSettings: () => ipcRenderer.invoke("render-settings:get"),
+  updateRenderSettings: (data) => ipcRenderer.invoke("render-settings:update", data),
+  resetModelTransform: () => ipcRenderer.invoke("render-settings:reset-model-transform"),
   onRenderSettingsChanged: (fn) => ipcRenderer.on("render-settings-changed", (_, data) => fn(data)),
   onClearHistory: (fn) => ipcRenderer.on("chat-history:clear", () => fn()),
 });

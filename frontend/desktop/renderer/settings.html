@@ -119,6 +119,13 @@
   </div>
 
   <div class="field">
+    <label>模型位置和大小</label>
+    <button class="btn btn-secondary" id="reset_model_transform_btn">重置位置和大小</button>
+    <div class="hint">Ctrl + 滚轮可缩放模型，拖拽可移动模型，位置和大小自动保存。</div>
+    <div id="reset_model_status" style="font-size:12px;margin-top:4px;"></div>
+  </div>
+
+  <div class="field">
     <label class="toggle">
       <input type="checkbox" id="enabled" />
       启用屏幕感知
@@ -503,6 +510,24 @@
       if (!cfg) return;
       document.getElementById("hi_dpi").checked = !!cfg.hiDpi;
       document.getElementById("bubble_blur").checked = cfg.bubbleBlur !== false;
+    });
+
+    // 重置模型位置和大小
+    const resetBtn = document.getElementById("reset_model_transform_btn");
+    resetBtn.addEventListener("click", async () => {
+      const statusEl = document.getElementById("reset_model_status");
+      resetBtn.disabled = true;
+      try {
+        await window.settingsAPI.resetModelTransform();
+        statusEl.textContent = "已重置";
+        statusEl.style.color = "#68d391";
+        setTimeout(() => { statusEl.textContent = ""; }, 2000);
+      } catch (e) {
+        statusEl.textContent = "重置失败: " + e.message;
+        statusEl.style.color = "#fc8181";
+      } finally {
+        resetBtn.disabled = false;
+      }
     });
 
     // ── 桌面操控设置 ──

@@ -1036,6 +1036,16 @@ function createWindow() {
     return merged;
   });
 
+  ipcMain.handle("render-settings:reset-model-transform", () => {
+    const current = loadRenderSettings();
+    const reset = { ...current, userScale: 1.0, userOffsetX: 0, userOffsetY: 0 };
+    saveRenderSettings(reset);
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("render-settings-changed", reset);
+    }
+    return reset;
+  });
+
   // ── 音色管理 IPC ──
   ipcMain.handle("voice:list", async () => {
     try {

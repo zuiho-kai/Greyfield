@@ -13,6 +13,39 @@ let modelBaseHeight = 0;
 // PIXI app 引用，供穿透检测读 GL context
 let pixiApp = null;
 
+// 用户自定义缩放/位置（相对于 fitModel 基准值的倍率和偏移）
+let userTransform = { userScale: 1.0, userOffsetX: 0, userOffsetY: 0 };
+// fitModel 计算出的基准值，用于 userTransform 的参照
+let modelBaseScale = 1;
+let modelFitX = 0;
+let modelFitY = 0;
+
+// 缩放范围常量
+const SCALE_MIN = 0.3;
+const SCALE_MAX = 3.0;
+const SCALE_STEP = 0.1;
+
+// 持久化防抖 timer（模块级，wheel 和 drag 共享同一 timer）
+let saveTransformTimer = null;
+function saveTransformDebounced() {
+  if (saveTransformTimer) clearTimeout(saveTransformTimer);
+  saveTransformTimer = setTimeout(() => {
+    saveTransformTimer = null;
+    window.greywind?.updateRenderSettings?.({
+      userScale: userTransform.userScale,
+      userOffsetX: userTransform.userOffsetX,
+      userOffsetY: userTransform.userOffsetY,
+    });
+  }, 500);
+}
+
+function applyUserTransform(model) {
+  if (!model) return;
+  model.scale.set(modelBaseScale * userTransform.userScale);
+  model.x = modelFitX + userTransform.userOffsetX;
+  model.y = modelFitY + userTransform.userOffsetY;
+}
+
 const { Live2DModel } = PIXI.live2d;
 
 // pixi-live2d-display 需要注册 Ticker 才能驱动模型更新
@@ -28,12 +61,24 @@ function applyRenderSettings(cfg) {
 }
 
 async function initLive2D() {
-  // 读取渲染设置
+  // 读取渲染设置（含 userTransform）
   const renderCfg = (await window.greywind?.getRenderSettings?.()) || {};
   applyRenderSettings(renderCfg);
+  if (renderCfg.userScale != null) userTransform.userScale = renderCfg.userScale;
+  if (renderCfg.userOffsetX != null) userTransform.userOffsetX = renderCfg.userOffsetX;
+  if (renderCfg.userOffsetY != null) userTransform.userOffsetY = renderCfg.userOffsetY;
 
-  // 监听设置变更（即时生效）
-  window.greywind?.onRenderSettingsChanged?.((cfg) => applyRenderSettings(cfg));
+  // 监听设置变更（即时生效，含重置）
+  window.greywind?.onRenderSettingsChanged?.((cfg) => {
+    applyRenderSettings(cfg);
+    // 处理来自设置页的重置操作
+    if (cfg.userScale != null || cfg.userOffsetX != null || cfg.userOffsetY != null) {
+      if (cfg.userScale != null) userTransform.userScale = cfg.userScale;
+      if (cfg.userOffsetX != null) userTransform.userOffsetX = cfg.userOffsetX;
+      if (cfg.userOffsetY != null) userTransform.userOffsetY = cfg.userOffsetY;
+      applyUserTransform(live2dModel);
+    }
+  });
 
   const dpr = renderCfg.hiDpi ? (window.devicePixelRatio || 1) : 1;
   const app = new PIXI.Application({
@@ -103,6 +148,9 @@ async function initLive2D() {
       document.body.dataset.modelReady = "true";
       modelBaseWidth = model.internalModel.originalWidth;
       modelBaseHeight = model.internalModel.originalHeight;
+      // 切换模型时重置用户偏移，避免旧模型的偏移量污染新模型，并立即写盘
+      userTransform = { userScale: 1.0, userOffsetX: 0, userOffsetY: 0 };
+      window.greywind?.updateRenderSettings?.({ userScale: 1.0, userOffsetX: 0, userOffsetY: 0 });
       fitModel(app, model);
       app.stage.addChild(model);
       if (placeholder) placeholder.style.display = "none";
@@ -127,9 +175,11 @@ function fitModel(app, model) {
   // 全屏窗口：模型按原比例缩放，定位到屏幕右下角
   const targetH = app.screen.height * 0.85;
   const scale = targetH / modelBaseHeight;
-  model.scale.set(scale);
-  model.x = app.screen.width - modelBaseWidth * scale - 20;
-  model.y = app.screen.height - modelBaseHeight * scale - 20;
+  modelBaseScale = scale;
+  modelFitX = app.screen.width - modelBaseWidth * scale - 20;
+  modelFitY = app.screen.height - modelBaseHeight * scale - 20;
+  // 叠加用户缩放和位置偏移
+  applyUserTransform(model);
 }
 
 // 表情：根据状态调整参数
@@ -165,6 +215,28 @@ initLive2D();
 
   const dragOverlay = document.getElementById("drag-overlay");
 
+  // ── Ctrl+滚轮缩放 ──
+  dragOverlay.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey || !live2dModel) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
+    const newUserScale = Math.max(SCALE_MIN, Math.min(SCALE_MAX,
+      userTransform.userScale + delta));
+    if (newUserScale === userTransform.userScale) return;
+    const mx = e.clientX;
+    const my = e.clientY;
+    const oldScale = modelBaseScale * userTransform.userScale;
+    const newScale = modelBaseScale * newUserScale;
+    const ratio = newScale / oldScale;
+    const newX = mx - (mx - live2dModel.x) * ratio;
+    const newY = my - (my - live2dModel.y) * ratio;
+    userTransform.userScale = newUserScale;
+    userTransform.userOffsetX = newX - modelFitX;
+    userTransform.userOffsetY = newY - modelFitY;
+    applyUserTransform(live2dModel);  // 统一路径，不直接操作模型属性
+    saveTransformDebounced();
+  }, { passive: false });
+
   // 拖拽模型（不移动窗口）
   dragOverlay.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || !live2dModel) return;
@@ -179,11 +251,19 @@ initLive2D();
 
   dragOverlay.addEventListener("pointermove", (e) => {
     if (!dragging || !live2dModel) return;
-    live2dModel.x = modelStartX + (e.clientX - dragStartX);
-    live2dModel.y = modelStartY + (e.clientY - dragStartY);
+    const newX = modelStartX + (e.clientX - dragStartX);
+    const newY = modelStartY + (e.clientY - dragStartY);
+    userTransform.userOffsetX = newX - modelFitX;
+    userTransform.userOffsetY = newY - modelFitY;
+    applyUserTransform(live2dModel);
   });
 
   function onDragEnd() {
+    if (dragging && live2dModel) {
+      userTransform.userOffsetX = live2dModel.x - modelFitX;
+      userTransform.userOffsetY = live2dModel.y - modelFitY;
+      saveTransformDebounced();
+    }
     dragging = false;
     dragOverlay.style.cursor = "grab";
   }
@@ -252,3 +332,16 @@ initLive2D();
     isIgnoring = true;
   });
 })();
+
+// 退出前 flush 防抖 timer，避免拖拽/缩放后立即关闭导致 transform 丢失
+window.addEventListener("beforeunload", () => {
+  if (saveTransformTimer) {
+    clearTimeout(saveTransformTimer);
+    saveTransformTimer = null;
+    window.greywind?.updateRenderSettings?.({
+      userScale: userTransform.userScale,
+      userOffsetX: userTransform.userOffsetX,
+      userOffsetY: userTransform.userOffsetY,
+    });
+  }
+});
