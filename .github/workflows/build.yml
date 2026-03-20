@@ -13,6 +13,10 @@ on:
           - installer
           - dir
 
+env:
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+
 jobs:
   build:
     runs-on: windows-latest
@@ -44,6 +48,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/desktop/package-lock.json
 
+      - name: 恢复 Electron 缓存
+        id: cache-electron
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ELECTRON_CACHE }}
+            ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: electron-${{ runner.os }}-${{ hashFiles('frontend/desktop/package-lock.json') }}
+
       - name: npm install
         working-directory: frontend/desktop
         run: npm ci
@@ -56,6 +69,8 @@ jobs:
         working-directory: frontend/desktop
         env:
           ELECTRON_BUILDER_DISABLE_SIGN: true
+          ELECTRON_CACHE: ${{ env.ELECTRON_CACHE }}
+          ELECTRON_BUILDER_CACHE: ${{ env.ELECTRON_BUILDER_CACHE }}
         run: npm run build:portable
 
       - name: 打包 (installer)
@@ -63,6 +78,8 @@ jobs:
         working-directory: frontend/desktop
         env:
           ELECTRON_BUILDER_DISABLE_SIGN: true
+          ELECTRON_CACHE: ${{ env.ELECTRON_CACHE }}
+          ELECTRON_BUILDER_CACHE: ${{ env.ELECTRON_BUILDER_CACHE }}
         run: npm run build
 
       - name: 打包 (dir)
@@ -70,6 +87,8 @@ jobs:
         working-directory: frontend/desktop
         env:
           ELECTRON_BUILDER_DISABLE_SIGN: true
+          ELECTRON_CACHE: ${{ env.ELECTRON_CACHE }}
+          ELECTRON_BUILDER_CACHE: ${{ env.ELECTRON_BUILDER_CACHE }}
         run: npm run build:dir
 
       - name: 上传产物
