@@ -174,6 +174,12 @@
 ✅ 写 API 端点时：①读 service 完整签名透传所有参数 ②数值字段加范围校验 ③错误语义映射正确状态码 ④错误映射写完后 grep 所有 raise/return error 逐条验证覆盖
 > 从 bot_civ DEV-27 搬运
 
+### DEV-107 E2E 测试未隔离被测 App 的自启动后端逻辑，导致 mock server 被杀死 `🟢`
+
+❌ Electron App 内 `startBackend()` 无条件执行 `netstat` 查杀端口 12393 进程（mock server），再尝试启动 Python 后端（CI 无 runtime），WebSocket 连接失败。测试只验证了"mock server 能启动"，没考虑 App 自身会攻击该端口
+✅ E2E 测试涉及"App 自带 server 启动逻辑"时，必须在 App 内加 `NODE_ENV=test` 守卫跳过真实后端启动。检查点：App 是否有端口清理/进程杀死逻辑？测试 mock 和 App 是否争用同一端口？
+> 归因 C：新场景。测试隔离思路只覆盖了"mock server 不崩溃"，未推演"App 启动后会对 mock 做什么"。PR #68
+
 ### DEV-104 代码搬迁只验功能可用，未检查隐式依赖在新上下文是否成立 `🟢`
 
 ❌ 把托盘菜单的 IPC handler 搬到独立设置窗口，只验证"功能能用"，没推演 `win` 的生命周期在新上下文是否仍然成立。主窗口销毁后设置窗口仍在，IPC 操作已销毁的 BrowserWindow 抛异常

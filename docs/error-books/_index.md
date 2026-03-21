@@ -37,6 +37,7 @@
 | DEV-64 | 构建脚本数据源与运行时环境不一致 | 构建/打包 | 🟡×3 | build-packaging.md |
 | DEV-65 | 跨平台路径拼接用了宿主机 path API | 构建/打包 | 🟢 | build-packaging.md |
 | DEV-75 | 跨平台 API 降级只做初始化不做运行时兜底 | 构建/打包 | 🟢 | build-packaging.md |
+| DEV-108 | CI cache post-step 在实际 step 被跳过时找不到路径报错 | 构建/打包 | 🟢 | build-packaging.md |
 | DEV-60 | 隔离对象但共享有状态引用 | 流式/运行时 | 🟢 | streaming-runtime.md |
 | DEV-66 | 实时通道断线缓冲未区分消息时效性 | 流式/运行时 | 🟢 | streaming-runtime.md |
 | DEV-70 | 流式清洗逻辑未处理标签跨 chunk 拆分 | 流式/运行时 | 🟡×2 | streaming-runtime.md |
@@ -76,5 +77,6 @@
 | DEV-100 | 多问题批量修复不分类并行 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-101 | API 边界防御缺失 | 代码习惯 | 🟢 | flow-code-habit.md |
 | DEV-104 | 代码搬迁只验功能可用，未检查隐式依赖 | 代码习惯 | 🟢 | flow-code-habit.md |
+| DEV-107 | E2E 测试未隔离被测 App 的自启动后端，mock server 被杀死 | 代码习惯 | 🟢 | flow-code-habit.md |
 | REC-1~6 | 记录员典型错误（讨论没落盘等） | 通用/记录 | 🟢 | error-book-recorder.md |
 | DEV-94 | README 完成状态与实际启用条件/实现方案不一致 | 代码习惯 | 🟢 | flow-code-habit.md |

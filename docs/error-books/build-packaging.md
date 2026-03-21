@@ -22,6 +22,12 @@
 ✅ 路径拼接涉及目标平台时，用 `path.win32.join` / `path.posix.join` 显式选择，不依赖宿主机默认的 `path.join`。检查点：函数参数里有 `platform` → 路径 API 必须跟着走
 > 归因：`path.join` 的行为取决于 Node 运行的 OS 而非业务逻辑的目标 OS，混淆了"构建环境"与"目标环境"
 
+### DEV-108 CI cache post-step 在实际 step 被跳过时仍执行，找不到缓存路径报错 `🟢`
+
+❌ GitHub Actions 中 `setup-uv` 配置 `enable-cache: true`，但当 `.venv` 缓存命中时 `uv sync` 被跳过，uv 从未下载任何包，缓存目录不存在，post-step 自动保存缓存时报错 → 整个 job 标记为 failure
+✅ 若某 job 内的"真实执行步骤"可能被条件跳过（如 `if: cache-hit != 'true'`），则该步骤依赖的缓存动作必须设 `enable-cache: false` 或加 `if` 守卫，避免 post-step 找不到目录
+> 归因 C：新场景。CI 报错只出现在 post-step，与主流程失败现象混淆，排查成本高。PR #68
+
 ### DEV-75 跨平台 API 降级只做初始化不做运行时兜底 `🟢`
 
 ❌ 初始化时按平台降级（`setIgnoreMouseEvents(false)`），但运行时 IPC 仍无条件调用平台不支持的选项（`forward: true`），降级形同虚设
