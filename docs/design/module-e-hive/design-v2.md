@@ -231,16 +231,34 @@ Unit (L0)
 
 #### 基因库三层结构
 
-| 层级 | 名称 | 内容 | 更新频率 | 注入方式 |
-|------|------|------|----------|----------|
-| **L1** | Constitution（宪法） | 极稳定规则（安全、编码规范、审查底线） | 很少更新 | 直灌 prompt |
-| **L2** | Playbook（战术手册） | 领域经验（React/API 设计/安全规范） | 按月版本化 | 检索后注入 |
-| **L3** | Lessons（近期教训） | 最近失败/成功经验，带时效 | 即时写入 | 检索后注入，30 天未复用归档 |
+| 层级 | 名称 | 内容 | 存储 | 注入方式 |
+|------|------|------|------|----------|
+| **L1** | Constitution（宪法） | 极稳定规则（安全、编码规范、审查底线） | YAML | 直灌 prompt |
+| **L2** | Playbook（战术手册） | 领域经验（React/API 设计/安全规范） | YAML（版本化） | 检索后注入 |
+| **L3** | Lessons（近期教训） | 最近失败/成功经验，带时效 | **SQLite 平铺** | 检索后注入，自然衰减 |
 
-**经验衰减规则**：
-- Lessons 连续 30 天未复用 → 自动降权
-- Lessons 连续 90 天未复用 → 归档（不入 prompt，仅保留查询）
-- Playbook 按版本锁定，不自动衰减
+**Lessons 存储（SQLite 平铺 + 自然衰减）**：
+
+```sql
+CREATE TABLE lessons (
+    id TEXT PRIMARY KEY,
+    domain TEXT,              -- 分类：frontend/react/hook
+    tags TEXT,                -- 标签：hook,useEffect
+    content TEXT,
+    created_at INTEGER,
+    last_used INTEGER,        -- 最后复用时间
+    frequency INTEGER         -- 复用次数
+);
+
+-- 索引加速查询
+CREATE INDEX idx_domain_lastused ON lessons(domain, last_used);
+```
+
+**自然衰减**：
+- 不主动归档、不物理删除
+- 查询时按 `exp(-0.1 * days) * log(1 + frequency)` 计算分数
+- 老的经验自然沉底，新复用的经验浮上来
+- 万条数据 O(log n) 查询（索引）
 
 #### 机制一：启动时基因加载（强制读取）
 
@@ -411,11 +429,113 @@ class EvolutionAudit:
             )
 ```
 
+#### 机制六：Lessons 自我细化（惰性重分类）
+
+**问题**：早期 Lessons 分类较粗（如 `frontend`），随着系统演化需要细化到 `frontend/react/hook`，但人工重新标记历史数据成本太高。
+
+**解法**：经验被复用时，**动态细化分类**，让它以后更容易被找到。
+
+**存储结构（SQLite 平铺）**：
+
+```sql
+CREATE TABLE lessons (
+    id TEXT PRIMARY KEY,
+    domain TEXT,              -- 分类：frontend/react/hook
+    tags TEXT,                -- 标签：hook,useEffect
+    content TEXT,
+    created_at INTEGER,
+    last_used INTEGER,        -- 最后复用时间（用于衰减排序）
+    frequency INTEGER         -- 复用次数
+);
+
+CREATE INDEX idx_domain_lastused ON lessons(domain, last_used);
+```
+
+**查询策略（继承链 + 自然衰减）**：
+
+```python
+class LessonsBank:
+    def query(self, task_domain: str, task_tags: List[str]) -> List[Lesson]:
+        """查询相关 Lessons"""
+
+        # 1. 提取 domain 继承链
+        # "frontend/react/spa" -> ["frontend/react/spa", "frontend/react", "frontend"]
+        domain_chain = self._get_domain_chain(task_domain)
+
+        # 2. 按 domain 粗筛（SQLite 索引查询）
+        candidates = self.db.query("""
+            SELECT * FROM lessons
+            WHERE domain IN ({})
+        """.format(','.join('?' * len(domain_chain))), domain_chain)
+
+        # 3. 计算综合分数（时效 + 频次 + 标签匹配）
+        scored = []
+        for lesson in candidates:
+            score = self._calc_score(lesson, task_domain, task_tags)
+            scored.append((lesson, score))
+
+        # 4. 取 Top-5 注入 prompt
+        return sorted(scored, key=lambda x: x[1], reverse=True)[:5]
+
+    def _calc_score(self, lesson, task_domain, task_tags) -> float:
+        """自然衰减公式"""
+        days = (now() - lesson.last_used).days
+        recency = exp(-0.1 * days)                    # 7天衰减到50%
+        frequency = log(1 + lesson.frequency)         # 复用次数对数
+
+        # 精确匹配权重更高
+        domain_match = 3.0 if lesson.domain == task_domain else \
+                       2.0 if task_domain.startswith(lesson.domain + "/") else 1.0
+
+        # 标签重叠度
+        lesson_tags = set(lesson.tags.split(","))
+        tag_overlap = len(lesson_tags & set(task_tags))
+
+        return recency * frequency * domain_match * (1 + tag_overlap)
+```
+
+**惰性重分类（复用时更新）**：
+
+```python
+    def on_lesson_reused(self, lesson_id: str, task: BroodTask):
+        """Lesson 被复用时，动态细化分类"""
+
+        lesson = self.db.get(lesson_id)
+
+        # 1. 更新使用时间和频次
+        lesson.last_used = now()
+        lesson.frequency += 1
+
+        # 2. 细化分类（只允许细化，不允许升粗）
+        if task.domain.startswith(lesson.domain + "/"):
+            # frontend -> frontend/react -> frontend/react/hook
+            lesson.domain = task.domain
+            lesson.tags = merge_tags(lesson.tags, task.tags)
+
+        self.db.update(lesson)
+```
+
+**重分类规则**：
+
+| 旧分类 | 新任务 | 是否更新 | 说明 |
+|--------|--------|----------|------|
+| `frontend` | `frontend/react` | ✅ 更新 | 细化 |
+| `frontend/react` | `frontend/react/hook` | ✅ 更新 | 更细 |
+| `frontend/react` | `frontend` | ❌ 不更新 | 不升粗 |
+| `code` | `backend/api` | ✅ 更新 | 纠正大误分类 |
+
+**关键原则**：
+- **无归档目录**——永远不删，自然沉底
+- **无定时任务**——查询时现算分数，复用时更新分类
+- **自我进化**——常用的经验自动归类到更细的 domain
+- **O(log n)**——SQLite 索引查询，万条也毫秒级
+
 **关键原则**：
 - **分层注入** —— Constitution 直灌，Playbook/Lessons 检索后注入
-- **经验衰减** —— Lessons 30 天未复用归档，避免 prompt 膨胀
+- **经验衰减** —— Lessons 按分数自然沉底，不主动归档
 - **失败分类** —— 环境失败不惩罚，策略/质量失败才触发降级
 - **四级递进** —— Observe → Warn → Constrained → Dormant，避免误杀
+- **自我细化** —— Lessons 被复用时动态细化分类，无需人工维护
 - **不看也得看** —— Constitution 直灌 prompt
 - **不写也得写** —— 失败回调强制触发，不能跳过
 
@@ -691,13 +811,11 @@ characters/gene_pool/
 │       ├── analyzer.yaml        # 分析/审查
 │       └── coordinator.yaml     # 通信/协调
 │
-├── lessons/                     # L3: 近期教训（带时效）
-│   ├── 2026-03/                 # 按月归档
-│   │   ├── frontend_react.jsonl
-│   │   └── backend_api.jsonl
-│   └── archive/                 # 90 天未复用自动归档
+├── lessons/                     # L3: 近期教训（SQLite 平铺 + 自然衰减）
+│   ├── lessons.db               # SQLite 主库（单文件）
+│   └── README.md                # 查询/更新接口说明
 │
-├── registry/                    # 注册表
+├── registry/                    # 注册表（YAML）
 │   ├── submind_registry.yaml    # Submind 常驻/试验/休眠状态
 │   ├── brood_templates.yaml     # 优秀 Brood 配置模板
 │   └── unit_manifest.yaml       # Unit 类型清单
@@ -892,4 +1010,4 @@ characters/gene_pool/
 
 *文档版本：v2.2（顾问评审后精简版）*
 *修订记录：*
-- *v2.1 → v2.2：压缩层级（6→4）、收紧赛马（硬规则+固定2路）、分层基因库（Constitution/Playbook/Lessons）、频道折叠（Trunk默认展开）、四级失败惩罚*
+- *v2.1 → v2.2：压缩层级（6→4）、收紧赛马（硬规则+固定2路）、分层基因库（Constitution/Playbook/Lessons）、频道折叠（Trunk默认展开）、四级失败惩罚、Lessons SQLite平铺+自然衰减+自我细化*
