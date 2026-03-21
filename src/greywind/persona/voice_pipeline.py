@@ -131,15 +131,19 @@ class VoicePipeline:
             self._respond(text, send_fn, send_audio_fn)
         )
 
-    async def interrupt(self):
+    async def interrupt(self) -> bool:
+        """打断当前响应。返回 True 表示确实取消了正在运行的任务。"""
         self._interrupted = True
+        was_running = False
         if self._response_task and not self._response_task.done():
+            was_running = True
             self._response_task.cancel()
             try:
                 await self._response_task
             except asyncio.CancelledError:
                 pass
         self._interrupted = False
+        return was_running
 
     async def _respond(self, user_text, send_fn, send_audio_fn):
         self._interrupted = False
