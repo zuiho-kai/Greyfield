@@ -11,36 +11,57 @@ declare global {
 export default async function globalSetup() {
   await new Promise<void>((resolve, reject) => {
     const serverPath = path.join(__dirname, "mock-server.js");
+    const isWindows = process.platform === "win32";
+
+    // Windows 需要 shell: true 才能正确执行 node
     const proc = spawn("node", [serverPath, "12393"], {
       stdio: ["ignore", "pipe", "pipe"],
+      shell: isWindows,
+      windowsHide: true,
     });
 
     let ready = false;
+    let stdoutBuffer = "";
 
-    proc.stdout.on("data", (data: Buffer) => {
-      if (!ready && data.toString().includes("MOCK_SERVER_READY")) {
+    proc.stdout?.on("data", (data: Buffer) => {
+      const str = data.toString();
+      stdoutBuffer += str;
+      console.log(`[Mock Server] ${str.trim()}`);
+
+      if (!ready && str.includes("MOCK_SERVER_READY")) {
         ready = true;
         globalThis.__MOCK_SERVER__ = proc;
         resolve();
       }
     });
 
-    proc.stderr.on("data", (data: Buffer) => {
+    proc.stderr?.on("data", (data: Buffer) => {
+      const str = data.toString();
+      console.error(`[Mock Server Error] ${str.trim()}`);
+
       if (!ready) {
         // ws 模块缺失时在这里报错
-        reject(new Error(`Mock server error: ${data.toString()}`));
+        reject(new Error(`Mock server error: ${str}`));
       }
     });
 
     proc.on("exit", (code) => {
+      console.log(`[Mock Server] Exited with code ${code}`);
       if (!ready) {
-        reject(new Error(`Mock server exited early with code ${code}`));
+        reject(new Error(`Mock server exited early with code ${code}, stdout: ${stdoutBuffer}`));
       }
+    });
+
+    proc.on("error", (err) => {
+      console.error(`[Mock Server] Failed to start: ${err.message}`);
+      reject(new Error(`Mock server failed to start: ${err.message}`));
     });
 
     // 超时保护
     setTimeout(() => {
-      if (!ready) reject(new Error("Mock server startup timeout"));
-    }, 5000);
+      if (!ready) {
+        reject(new Error(`Mock server startup timeout, stdout: ${stdoutBuffer}`));
+      }
+    }, 10000);
   });
 }
