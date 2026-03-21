@@ -57,24 +57,42 @@ wss.on("error", (err) => {
 wss.on("connection", (ws, req) => {
   console.log("[Mock Server] WebSocket connection from:", req.socket.remoteAddress);
 
+  // 设置 WebSocket 错误处理
+  ws.on("error", (err) => {
+    console.error("[Mock Server] WebSocket error:", err.message);
+  });
+
+  ws.on("close", (code, reason) => {
+    console.log("[Mock Server] WebSocket closed:", code, reason?.toString());
+  });
+
   ws.on("message", (data) => {
     let msg;
     try {
       msg = JSON.parse(data.toString());
     } catch {
+      console.log("[Mock Server] Invalid JSON received");
       return;
     }
 
     const { type, payload = {} } = msg;
+    console.log("[Mock Server] Received message:", type);
 
     if (type === "text_input") {
       const userText = payload.text || "";
       const reply = `你好，我是灰风。你说了：「${userText}」`;
 
       // 模拟 thinking → speaking → reply_text → idle 序列
-      try {
-        ws.send(JSON.stringify({ type: "status", payload: { state: "thinking" } }));
-        setTimeout(() => {
+      if (ws.readyState === ws.OPEN) {
+        try {
+          ws.send(JSON.stringify({ type: "status", payload: { state: "thinking" } }));
+        } catch (e) {
+          console.error("[Mock Server] Failed to send thinking:", e.message);
+        }
+      }
+
+      setTimeout(() => {
+        if (ws.readyState === ws.OPEN) {
           try {
             ws.send(JSON.stringify({ type: "status", payload: { state: "speaking" } }));
             ws.send(
@@ -85,30 +103,28 @@ wss.on("connection", (ws, req) => {
             );
             ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
           } catch (e) {
-            // 连接可能已关闭
+            console.error("[Mock Server] Failed to send reply:", e.message);
           }
-        }, 80);
-      } catch (e) {
-        // 连接可能已关闭
-      }
+        }
+      }, 80);
     } else if (type === "interrupt") {
-      try {
-        ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
-      } catch (e) {}
+      if (ws.readyState === ws.OPEN) {
+        try {
+          ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
+        } catch (e) {
+          console.error("[Mock Server] Failed to send idle:", e.message);
+        }
+      }
     } else if (type === "clear_history") {
-      try {
-        ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
-      } catch (e) {}
+      if (ws.readyState === ws.OPEN) {
+        try {
+          ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
+        } catch (e) {
+          console.error("[Mock Server] Failed to send idle:", e.message);
+        }
+      }
     }
     // 其他消息类型静默忽略
-  });
-
-  ws.on("error", (err) => {
-    console.error("[Mock Server] WebSocket error:", err.message);
-  });
-
-  ws.on("close", () => {
-    console.log("[Mock Server] WebSocket closed");
   });
 });
 
