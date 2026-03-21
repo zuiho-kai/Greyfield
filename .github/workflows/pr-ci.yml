@@ -106,6 +106,24 @@ jobs:
         working-directory: tests/e2e
         run: npm list ws
 
+      - name: 诊断网络状态
+        shell: pwsh
+        run: |
+          Write-Host "Checking if port 12393 is in use..."
+          $connection = Get-NetTCPConnection -LocalPort 12393 -ErrorAction SilentlyContinue
+          if ($connection) {
+            Write-Host "Port 12393 is in use by process: $($connection.OwningProcess)"
+            Get-Process -Id $connection.OwningProcess
+          } else {
+            Write-Host "Port 12393 is NOT in use"
+          }
+
+          Write-Host "`nTesting localhost connectivity..."
+          Test-NetConnection -ComputerName localhost -Port 12393 -WarningAction SilentlyContinue
+
+          Write-Host "`nHosts file content:"
+          Get-Content C:\Windows\System32\drivers\etc\hosts | Select-String -Pattern "localhost"
+
       - name: 缓存 Playwright 浏览器
         id: cache-playwright
         uses: actions/cache@v4
