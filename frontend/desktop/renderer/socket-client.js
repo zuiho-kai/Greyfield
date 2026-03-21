@@ -1,7 +1,7 @@
 /**
  * WebSocket 客户端 — 连接灰风后端
  */
-const WS_URL = "ws://127.0.0.1:12393/ws";
+const WS_URL = "ws://localhost:12393/ws";
 let ws = null;
 let reconnectTimer = null;
 let pendingAudioMeta = null;
