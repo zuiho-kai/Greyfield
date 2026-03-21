@@ -13,6 +13,15 @@ const WebSocket = require("ws");
 
 const PORT = parseInt(process.argv[2] || "12393", 10);
 
+// 全局错误处理，防止进程退出
+process.on("uncaughtException", (err) => {
+  console.error("[Mock Server] Uncaught exception:", err.message);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[Mock Server] Unhandled rejection:", reason);
+});
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
@@ -33,9 +42,21 @@ const server = http.createServer((req, res) => {
   res.end("Not found");
 });
 
+// HTTP 服务器错误处理
+server.on("error", (err) => {
+  console.error("[Mock Server] HTTP server error:", err.message);
+});
+
 const wss = new WebSocket.Server({ server, path: "/ws" });
 
-wss.on("connection", (ws) => {
+// WebSocket 服务器错误处理
+wss.on("error", (err) => {
+  console.error("[Mock Server] WebSocket server error:", err.message);
+});
+
+wss.on("connection", (ws, req) => {
+  console.log("[Mock Server] WebSocket connection from:", req.socket.remoteAddress);
+
   ws.on("message", (data) => {
     let msg;
     try {
@@ -51,26 +72,44 @@ wss.on("connection", (ws) => {
       const reply = `你好，我是灰风。你说了：「${userText}」`;
 
       // 模拟 thinking → speaking → reply_text → idle 序列
-      ws.send(JSON.stringify({ type: "status", payload: { state: "thinking" } }));
-      setTimeout(() => {
-        ws.send(JSON.stringify({ type: "status", payload: { state: "speaking" } }));
-        ws.send(
-          JSON.stringify({
-            type: "reply_text",
-            payload: { text: reply, emotion: "neutral" },
-          })
-        );
-        ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
-      }, 80);
+      try {
+        ws.send(JSON.stringify({ type: "status", payload: { state: "thinking" } }));
+        setTimeout(() => {
+          try {
+            ws.send(JSON.stringify({ type: "status", payload: { state: "speaking" } }));
+            ws.send(
+              JSON.stringify({
+                type: "reply_text",
+                payload: { text: reply, emotion: "neutral" },
+              })
+            );
+            ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
+          } catch (e) {
+            // 连接可能已关闭
+          }
+        }, 80);
+      } catch (e) {
+        // 连接可能已关闭
+      }
     } else if (type === "interrupt") {
-      ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
+      try {
+        ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
+      } catch (e) {}
     } else if (type === "clear_history") {
-      ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
+      try {
+        ws.send(JSON.stringify({ type: "status", payload: { state: "idle" } }));
+      } catch (e) {}
     }
     // 其他消息类型静默忽略
   });
 
-  ws.on("error", () => {});
+  ws.on("error", (err) => {
+    console.error("[Mock Server] WebSocket error:", err.message);
+  });
+
+  ws.on("close", () => {
+    console.log("[Mock Server] WebSocket closed");
+  });
 });
 
 server.listen(PORT, "0.0.0.0", () => {
@@ -79,6 +118,12 @@ server.listen(PORT, "0.0.0.0", () => {
 });
 
 process.on("SIGTERM", () => {
+  console.log("[Mock Server] Received SIGTERM, shutting down...");
   server.close();
   process.exit(0);
 });
+
+// 保持进程运行
+setInterval(() => {
+  // 心跳，防止进程退出
+}, 60000);
