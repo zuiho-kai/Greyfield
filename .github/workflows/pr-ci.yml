@@ -95,7 +95,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tests/e2e/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json') }}
+          key: node-modules-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
 
       - name: 安装 E2E 依赖
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
