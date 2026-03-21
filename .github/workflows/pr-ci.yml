@@ -68,7 +68,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: tests/e2e/package-lock.json
+          cache-dependency-path: tests/e2e/package.json
 
       - name: 安装 E2E 依赖
         working-directory: tests/e2e
