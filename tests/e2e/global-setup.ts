@@ -13,10 +13,10 @@ export default async function globalSetup() {
     const serverPath = path.join(__dirname, "mock-server.js");
     const isWindows = process.platform === "win32";
 
-    // Windows 需要 shell: true 才能正确执行 node
-    const proc = spawn("node", [serverPath, "12393"], {
+    // 直接使用 node 启动，Windows 下不使用 shell 以避免进程层级问题
+    const proc = spawn(process.execPath, [serverPath, "12393"], {
       stdio: ["ignore", "pipe", "pipe"],
-      shell: isWindows,
+      detached: false,
       windowsHide: true,
     });
 
@@ -40,7 +40,6 @@ export default async function globalSetup() {
       console.error(`[Mock Server Error] ${str.trim()}`);
 
       if (!ready) {
-        // ws 模块缺失时在这里报错
         reject(new Error(`Mock server error: ${str}`));
       }
     });
