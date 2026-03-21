@@ -102,6 +102,10 @@ jobs:
         working-directory: tests/e2e
         run: npm ci
 
+      - name: 验证 mock server 依赖
+        working-directory: tests/e2e
+        run: npm list ws
+
       - name: 缓存 Playwright 浏览器
         id: cache-playwright
         uses: actions/cache@v4
