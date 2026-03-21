@@ -1203,7 +1203,10 @@ if (!gotLock) {
   app.whenReady().then(() => {
     historyFilePath = resolveHistoryFilePath();
     loadHistoryFromDisk();
-    startBackend();
+    // NODE_ENV=test 时 mock-server.js 已在端口 12393 运行，跳过真实后端启动
+    if (process.env.NODE_ENV !== "test") {
+      startBackend();
+    }
     createWindow();
   });
 }
