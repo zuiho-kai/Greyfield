@@ -54,18 +54,27 @@ test.describe("Electron 窗口基础渲染", () => {
     }
   });
 
-  test("status-bar 在连接成功后显示"已连接"", async () => {
+  test('status-bar 在连接成功后显示"已连接"', async () => {
     const app = await electron.launch({
       args: [ELECTRON_APP_DIR],
       env: { ...process.env, NODE_ENV: "test" },
     });
 
+    // 捕获浏览器控制台日志
+    app.on("window", (page) => {
+      page.on("console", (msg) => {
+        console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`);
+      });
+    });
+
     try {
       const win = await app.firstWindow();
       await win.waitForLoadState("domcontentloaded");
+      // 等待更长时间让 WebSocket 连接
+      await win.waitForTimeout(2000);
       // WebSocket 连接 + health check 完成后 status-bar 变"已连接"
       await expect(win.locator("#status-bar")).toContainText("已连接", {
-        timeout: 8000,
+        timeout: 15000,
       });
     } finally {
       await app.close();

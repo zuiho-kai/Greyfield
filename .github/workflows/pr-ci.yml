@@ -18,6 +18,7 @@ jobs:
   test-python:
     name: Python 测试
     runs-on: windows-latest
+    timeout-minutes: 15
 
     steps:
       - name: 检出代码
@@ -57,18 +58,18 @@ jobs:
   test-e2e:
     name: E2E 测试
     runs-on: windows-latest
+    timeout-minutes: 20
     needs: test-python
 
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 安装 uv（启用缓存）
+      - name: 安装 uv
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-          enable-cache: true
-          cache-suffix: "pr-ci"
+          enable-cache: false
 
       - name: 恢复 .venv 缓存
         id: cache-venv
@@ -93,19 +94,41 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tests/e2e/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json') }}
+          key: node-modules-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
 
       - name: 安装 E2E 依赖
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         working-directory: tests/e2e
         run: npm ci
 
+      - name: 验证 mock server 依赖
+        working-directory: tests/e2e
+        run: npm list ws
+
+      - name: 诊断网络状态
+        shell: pwsh
+        run: |
+          Write-Host "Checking if port 12393 is in use..."
+          $connection = Get-NetTCPConnection -LocalPort 12393 -ErrorAction SilentlyContinue
+          if ($connection) {
+            Write-Host "Port 12393 is in use by process: $($connection.OwningProcess)"
+            Get-Process -Id $connection.OwningProcess
+          } else {
+            Write-Host "Port 12393 is NOT in use"
+          }
+
+          Write-Host "`nTesting localhost connectivity..."
+          Test-NetConnection -ComputerName localhost -Port 12393 -WarningAction SilentlyContinue
+
+          Write-Host "`nHosts file content:"
+          Get-Content C:\Windows\System32\drivers\etc\hosts | Select-String -Pattern "localhost"
+
       - name: 缓存 Playwright 浏览器
         id: cache-playwright
         uses: actions/cache@v4
         with:
           path: ~\AppData\Local\ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
 
       - name: 安装 Playwright
         if: steps.cache-playwright.outputs.cache-hit != 'true'

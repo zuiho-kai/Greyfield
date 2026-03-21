@@ -3,12 +3,35 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import subprocess
 import uuid
 from typing import Optional, List, Any
 
 from loguru import logger
 
 from .base import BrowserProvider, ActionResult, TabInfo
+
+
+async def _ensure_chromium_installed():
+    """检查并自动安装 Chromium 浏览器二进制"""
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            p.chromium.launch()
+        return True
+    except Exception:
+        logger.info("PlaywrightProvider: 正在安装 Chromium...")
+        try:
+            subprocess.run(
+                ["python", "-m", "playwright", "install", "chromium"],
+                capture_output=True,
+                check=True,
+            )
+            logger.info("PlaywrightProvider: Chromium 安装完成")
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"PlaywrightProvider: Chromium 安装失败 — {e}")
+            return False
 
 
 class PlaywrightProvider(BrowserProvider):
@@ -33,6 +56,12 @@ class PlaywrightProvider(BrowserProvider):
         try:
             from playwright.async_api import async_playwright
             import os
+
+            # 首次启动：自动检查并安装 Chromium
+            if not await _ensure_chromium_installed():
+                logger.error("PlaywrightProvider: Chromium 不可用")
+                return False
+
             self._playwright = await async_playwright().start()
 
             # 持久化 user data dir：保留登录态，下次启动不用重新登录

@@ -158,7 +158,9 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
                 logger.info(f"桌面操控即时切换: enabled={enabled}")
 
             elif msg_type == "interrupt":
-                await pipeline.interrupt()
+                was_running = await pipeline.interrupt()
+                if was_running:
+                    await send_msg({"type": "status", "payload": {"state": "idle"}})
 
             elif msg_type == "clear_history":
                 pipeline.session.clear()
