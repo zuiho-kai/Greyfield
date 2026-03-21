@@ -28,6 +28,28 @@ GreyWind 不应只是“单人格 + 内部多 Agent”的调度器，
 2. **复杂任务条件赛马（Conditional Trial Broods）**
 3. **主脑分身裁判（Vision Arbiter / Dreamer Shadow）**
 4. **小主脑复用优先、受控孵化（Reusable Submind Lifecycle）**
+5. **进化大师（Evolution Master）**
+
+### 1.1 术语与灵感映射
+
+本系统的虫群治理模型融合了战锤 40K 泰伦虫族与星际争霸异虫的设计灵感。以下为核心术语映射：
+
+| GreyWind 术语 | 泰伦虫族对应 | 星际争霸异虫对应 | 系统定位 |
+|---|---|---|---|
+| 系统人格外壳 Persona Shell | 虫巢意志 Hive Mind | — | 对外统一意识，用户只感知一个人格 |
+| 主脑 Overmind | — | 主宰 Overmind | 线程级唯一主动权威，战略决策与调度 |
+| 进化大师 Evolution Master | 诺恩后虫 Norn-Queen | 阿巴瑟 Abathur | 基因进化设计、策略优化，有受限独立意志 |
+| 愿景分身 Vision Arbiter | 虫巢领主 Swarmlord | — | 愿景监督与赛马裁判，非第二主权 |
+| 小主脑 Submind | 虫巢暴君 Hive Tyrant | 脑虫 Cerebrate | 领域级治理节点，接受主脑指挥 |
+| 虫巢基地 Hive Base | 虫巢舰 Hive Ship | 孵化场 Hatchery | 独立执行环境，资源与状态隔离 |
+| 宿主 Host | 节点生物 Synapse Creature | 王虫 Overlord | 工具/环境绑定，指令中继 |
+| 单位 Unit | 虫巢武士 Warrior | 刺蛇 / 跳虫 | 任务执行单元 |
+| 工蜂 Drone | 撕裂虫 Ripper | 工蜂 Drone | 基础资源采集与清理 |
+| 灵能节点网络 Synapse Net | 灵能网络 Synapse Network | 心灵链接 Psionic Link | 指令传递与状态同步 |
+| 进化层 Evolution Layer | 基因库 + 自然选择 | 进化深渊 Evolution Pit | 基因进化试验与淘汰 |
+| 赛马机制 Trial Race | — | — | GreyWind 原创：条件并行竞争与择优收敛 |
+
+**关键设计选择**：GreyWind 不是纯泰伦模型（无实体的完形灵能意识，所有个体无自我），也不是纯异虫模型（单主宰绝对控制，基因锁死忠诚）。它取泰伦的分层灵能节点网络作为治理骨架，取异虫的主宰 + 脑虫 + 阿巴瑟分工模型作为角色设计。进化大师借鉴了阿巴瑟的"受限独立意志"——在进化领域有自主判断权，但不能越权调度。竞争与进化机制（赛马、谱系淘汰）是 GreyWind 自己的设计。
 
 ---
 
@@ -70,10 +92,11 @@ GreyWind 必须继续保持 **one persona / one visible thread / one coherent wo
 
 内部可以有：
 
-- 一个主脑（Overmind）
-- 多个小主脑（Subminds）
-- 多个虫巢基地（Hive Bases）
-- 多个宿主（Hosts）
+- 一个主脑（Overmind / 主宰）
+- 一个进化大师（Evolution Master / 阿巴瑟）—— 有受限独立意志
+- 多个小主脑（Subminds / 脑虫）
+- 多个虫巢基地（Hive Bases / 孵化场）
+- 多个宿主（Hosts / 王虫）
 - 多个单位（Units）与工蜂（Drones）
 
 但这些内部节点不能直接把用户体验变成“委员会对话”。
@@ -149,30 +172,31 @@ GreyWind 的本体仍然是虫群：
 ## 4. 系统模型（v2）
 
 ```text
-Persona Shell
-  -> Trunk Channel
-    -> Context Runtime
-      -> Overmind
-        -> Vision Arbiter (shadow, non-sovereign)
-        -> Subminds
-          -> Hive Bases
-            -> Hosts
-              -> Units
-                -> Drones
+Persona Shell（虫巢意志 / Hive Mind — 对外统一人格）
+  -> Trunk Channel（主干频道）
+    -> Context Runtime（上下文运行时）
+      -> Overmind（主脑 / 主宰 — 线程级唯一权威）
+        -> Evolution Master（进化大师 / 阿巴瑟 — 基因进化设计，有受限独立意志）
+        -> Vision Arbiter（愿景分身 / 虫巢领主 — 监督裁判，非第二主权）
+        -> Subminds（小主脑 / 脑虫 — 领域级治理节点）
+          -> Hive Bases（虫巢基地 / 孵化场）
+            -> Hosts（宿主 / 王虫 — 工具环境绑定）
+              -> Units（单位 / 武士）
+                -> Drones（工蜂 / 撕裂虫）
 
-Evolution Layer
-  -> Gene Intake
-  -> Trial Broods
-  -> Selection Engine
-  -> Genome Registry
-  -> Extinction Ledger
+Evolution Layer（进化层 — 由进化大师主导）
+  -> Gene Intake（基因摄入）
+  -> Trial Broods（试验虫巢）
+  -> Selection Engine（选择引擎）
+  -> Genome Registry（基因组注册表）
+  -> Extinction Ledger（灭绝账本）
 
-Competition Layer
-  -> Complexity Gate
-  -> Candidate Submind Selection
-  -> Isolated Trial Channels
-  -> Comparative Scoring
-  -> Winner Convergence
+Competition Layer（竞争层）
+  -> Complexity Gate（复杂度门控）
+  -> Candidate Submind Selection（候选小主脑选择）
+  -> Isolated Trial Channels（隔离试验频道）
+  -> Comparative Scoring（对比评分）
+  -> Winner Convergence（胜者收敛）
 ```
 
 ---
@@ -259,6 +283,40 @@ Competition Layer
 - 独立决定最终胜者
 - 越过主脑直接向用户承诺新需求
 - 擅自补全关键缺失需求
+
+### 6.4 进化大师（Evolution Master）
+
+进化大师是系统中唯一专职负责进化与策略优化的角色，灵感来自泰伦虫族的诺恩后虫（Norn-Queen）和星际争霸异虫的阿巴瑟（Abathur）。
+
+**核心特征：拥有受限独立意志。**
+
+与小主脑（纯执行节点，无独立意志，类似脑虫/虫巢暴君）不同，进化大师在进化领域内拥有自主决策权：
+
+- 可以独立判断哪些基因/策略值得试验
+- 可以独立设计新的分解策略、review 规则、协作模式
+- 可以主动向主脑提议进化方向，而非被动等待指令
+- 可以拒绝主脑提出的"退化性"进化请求（需给出理由）
+
+**职责：**
+
+1. **基因设计**：设计新的 worker 模板、review heuristic、coordination protocol、host lifecycle 规则
+2. **策略优化**：分析 SelectionReport，识别可进化的模式，提出改进方案
+3. **试验管理**：主导 Evolution Layer 的 Trial Broods，决定试验参数与评估标准
+4. **谱系维护**：维护 Genome Registry，决定哪些基因采纳、哪些淘汰
+5. **退化预警**：监控小主脑与宿主的 survival score，在谱系退化前主动预警
+
+**约束：**
+
+- 不得绕过主脑直接调度小主脑或分配 BroodTask
+- 不得对外（用户侧）发言
+- 不得独立决定小主脑的晋升/降级（只能建议，主脑批准）
+- 进化决策必须有 ledger 记录，不允许黑箱操作
+
+**与主脑的关系：**
+
+进化大师向主脑负责，但不是主脑的傀儡。主脑负责"做什么"（战略目标与调度），进化大师负责"怎么进化得更好"（基因设计与策略优化）。主脑可以否决进化大师的建议，但不能替代其专业判断。
+
+这类似于异虫中刀锋女王与阿巴瑟的关系——凯瑞甘下达战略目标，阿巴瑟自主决定如何从基因层面实现。也类似于泰伦虫族中虫巢意志与诺恩后虫的关系——虫巢意志是全局方向，诺恩后虫在进化和舰队管理上有极高的自主决策权。
 
 ---
 
@@ -626,7 +684,19 @@ interface TrialHandoffDigest extends HandoffDigest {
 Intake -> Isolation -> Trial -> Selection -> Adoption or Extinction
 ```
 
-### 12.2 新增一类重要内部基因：治理基因
+### 12.2 进化大师主导进化闭环
+
+进化层不再是无主的自动化流程，而是由进化大师（Evolution Master）主导的受控进化系统。
+
+进化大师在进化闭环中的角色：
+
+- **Intake 阶段**：识别值得吸收的外部基因（新策略、新模式、新工具能力）
+- **Isolation 阶段**：设计隔离试验方案，确定评估标准
+- **Trial 阶段**：监控试验进展，必要时调整参数
+- **Selection 阶段**：分析 SelectionReport，向主脑提交采纳/淘汰建议
+- **Adoption/Extinction 阶段**：执行主脑批准的进化决策，更新 Genome Registry
+
+### 12.3 新增一类重要内部基因：治理基因
 
 除了 worker / review / memory / host 相关基因外，v2 应显式支持：
 
@@ -635,8 +705,9 @@ Intake -> Isolation -> Trial -> Selection -> Adoption or Extinction
 - 赛马触发阈值基因
 - 收敛策略基因
 - Submind 生命周期规则基因
+- **进化策略基因**（进化大师的核心资产，决定进化方向与试验偏好）
 
-### 12.3 什么最值得竞争
+### 12.4 什么最值得竞争
 
 v2 阶段最值得放进 Trial 的，不是“人格”，而是：
 
@@ -647,7 +718,7 @@ v2 阶段最值得放进 Trial 的，不是“人格”，而是：
 - conditional-racing thresholds
 - submind reuse / spawn policies
 
-### 12.4 选择标准更新
+### 12.5 选择标准更新
 
 SelectionReport 除原有 throughput / cost / failure / review_pass 外，建议再纳入：
 
@@ -687,6 +758,7 @@ GreyWind 的底层不应是纯统一心智网络，而应继续以虫群为骨�
 
 - `src/greywind/hive/trunk_protocol.py`
 - `src/greywind/hive/vision_arbiter.py`
+- `src/greywind/hive/evolution_master.py`
 - `src/greywind/hive/trial_race.py`
 - `src/greywind/hive/submind_registry.py`
 - `src/greywind/hive/convergence_engine.py`
@@ -804,12 +876,13 @@ GreyWind 的底层不应是纯统一心智网络，而应继续以虫群为骨�
 7. 失败分支可以灭绝，但不应污染主干连续性。
 8. 只有胜出的结果、策略和必要摘要进入主线记忆。
 9. 进化没有记录是非法的；选择没有指标也是非法的。
-10. Hive 必须强化 GreyWind 的 spine，而不是取代它。
+10. 进化大师在进化领域有受限独立意志，但不得绕过主脑调度或对外发言。
+11. Hive 必须强化 GreyWind 的 spine，而不是取代它。
 
 ---
 
 ## 19. 一句话总结
 
-> GreyWind v2 的核心，不是“让更多 Agent 一起说话”，  
-> 而是“让一个主干人格在虫群治理下，按复杂度决定是否分裂，并在隔离赛马中筛出更强路径，再把胜者收敛回一个统一意志”。
+> GreyWind v2 的核心，不是”让更多 Agent 一起说话”，
+> 而是”让一个主干人格在虫群治理下，由进化大师驱动持续进化，按复杂度决定是否分裂，并在隔离赛马中筛出更强路径，再把胜者收敛回一个统一意志”。
 
