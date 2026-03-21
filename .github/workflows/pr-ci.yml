@@ -19,10 +19,11 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 安装 uv
+      - name: 安装 uv（启用缓存）
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          enable-cache: true
 
       - name: 恢复 .venv 缓存
         id: cache-venv
@@ -47,10 +48,11 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 安装 uv
+      - name: 安装 uv（启用缓存）
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          enable-cache: true
 
       - name: 恢复 .venv 缓存
         id: cache-venv
@@ -74,7 +76,15 @@ jobs:
         working-directory: tests/e2e
         run: npm ci
 
+      - name: 缓存 Playwright 浏览器
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json') }}
+
       - name: 安装 Playwright
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
         working-directory: tests/e2e
         run: npx playwright install chromium
 
