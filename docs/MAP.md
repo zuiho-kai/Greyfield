@@ -130,7 +130,13 @@ Module 设计文档目录。每个新 Module 在进入实现前，设计文档�
 
 当前包含：
 
-- `module-c-browser-control.md` — 浏览器操控（Execution Runtime 第一个 provider）
+- `module-c-browser/` — 浏览器操控（Execution Runtime 第一个 provider）
+- `module-d-desktop/` — 桌面操控（PyAutoGUI provider）
+- `module-e-hive/` — 虫巢系统（多 Agent 进化调度）
+  - `design.md` — 泰伦虫族式架构设计（v1.2，整合顾问 v1+v2）
+  - `mini-sr.md` — 验收标准
+  - `gpt-des.md` — 顾问详细规格（v1）
+  - `gpt-design_v2.md` — 顾问更新规格（v2，主干频道+条件赛马+愿景分身）
 
 ---
 

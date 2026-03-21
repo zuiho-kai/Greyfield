@@ -10,6 +10,10 @@ on:
       - 'uv.lock'
       - 'frontend/desktop/**'
 
+# 全局缓存配置：跨 workflow 复用
+env:
+  UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+
 jobs:
   test-python:
     name: Python 测试
@@ -19,10 +23,20 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 安装 uv
+      - name: 安装 uv（启用缓存）
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          enable-cache: true
+          cache-suffix: "pr-ci"
+
+      - name: 缓存 uv pip 缓存
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: uv-pip-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            uv-pip-${{ runner.os }}-
 
       - name: 恢复 .venv 缓存
         id: cache-venv
@@ -34,6 +48,8 @@ jobs:
       - name: 安装 Python 依赖（含 dev）
         if: steps.cache-venv.outputs.cache-hit != 'true'
         run: uv sync --extra dev --frozen
+        env:
+          UV_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
 
       - name: 运行单元 + 集成测试
         run: uv run --extra dev pytest tests/unit/ tests/integration/ -v --tb=short
@@ -47,10 +63,12 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 安装 uv
+      - name: 安装 uv（启用缓存）
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          enable-cache: true
+          cache-suffix: "pr-ci"
 
       - name: 恢复 .venv 缓存
         id: cache-venv
@@ -68,13 +86,29 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: tests/e2e/package-lock.json
+          cache-dependency-path: tests/e2e/package.json
+
+      - name: 缓存 node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/e2e/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json') }}
 
       - name: 安装 E2E 依赖
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
         working-directory: tests/e2e
         run: npm ci
 
+      - name: 缓存 Playwright 浏览器
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json') }}
+
       - name: 安装 Playwright
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
         working-directory: tests/e2e
         run: npx playwright install chromium
 
