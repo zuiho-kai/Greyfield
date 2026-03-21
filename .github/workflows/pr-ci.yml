@@ -106,14 +106,6 @@ jobs:
         working-directory: tests/e2e
         run: npm list ws
 
-      - name: 启动 mock server 并测试连通性
-        working-directory: tests/e2e
-        run: |
-          node mock-server.js &
-          sleep 3
-          curl -v http://127.0.0.1:12393/health || echo "Health check failed"
-        shell: bash
-
       - name: 缓存 Playwright 浏览器
         id: cache-playwright
         uses: actions/cache@v4
