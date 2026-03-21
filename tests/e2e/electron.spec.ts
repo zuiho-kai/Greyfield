@@ -54,7 +54,7 @@ test.describe("Electron 窗口基础渲染", () => {
     }
   });
 
-  test("status-bar 在连接成功后显示"已连接"", async () => {
+  test('status-bar 在连接成功后显示"已连接"', async () => {
     const app = await electron.launch({
       args: [ELECTRON_APP_DIR],
       env: { ...process.env, NODE_ENV: "test" },
