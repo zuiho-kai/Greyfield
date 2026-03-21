@@ -10,10 +10,15 @@ on:
       - 'uv.lock'
       - 'frontend/desktop/**'
 
+# 全局缓存配置：跨 workflow 复用
+env:
+  UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+
 jobs:
   test-python:
     name: Python 测试
     runs-on: windows-latest
+    timeout-minutes: 15
 
     steps:
       - name: 检出代码
@@ -24,6 +29,15 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
+          cache-suffix: "pr-ci"
+
+      - name: 缓存 uv pip 缓存
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: uv-pip-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            uv-pip-${{ runner.os }}-
 
       - name: 恢复 .venv 缓存
         id: cache-venv
@@ -35,6 +49,8 @@ jobs:
       - name: 安装 Python 依赖（含 dev）
         if: steps.cache-venv.outputs.cache-hit != 'true'
         run: uv sync --extra dev --frozen
+        env:
+          UV_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
 
       - name: 运行单元 + 集成测试
         run: uv run --extra dev pytest tests/unit/ tests/integration/ -v --tb=short
@@ -42,6 +58,7 @@ jobs:
   test-e2e:
     name: E2E 测试
     runs-on: windows-latest
+    timeout-minutes: 20
     needs: test-python
 
     steps:
@@ -53,6 +70,7 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
+          cache-suffix: "pr-ci"
 
       - name: 恢复 .venv 缓存
         id: cache-venv
