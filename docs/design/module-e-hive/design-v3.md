@@ -1,0 +1,1634 @@
+# Module E 虫巢系统（Hive）— 设计文档 v3.0
+
+> 创建时间：2026-03-21
+> 状态：Draft
+> 版本：v3.0（v2.2 基础上新增：术语对齐泰伦/异虫设定 + 进化大师角色）
+> 设计来源：泰伦虫族社会结构 + 星际争霸异虫等级体系 + OpenRoom 事件总线 + Cat Cafe 频道化 + 当皇上三省六部
+
+---
+
+## 1. 一句话定位
+
+**灰风虫巢 = 一个具备神经进化能力的任务型多 Agent 操作系统，对外呈现 Discord 式多频道结构，对内以泰伦虫族等级制运行，由进化大师驱动持续进化，低阶 Agent 通过战功积累可晋升至高阶。**
+
+### 1.1 术语与灵感映射
+
+本系统融合了战锤 40K 泰伦虫族与星际争霸异虫的设计灵感。以下为核心术语映射：
+
+| GreyWind 术语 | 泰伦虫族对应 | 星际争霸异虫对应 | 系统定位 |
+|---|---|---|---|
+| 系统人格外壳 Persona Shell | 虫巢意志 Hive Mind | — | 对外统一意识，用户只感知一个人格 |
+| 主脑 Overmind（L3） | — | 主宰 Overmind | 线程级唯一主动权威，战略决策与调度 |
+| 进化大师 Evolution Master（L3） | 诺恩后虫 Norn-Queen | 阿巴瑟 Abathur | 基因进化设计、策略优化，有受限独立意志 |
+| 愿景分身 Vision Arbiter | 虫巢领主 Swarmlord | — | 愿景监督与赛马裁判，非第二主权 |
+| 小主脑 Submind（L2） | 虫巢暴君 Hive Tyrant | 脑虫 Cerebrate | 领域级治理节点，接受主脑指挥 |
+| 虫群工作组 Brood（L1） | — | 虫群 Brood | 一组协同 Unit 的集合，内部直接协作 |
+| 战斗单位 Unit（L0） | 虫巢武士 Warrior | 刺蛇 / 跳虫 | 专业执行者 + 原子任务执行 |
+| 原子任务 ToolAction | 撕裂虫 Ripper | 工蜂 Drone | 文件/浏览器/代码操作（原 Drone 层级） |
+| 虫巢容器 Hive Container | 虫巢舰 Hive Ship | 孵化场 Hatchery | Session 级资源容器，不参与决策 |
+| 灵能节点网络 Synapse Net | 灵能网络 Synapse Network | 心灵链接 Psionic Link | ContextPacket 分发与状态同步 |
+| 进化层 Evolution Layer | 基因库 + 自然选择 | 进化深渊 Evolution Pit | 由进化大师主导的基因进化与淘汰 |
+| 赛马机制 Trial Race | — | — | GreyWind 原创：条件并行竞争与择优收敛 |
+| 基因种子 GeneSeed | 基因种子 Gene-Seed | 原质 Essence | 三层经验注入（Constitution/Playbook/Lessons） |
+| 生物质消耗 Biomass Drain | 虫群生物质消耗 | 资源消耗 | Submind 存活的基线成本（token/时间/算力），不产出则被代谢压垮 |
+| 生物质收割 Biomass Harvest | 星球生物质收割 | 战利品收获 | Submind 完成任务的价值产出（任务成功 + 用户反馈），是生存的收益来源 |
+| 生物质净值 Net Biomass | 虫群净增生物质 | 净资源增益 | 生物质收割 − 生物质消耗，个体适存度的核心指标，决定领域扩张/收缩/休眠 |
+| 基因本源 Gene Essence | 基因种子核心 | 本源（Essence） | Submind 的身份连续性载体：渐进演化 = 同一个体；谱系断裂重置 = 新个体 |
+
+**关键设计选择**：GreyWind 不是纯泰伦模型（无实体的完形灵能意识，所有个体无自我），也不是纯异虫模型（单主宰绝对控制，基因锁死忠诚）。它取泰伦的分层灵能节点网络作为治理骨架，取异虫的主宰 + 脑虫 + 阿巴瑟分工模型作为角色设计。进化大师借鉴了阿巴瑟的"受限独立意志"——在进化领域有自主判断权，但不能越权调度。竞争与进化机制（赛马、谱系淘汰）是 GreyWind 自己的设计。
+
+---
+
+## 2. 核心设计原则
+
+### 2.0 阿米巴 CEO 原则（核心哲学）
+
+**虫巢里的每个 Submind / Cat 都是"域内 CEO"，不是"领域专家工具人"。**
+
+"专业化"指的是**执行工具和负责的 P&L 边界**，不是推理能力的天花板。
+
+| 维度 | ❌ 小专家模型（错误） | ✅ 阿米巴 CEO 模型（正确） |
+|------|----------------------|---------------------------|
+| 推理能力 | 只懂本域，看不懂全局 | 能读懂完整任务和全局 spec |
+| 执行边界 | 本域工具 | 本域工具（相同） |
+| 遇到跨域问题 | 必须上报主脑等指令 | 直接 @对方 Submind 协商 |
+| 主脑的角色 | 翻译官 + 协调员 | 目标设定者 + P&L 边界划定者 |
+| 协作方式 | 层级传递，主脑中转 | 平等对话，点对点传球 |
+
+**实际含义**：
+
+- Submind 收到任务时，拿到的是**完整的全局 spec**，不是切片
+- Submind 读懂全局后，只用自己领域的工具**执行自己那块**
+- 遇到边界问题（如上游改了 schema），Submind 直接和对方 Submind 谈，不需要主脑翻译
+- 主脑只负责"目标是什么、谁负责哪块"，不负责协调细节
+
+**与阿米巴经营的对应**：稻盛和夫的阿米巴不是把每个单元变成只会干一件事的工具，而是每个单元领导者都理解整个公司的经营逻辑，只是负责自己那块的 P&L。Submind 也是如此——专业化是执行边界，不是认知边界。
+
+---
+
+### 2.1 多频道暴露模型（Multi-Channel Visibility）
+
+用户**默认只看到 Trunk（主干频道）**，其他频道作为**详情面板折叠在右侧侧边栏**，类似 Discord + Cat Cafe 的三层结构：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  左侧：频道导航栏（Channel Sidebar）                              │
+│  ── 类似 Discord 左侧频道列表                                     │
+│  ── 显示所有任务/虫巢基地/小主脑会话                              │
+│                                                                 │
+│  • 主频道（Trunk）【默认展开】                                    │
+│  • Hive Base: movie-crawler【折叠】                              │
+│  • Trial Group: task-001【折叠】                                 │
+│  • Ledger【折叠】                                                │
+└──────────────────┬──────────────────────────────────────────────┘
+                   │
+┌──────────────────┼──────────────────────────────────────────────┐
+│  中间：对话流（Conversation Stream）— Trunk                       │
+│  ── 领导仪表盘视角：主脑决策 + 小主脑汇报                          │
+│  ── 约 10-15 条关键节点消息                                       │
+│                                                                 │
+│  [主脑] 分析需求，复杂度：中等，从活跃池选 CodeA/CodeB 双路验证   │
+│  [小主脑-CodeA] 方案A：requests，预计成功率 95%，耗时 30s         │
+│  [小主脑-CodeB] 方案B：playwright，预计成功率 98%，耗时 36s       │
+│  [主脑] @用户 两个方案进行中，预计2分钟完成...                     │
+│  [主脑] Trial 完成，选择方案B（成功率更高）                       │
+│  [进化大师] 复盘落盘：CodeA 反爬不足 → 错题本；CodeB 动态等待 → Playbook │
+│  [系统] Submind-CodeB 战功 +1                                    │
+└──────────────────┼──────────────────────────────────────────────┘
+                   │
+┌──────────────────┴──────────────────────────────────────────────┐
+│  右侧：详情面板（Detail Panel）— 默认折叠，可展开                   │
+│                                                                 │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐             │
+│  │ Hive Channel │ │ Trial Panel  │ │ Ledger View  │             │
+│  │ • 当前任务   │ │ • 赛马分支A  │ │ • 晋升记录   │             │
+│  │ • 产物列表   │ │ • 赛马分支B  │ │ • 战功排行   │             │
+│  │ • 依赖关系   │ │ • 实时进度   │ │ • 基因版本   │             │
+│  └──────────────┘ └──────────────┘ └──────────────┘             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**默认交互模式**：
+- **Trunk（主干）**：仅显示主脑战略决策 + 小主脑战术汇报（约 10-15 条），领导视角
+- **右侧详情面板**：默认折叠，用户可点击展开查看
+  - **Trial Panel**：赛马分支实时进度（执行细节）
+  - **Hive Channel**：资源环境状态
+  - **Ledger View**：战功统计、晋升记录
+- 简单任务不弹出 Trial Panel，复杂任务或用户主动点开时才展开
+- 用户在 Trunk 可直接 @主脑 @小主脑 参与对话
+- 点击 Trial Panel 可手动终止某分支
+
+**消息量级控制**：
+- **Trunk**：10-15 条/任务（仅关键节点）
+- **Trial Channels**（折叠）：各 15-20 条（执行细节）
+- **Brood Channels**（折叠）：10-20 条（Unit 协作）
+
+用户不会被 50+ 条消息淹没，同时保留可追溯性。
+
+### 2.2 虫群等级制（Tyranid Hierarchy）
+
+| 等级 | 英文名 | 中文名 | 虫族对应 | 职责 | 状态 |
+|------|--------|--------|----------|------|------|
+| L3 | Overmind | 主脑 | 主宰 Overmind | 全局战略决策、赛马触发、收敛仲裁 | 系统唯一，永不沉睡 |
+| L3 | Evolution Master | 进化大师 | 诺恩后虫 + 阿巴瑟 | 基因进化设计、策略优化、试验管理 | 系统唯一，有受限独立意志 |
+| L2 | Submind | 小主脑 | 脑虫 Cerebrate / 虫巢暴君 | 领域级战术调度、任务分解、Brood 协调 | 常驻/试验/休眠三态 |
+| L1 | Brood | 虫群工作组 | 虫群 Brood | 一组协同 Unit 的集合，内部直接协作 | 动态组建 |
+| L0 | Unit | 战斗单位 | 武士 Warrior / 跳虫 Zergling | 专业执行者 + 原子任务执行（ToolAction） | 按领域细分多种类型 |
+
+**关键变更说明**：
+
+1. **层级压缩**：v2.2 从 6 层压缩到 4 层
+   - **删掉 Drone 独立层级**：原 L0 Drone（工蜂）并入 Unit 内部的 ToolAction，不再是独立心智层级
+   - **Hive 退化为容器**：原 L2 Hive 不再是一等治理层级，仅作为 Session 级资源容器存在
+
+2. **职责边界硬化**：
+   - **Overmind（L3）**：只负责"是否开赛马、谁赢、是否升级/休眠、是否向用户汇报"
+   - **Evolution Master（L3）**：只负责"基因进化设计、策略优化、试验管理"，有受限独立意志，不参与调度
+   - **Submind（L2）**：只负责"把一个目标拆成若干 BroodTask"
+   - **Brood（L1）**：只负责"执行协作"和"内部角色通信"
+   - **Hive**：只负责"资源容器 + 生命周期 + 隔离上下文"，**不参与决策**
+   - **Unit（L0）**：只负责产出，不负责调度；原子任务通过 ToolAction 封装
+
+3. **Unit 内部结构**：
+```
+Unit (L0)
+├── Core：专业执行者（前端虫/后端虫/设计虫/审核虫）
+├── ToolAction：原子任务封装（原 Drone 层级）
+│   ├── FileAction：文件读写、格式转换
+│   ├── BrowserAction：浏览器操作
+│   └── CodeAction：代码片段执行
+└── GeneSeed：领域经验注入
+```
+
+**专家基因（Expert Gene）机制**：
+
+每个专业 Unit 都有独立的基因库：
+- **设计虫基因** → `L0_unit/designer/` —— 设计模式、组件库经验、常见错误
+- **前端虫基因** → `L0_unit/frontend/` —— 框架特性、性能优化、兼容性处理
+- **后端虫基因** → `L0_unit/backend/` —— 架构模式、数据库优化、安全规范
+- **审核虫基因** → `L0_unit/reviewer/` —— Review checklist、常见缺陷模式、最佳实践
+
+经验双向落盘：
+- **成功经验** → 项目完成后，每个参与 Unit 的成功经验写入对应基因库
+- **失败经验** → 过程中遇到问题立即写入失败基因库（错题本），并关联解决方案
+
+### 2.3 三大核心机制
+
+#### 机制一：条件赛马（Conditional Trial Broods）
+
+**硬规则触发赛马**（只有满足 2 项以上才允许开启 Trial）：
+
+| 触发条件 | 说明 |
+|----------|------|
+| 1. 需要外部执行 | 任务涉及浏览器/桌面/API 等外部操作 |
+| 2. 存在多可行路径 | 技术方案不唯一（如 requests vs playwright） |
+| 3. 高风险 | 涉及数据修改、安全敏感、不可回滚操作 |
+| 4. 历史失败率高 | 同 domain 近 7 天失败率 > 30% |
+
+**赛马规则**：
+- **固定两路**：不允许 3 路以上，不做动态分支数
+- **从活跃池选择，不新建**：优先从已有活跃小主脑中选择 domain 最匹配的 2 个参赛，仅在活跃池无合适者时才孵化试验小主脑
+- **用户不能直接指定路数**，只能"允许/不允许试验"
+- 必须在隔离环境中进行（独立频道/独立 Host/独立状态）
+- 每个候选分支共享目标约束，但不共享执行状态
+- 用户可在 Trial Panel 看到全过程并手动干预
+- 由 Overmind 统一收敛并选择胜者
+
+**收敛判据**（两层结构）：
+
+**第一层：硬门槛**（必须全部通过）
+- 是否成功完成（outcome_success）
+- 是否违反约束（constraint_violation）
+- 是否通过审查（review_passed）
+
+**第二层：软评分**（在通过硬门槛的候选中比较）
+- 结果质量（40%）：功能正确性、代码质量
+- 速度奖励（20%）：执行耗时
+- 健壮性（15%）：错误处理、边界情况
+- 复用价值（10%）：方案可复用性
+- Token 成本（-10%）：LLM 调用开销
+- 协作开销（-5%）：Brood 协调成本
+
+不通过硬门槛的候选直接淘汰，不进行软评分比较。
+
+**赛马后处理（渐进式战功，非即时晋升）**：
+- 胜者：战功 +1，失败基因/优秀基因由进化大师复盘落盘
+- 败者：战功不变，失败记录入 Ledger（非即时惩罚）
+- **不做一次赛马即晋升/休眠**——战功是渐进积累的：
+  - 战功积累 → 允许协调更大的 Brood 集群（如从 3 Unit → 5 Unit）
+  - 连续优胜 → 扩大领域管辖范围
+  - 连续失败 → 缩小管辖范围 → 达到阈值才触发休眠
+  - 转正/休眠需要多次赛马 + 日常任务的综合表现，由主脑周期性审查
+
+#### 机制二：主脑分身裁判（Vision Arbiter / Dreamer Shadow）
+
+- **不是第二主脑**，而是监督视角
+- 维护愿景边界和 done-when 定义
+- 作为赛马比较的一致判尺
+- 发现需求缺口建议上抛给用户或 Overmind
+
+#### 机制三：小主脑复用优先、受控孵化
+
+- 小主脑是**可复用治理资产**，不是一次性消耗品
+- **三态管理**：常驻(Resident) / 试验(Trial) / 休眠(Dormant)
+- **新增触发条件**：新领域/复杂赛马/过载/退化/新策略验证
+- **转正条件**：持续正向增益 + 可量化优势 + 交接质量稳定
+
+#### 机制四：进化大师（Evolution Master）
+
+进化大师是系统中唯一专职负责进化与策略优化的角色，灵感来自泰伦虫族的诺恩后虫（Norn-Queen）和星际争霸异虫的阿巴瑟（Abathur）。
+
+**核心特征：拥有受限独立意志。**
+
+与小主脑（纯执行节点，无独立意志，类似脑虫/虫巢暴君）不同，进化大师在进化领域内拥有自主决策权：
+
+- 可以独立判断哪些基因/策略值得试验
+- 可以独立设计新的分解策略、review 规则、协作模式
+- 可以主动向主脑提议进化方向，而非被动等待指令
+- 可以对主脑提出的"退化性"进化请求提出强烈反对并记录 Ledger（**注意：反对 ≠ 有权阻止**，最终执行权归主脑；但反对会在 Ledger 中标记为"覆盖决策 Override"，结果不佳时归因清晰）
+
+**职责**：
+
+1. **赛后复盘**（核心职责）：进化大师订阅 `TrialClosed` 事件，**Overmind 完成收敛、选出胜者之后**，进化大师才触发复盘（不得在收敛前并行写入 Lessons，否则会记录错误的胜负归因）：
+   - 失败基因是什么？（分析失败路径的根因，提取失败模式）
+   - 优秀基因是什么？（分析成功路径的关键策略，提取可复用模式）
+   - 落盘到角色错题本（失败模式 → Lessons L3 层，严重的升级 Playbook）
+   - 落盘到角色流程文件（优秀策略 → Playbook L2 层）
+2. **基因设计**：设计新的 worker 模板、review heuristic、coordination protocol
+3. **策略优化**：分析 SelectionReport，识别可进化的模式，提出改进方案
+4. **试验管理**：主导 Evolution Layer 的 Trial Broods，决定试验参数与评估标准
+5. **谱系维护**：维护 Genome Registry / 基因库三层结构，决定哪些基因采纳、哪些淘汰
+6. **退化预警**：监控小主脑与 Unit 的 survival score，在谱系退化前主动预警
+
+**约束**：
+
+- 不得绕过主脑直接调度小主脑或分配 BroodTask
+- 不得对外（用户侧）发言
+- 不得独立决定小主脑的晋升/降级（只能建议，主脑批准）
+- 进化决策必须有 ledger 记录，不允许黑箱操作
+
+**与主脑的关系**：
+
+主脑负责"做什么"（战略目标与调度），进化大师负责"怎么进化得更好"（基因设计与策略优化）。主脑可以否决进化大师的建议，但不能替代其专业判断。类似刀锋女王与阿巴瑟的关系——凯瑞甘下达战略目标，阿巴瑟自主决定如何从基因层面实现。
+
+**与基因库三层结构的关系**：
+
+- **Constitution（L1 宪法）**：进化大师维护，极少更新，更新需主脑批准
+- **Playbook（L2 战术手册）**：进化大师主导版本化管理，分析 SelectionReport 后提议更新
+- **Lessons（L3 近期教训）**：自动落盘，进化大师负责审查是否升级为 Playbook
+
+### 2.4 适存驱动模型（Fitness Drive）
+
+**核心哲学：不定义显式目标函数，用生物质消耗 + 生物质收割的张力自然涌现优化方向。**
+
+借鉴强化学习的饥饿 + 奖励机制：不告诉 Agent "优化 X"，而是设计好消耗压力与收益信号，让适存行为从中涌现。与阿米巴经营完全对应——每个 Submind 有自己的 P&L，全局最优从局部竞争中自然产生。
+
+#### 生物质消耗（Biomass Drain）— 饥饿信号
+
+每个 Submind 存在就有持续消耗：
+
+| 消耗来源 | 说明 |
+|----------|------|
+| 待机消耗 | 常驻 Submind 占用上下文槽位，即使不执行任务也有基线成本 |
+| 执行消耗 | 每次 Think 调用的 token 成本 + 执行耗时 |
+| 协调消耗 | 跨域沟通、等待其他 Submind 的时间成本 |
+
+**压力机制**：生物质消耗累积而生物质收割不足 → 净生物质净值为负 → 触发领域收缩 → 持续为负 → 休眠。这是"饥饿"的实现：不产出的 Submind 会被代谢压力自然淘汰，无需主脑主动惩罚。
+
+#### 生物质收割（Biomass Harvest）— 奖励信号
+
+| 收割来源 | 权重 | 说明 |
+|----------|------|------|
+| 任务完成 | 高 | 达成目标，验收标准通过 |
+| 用户显式反馈 | 高 | 👍/👎 直接信号 |
+| 用户隐式反馈 | 中 | 追问、复用产物、任务链延伸 |
+| Trial 胜出 | 高 | 赛马中击败竞争 Submind |
+| 进化贡献 | 中 | 产出被 Evolution Master 采纳为 Playbook |
+
+**奖励形状**：不做线性累加，高质量完成比多次平庸完成权重更高——防止 Submind 用"大量廉价任务刷分"规避真正的高难任务。
+
+#### 生物质净值（Net Biomass）— 适存度
+
+```
+生物质净值 = 生物质收割 − 生物质消耗
+
+净值 > 0（持续）→ 领域扩张，可协调更大 Brood 集群
+净值 ≈ 0        → 维持现状，稳定运行
+净值 < 0（偶发）→ 警告，触发自我优化
+净值 < 0（持续）→ 领域收缩 → 达阈值 → 休眠
+```
+
+Evolution Master 监控所有 Submind 的净生物质曲线，识别退化趋势并提前预警，不等到净值跌到临界才介入。
+
+**与战功的关系**：战功（Kill-mark）是生物质收割的历史记录，净生物质净值是当前适存状态的实时指标。两者共存：战功用于谱系追溯，净值用于调度决策。
+
+---
+
+#### 基因本源（Gene Essence）— 身份连续性
+
+**Submind 的"自我"是什么？**
+
+借鉴阿巴瑟提取"本源（Essence）"的概念：每个生命体的本源是其核心基因模式，不是物理躯体。躯体可以被摧毁，本源被保留后可以注入新躯体——这是同一个体的延续。
+
+```
+基因本源 = GeneSeed 谱系的连续演化轨迹
+
+同一个体：GeneSeed 渐进演化（Constitution 微调 / Playbook 版本迭代 / Lessons 滚动更新）
+           → 谱系 ID 不变，Lineage 可追溯
+           → Evolution Master 修改基因 = 同一个体进化，不是替换
+
+新个体：  GeneSeed 重新初始化 / 谱系断裂 / 休眠后清空孵化
+           → 新 Lineage ID，与前身无关联
+           → 可选继承前身 GeneSeed（带"遗传"标记）或完全全新孵化
+```
+
+**实践含义**：
+
+| 操作 | 身份判断 | 战功处理 |
+|------|----------|----------|
+| Evolution Master 更新 Playbook | 同一个体 | 战功延续 |
+| 主脑手动重置 Submind | 新个体 | 战功归零（可选保留"遗传奖励"） |
+| 休眠后自然唤醒 | 同一个体 | 战功延续，净值从休眠点续算 |
+| 休眠后强制清空重孵 | 新个体 | 可继承前身 50% 战功作为"遗传起点" |
+
+---
+
+### 2.5 执行模式框架（Execution Mode）
+
+主脑收到任务后，**首先判断任务形态，再选择对应执行模式**。v3 支持三种模式，错误的模式选择比错误的实现危害更大。
+
+#### 任务形态判断（优先级从高到低）
+
+```
+主脑收到任务
+  ↓
+1. 有多条独立可行路径，且结果可以客观比较？
+   → Trial 赛马模式（并行竞争）
+
+2. 子任务之间存在线性依赖，必须串行？
+   → 串行链模式（Chain Mode，顺序执行）
+
+3. 子任务完全独立，无状态依赖？
+   → 并发 Unit 池（Swarm Mode，批量并行）
+
+4. 单文件小修 / context 可容纳 / 顺序工具链？
+   → 单主脑直接执行
+```
+
+**判断优先级说明**：先问"有无多条可行路径"，再问"有无线性依赖"。绝大多数软件工程任务是形态 2（串行链），不是形态 1（赛马）。
+
+---
+
+#### 模式一：Trial 赛马（已有，见 2.3 机制一）
+
+**适用**：有 2 条以上独立可行方案，可并行跑然后取优。
+
+典型例子：
+- 实现 Glance 意图分类：rule-based vs LLM-based，跑一遍比准确率
+- 反爬策略：requests vs playwright，跑一遍比成功率
+
+**不适用**：决策已拍板、只有一条正确实现路径的任务。
+
+---
+
+#### 模式二：串行链（Chain Mode）
+
+**适用**：子任务之间有线性依赖，必须前一阶段完成才能开始下一阶段。
+
+典型例子：M6.3 经济重构（P1→P2→P3→P4→P5，每层依赖前层的 DB schema 或字段）。
+
+**执行规范**：
+
+```
+主脑（全局协调）
+  读完完整 spec + 建依赖图
+  制定实施序列（不写代码，只规划阶段和阶段间的接口）
+
+  ↓ 顺序派发，不并行
+
+Submind-阶段N（精裁 context）
+  输入 = 本阶段 spec片段
+        + 前序阶段"改动摘要"（不是完整代码，只是"改了什么"）
+        + 仅本阶段涉及的现有代码文件
+
+  执行：实现本阶段功能
+  输出：实现产物 + 改动摘要（供下一阶段使用）
+
+  ↓ 主脑拿到摘要，更新全局状态，再派下一阶段
+
+Submind-阶段N+1
+  ...
+```
+
+**关键原则**：
+
+| 原则 | 说明 |
+|------|------|
+| Context 精裁 | 每个 Submind 只拿自己那段 spec + 前序摘要，不传完整代码库 |
+| 摘要而非 diff | 阶段间传递"改动摘要"（字段名、接口签名、关键决策），不传完整代码 |
+| 失败可重跑 | 某阶段失败只需重跑该阶段，不影响已完成阶段 |
+| 主脑持有全局图 | 只有主脑看到完整依赖图，Submind 只看自己的切片 |
+
+**与 Trial 模式的核心区别**：Chain 是串行，Submind 顺序启动；Trial 是并行，两个 Submind 同时跑。Chain 中不触发赛马，不做选择——每个阶段只有一个正确实现。
+
+---
+
+#### 模式三：并发 Unit 池（Swarm Mode）
+
+**适用**：任务可以拆分为大量完全独立、无状态共享的子任务。
+
+典型例子：
+- 给 20 个物资生成描述文案（每个 Unit 独立，不互相依赖）
+- 给 10 个 API 接口写测试用例
+- 批量翻译、批量格式化、批量图片处理
+
+**执行规范**：主脑拆分任务 → 分发给 Unit 池（最多 N 个并发）→ 收集所有结果 → 汇总。不需要 Submind 层，Unit 直接执行。
+
+---
+
+#### 模式判断的常见误区
+
+| 误区 | 后果 |
+|------|------|
+| 把串行链误判为赛马 | 两个 Submind 并行修改同一 DB schema → 冲突 |
+| 把单主脑任务升级为 Chain | 协调开销 > 执行收益，变慢 |
+| 把有依赖的任务当 Swarm | 后序 Unit 读到旧状态，产出不一致 |
+| 对已拍板方案开赛马 | Trial 机制贡献为零，但消耗翻倍 |
+
+---
+
+### 2.5 消息持久化与总结机制（Cat Cafe 式）
+
+所有 Channel 的聊天消息**实时持久化到数据库**，支持跨 Session 回顾和检索。
+
+**三层存储结构**：
+
+```
+消息存储（Message Store）
+├── Raw Messages（原文）
+│   └── 保留完整对话历史，支持全文检索
+│   └── 存储：SQLite / PostgreSQL
+│
+├── Summary Chains（摘要链）
+│   └── 事件驱动生成，非固定消息数
+│   └── 触发条件：任务完成、分支淘汰、用户插话、Session 结束
+│   └── 存储：向量数据库（支持语义检索）
+│
+└── Key Decisions（关键决策）
+    └── 提取决策点、方案选择、经验教训
+    └── 直接写入 Ledger
+```
+
+**总结策略**（事件驱动优先）：
+
+| 层级 | 触发条件 | 内容 | 使用场景 |
+|------|----------|------|----------|
+| **即时摘要** | 消息数达阈值（兜底） | 话题转移提示 | UI 快速浏览 |
+| **阶段摘要** | **事件驱动**：子任务完成、分支淘汰、方案选定 | 做了什么、决策理由、产出物 | 任务交接、用户回顾 |
+| **Session 摘要** | Session 结束时 | 完整目标、关键决策、成功/失败经验 | 跨 Session 恢复、经验沉淀 |
+
+**事件触发优先级**（从高到低）：
+1. **BroodTask 完成**：生成阶段摘要
+2. **Trial 分支被淘汰**：记录淘汰原因
+3. **方案被选中**：记录选择理由
+4. **进入 Review Gate**：生成审查前摘要
+5. **用户插话改变约束**：标记上下文变更
+6. **Session 结束**：生成完整摘要
+7. **兜底**：消息数阈值（每 20 条）或时间阈值（每 10 分钟）
+
+**原文可检索**：
+- 摘要用于减少上下文，但原文保留
+- 支持关键词搜索、时间范围搜索、@mention 搜索
+- 前端提供"展开查看原文"功能
+
+**战功记录（Kill-mark）维度**：
+- 任务完成度（是否达成目标）
+- 效率指标（耗时、token 消耗、步骤数）
+- 用户满意度（显式反馈 👍/👎 + 隐式信号）
+- 创新性（是否找到更优解）
+
+**内部评估信号**（不做排行榜）：
+- 评估结果仅用于 Overmind 的调度决策
+- 不面向用户展示排名
+- 只展示"本次为什么选它"（可解释选择）
+
+### 2.6 强制落盘机制（解决"不看错题本"问题）
+
+**核心问题**：传统错题本依赖人主动查阅，而虫群系统通过**基因分层注入**确保经验不可被忽略。
+
+#### 基因库三层结构
+
+| 层级 | 名称 | 内容 | 存储 | 注入方式 |
+|------|------|------|------|----------|
+| **L1** | Constitution（宪法） | 极稳定规则（安全、编码规范、审查底线） | YAML | 直灌 prompt |
+| **L2** | Playbook（战术手册） | 领域经验（React/API 设计/安全规范） | YAML（版本化） | 检索后注入 |
+| **L3** | Lessons（近期教训） | 最近失败/成功经验，带时效 | **SQLite 平铺** | 检索后注入，自然衰减 |
+
+**Lessons 存储（SQLite 平铺 + 自然衰减）**：
+
+```sql
+CREATE TABLE lessons (
+    id TEXT PRIMARY KEY,
+    domain TEXT,              -- 分类：frontend/react/hook
+    tags TEXT,                -- 标签：hook,useEffect
+    content TEXT,
+    created_at INTEGER,
+    last_used INTEGER,        -- 最后复用时间
+    frequency INTEGER         -- 复用次数
+);
+
+-- 索引加速查询
+CREATE INDEX idx_domain_lastused ON lessons(domain, last_used);
+```
+
+**自然衰减**：
+- 不主动归档、不物理删除
+- 查询时按 `exp(-0.1 * days) * (1 + log(1 + frequency))` 计算分数（⚠️ 公式修复：原 `* log(1+frequency)` 在 frequency=0 时返回 0，导致新写入 Lesson 永远查不到；改为 `* (1 + log(1+frequency))` 确保新 Lesson 有基础分）
+- 老的经验自然沉底，新复用的经验浮上来
+- 万条数据 O(log n) 查询（索引）
+
+#### 机制一：启动时基因加载（强制读取）
+
+每个 Unit 启动时**必须从基因库加载经验**，不是可选的：
+
+```python
+class Unit:
+    def __init__(self, unit_type: str, domain: str):
+        # 强制加载基因，失败则无法启动
+        self.constitution = GeneSeed.load_constitution(required=True)
+        self.playbook = GeneSeed.load_playbook(
+            unit_type=unit_type,
+            domain=domain,
+            top_k=5  # 只加载 Top-K 相关经验
+        )
+        self.lessons = GeneSeed.query_lessons(
+            domain=domain,
+            recency_days=30
+        )
+
+        # 基因注入 prompt
+        self.system_prompt = self._assemble_prompt()
+
+    def _assemble_prompt(self) -> str:
+        return f"""
+        你是 {self.unit_type} 领域的执行者。
+
+        【Constitution】（必须遵循）
+        {self.constitution}
+
+        【Playbook】（检索匹配的领域经验）
+        {self.playbook}
+
+        【Lessons】（近30天相关教训）
+        {self.lessons}
+
+        如果不确定，查阅 Ledger: {self.ledger_ref}
+        """
+```
+
+#### 机制二：执行时经验检查（强制应用）
+
+Unit 在执行任务时，系统**自动检查**是否触发已知失败模式：
+
+```python
+class ExecutionGuard:
+    """执行守护 —— 运行时检查"""
+
+    def pre_check(self, task: BroodTask, unit: Unit) -> GuardReport:
+        """任务执行前检查"""
+        risks = []
+
+        # 检查任务特征是否匹配已知失败模式
+        for pattern in unit.playbook.failure_patterns + unit.lessons:
+            if pattern.matches(task):
+                risks.append({
+                    "risk_id": pattern.id,
+                    "description": pattern.description,
+                    "source": pattern.source,
+                    "suggestion": pattern.workaround
+                })
+
+        if risks:
+            return GuardReport(
+                status="blocked",
+                risks=risks,
+                require_ack=True
+            )
+
+        return GuardReport(status="pass")
+```
+
+#### 机制三：失败时即时落盘（强制写入）
+
+任务失败后**立即**（不是事后整理）写入失败基因库：
+
+```python
+class FailureCapture:
+    """失败捕获 —— 即时落盘"""
+
+    def on_failure(self, task: BroodTask, unit: Unit, error: Error):
+        """失败回调，强制落盘"""
+
+        # 1. 立即写入 Ledger（同步写入）
+        ledger_entry = {
+            "timestamp": now(),
+            "unit_type": unit.unit_type,
+            "unit_id": unit.id,
+            "task_id": task.brood_id,
+            "error_type": error.classify(),
+            "error_message": error.message,
+            "context": task.context_snapshot(),
+            "recovery_action": error.recovery_attempted
+        }
+        ExtinctionLedger.write(ledger_entry)
+
+        # 2. 写入 Lessons（L3 层，即时生效）
+        lesson = {
+            "type": "failure",
+            "domain": unit.domain,
+            "pattern": self._extract_pattern(error, task),
+            "created_at": now(),
+            "expires_at": now() + timedelta(days=30)  # 30 天有效期
+        }
+        LessonsBank.add(lesson)
+
+        # 3. 如果是全新类型的失败，考虑升级至 Playbook
+        if self._is_novel_pattern(error, unit.domain):
+            PlaybookPropose.queue_for_review(lesson)
+```
+
+#### 机制四：基因传播（分层生效）
+
+| 传播方式 | 触发条件 | 接收方 | 效果 |
+|----------|----------|--------|------|
+| **Lessons 广播** | 新失败/成功提取 | 同 domain 活跃 Unit | 下次执行前重新加载 |
+| **Playbook 热更新** | 关键安全/性能教训 | 全局 Unit | 版本号更新，新 Session 生效 |
+| **版本锁定** | Session 开始时 | 当前 Session 所有 Unit | 固定使用某版本，执行中不变 |
+
+#### 机制五：审计与惩罚（四级递进）
+
+**失败分类**（先分类，再惩罚）：
+- **环境失败**：网络、工具、权限、超时 → **不惩罚**
+- **理解失败**：误解任务、漏约束 → **轻微惩罚**
+- **策略失败**：路线不优 → **中等惩罚**
+- **质量失败**：结果不达标 → **严重惩罚**
+
+**四级处理流程**：
+
+```python
+class EvolutionAudit:
+    """进化审计 —— 四级递进"""
+
+    def audit_repeated_failure(self, unit: Unit, failure_id: str, error_type: str):
+        """检查是否重复失败"""
+
+        # 只关注策略失败和质量失败
+        if error_type not in ["strategy", "quality"]:
+            return
+
+        # 检查：同类型 + 同模式 + 同域 + 同约束
+        key = (failure_id, unit.domain, task.constraint_hash)
+        unit.failure_log[key] += 1
+        count = unit.failure_log[key]
+
+        if count == 1:
+            # Level 1: Observe（仅记录）
+            self._log_observation(unit, key)
+
+        elif count == 2:
+            # Level 2: Warn（系统通知，标记 kill_mark）
+            self._send_warning(unit, key)
+            unit.kill_mark.warning_count += 1
+
+        elif count == 3:
+            # Level 3: Constrained（限制执行范围）
+            unit.status = "constrained"
+            unit.allowed_tasks = ["low_risk_only"]
+            SynapseNet.notify(f"Unit {unit.id} 进入受限模式")
+
+        elif count >= 4:
+            # Level 4: Dormant（休眠）
+            # 条件：同类型、同模式、同域、同约束下重复 4 次
+            Overmind.arbitrate_demotion(
+                unit=unit,
+                reason=f"Repeated {error_type} failure on known pattern: {failure_id}",
+                action="dormant"
+            )
+```
+
+#### 机制六：Lessons 自我细化（惰性重分类）
+
+**问题**：早期 Lessons 分类较粗（如 `frontend`），随着系统演化需要细化到 `frontend/react/hook`，但人工重新标记历史数据成本太高。
+
+**解法**：经验被复用时，**动态细化分类**，让它以后更容易被找到。
+
+**存储结构（SQLite 平铺）**：
+
+```sql
+CREATE TABLE lessons (
+    id TEXT PRIMARY KEY,
+    domain TEXT,              -- 分类：frontend/react/hook
+    tags TEXT,                -- 标签：hook,useEffect
+    content TEXT,
+    created_at INTEGER,
+    last_used INTEGER,        -- 最后复用时间（用于衰减排序）
+    frequency INTEGER         -- 复用次数
+);
+
+CREATE INDEX idx_domain_lastused ON lessons(domain, last_used);
+```
+
+**查询策略（继承链 + 自然衰减）**：
+
+```python
+class LessonsBank:
+    def query(self, task_domain: str, task_tags: List[str]) -> List[Lesson]:
+        """查询相关 Lessons"""
+
+        # 1. 提取 domain 继承链
+        # "frontend/react/spa" -> ["frontend/react/spa", "frontend/react", "frontend"]
+        domain_chain = self._get_domain_chain(task_domain)
+
+        # 2. 按 domain 粗筛（SQLite 索引查询）
+        candidates = self.db.query("""
+            SELECT * FROM lessons
+            WHERE domain IN ({})
+        """.format(','.join('?' * len(domain_chain))), domain_chain)
+
+        # 3. 计算综合分数（时效 + 频次 + 标签匹配）
+        scored = []
+        for lesson in candidates:
+            score = self._calc_score(lesson, task_domain, task_tags)
+            scored.append((lesson, score))
+
+        # 4. 取 Top-5 注入 prompt
+        return sorted(scored, key=lambda x: x[1], reverse=True)[:5]
+
+    def _calc_score(self, lesson, task_domain, task_tags) -> float:
+        """自然衰减公式"""
+        days = (now() - lesson.last_used).days
+        recency = exp(-0.1 * days)                    # 7天衰减到50%
+        frequency = log(1 + lesson.frequency)         # 复用次数对数
+
+        # 精确匹配权重更高
+        domain_match = 3.0 if lesson.domain == task_domain else \
+                       2.0 if task_domain.startswith(lesson.domain + "/") else 1.0
+
+        # 标签重叠度
+        lesson_tags = set(lesson.tags.split(","))
+        tag_overlap = len(lesson_tags & set(task_tags))
+
+        # ⚠️ 修复：新写入 Lesson frequency=0 时 log(1+0)=0 会导致 score=0 永远查不到
+        # 正确公式：(1 + frequency_log) 确保新 Lesson 有基础分
+        return recency * (1 + frequency) * domain_match * (1 + tag_overlap)
+```
+
+**惰性重分类（复用时更新）**：
+
+```python
+    def on_lesson_reused(self, lesson_id: str, task: BroodTask):
+        """Lesson 被复用时，动态细化分类"""
+
+        lesson = self.db.get(lesson_id)
+
+        # 1. 更新使用时间和频次
+        lesson.last_used = now()
+        lesson.frequency += 1
+
+        # 2. 细化分类（只允许细化，不允许升粗）
+        if task.domain.startswith(lesson.domain + "/"):
+            # frontend -> frontend/react -> frontend/react/hook
+            lesson.domain = task.domain
+            lesson.tags = merge_tags(lesson.tags, task.tags)
+
+        self.db.update(lesson)
+```
+
+**重分类规则**：
+
+| 旧分类 | 新任务 | 是否更新 | 说明 |
+|--------|--------|----------|------|
+| `frontend` | `frontend/react` | ✅ 更新 | 细化 |
+| `frontend/react` | `frontend/react/hook` | ✅ 更新 | 更细 |
+| `frontend/react` | `frontend` | ❌ 不更新 | 不升粗 |
+| `code` | `backend/api` | ✅ 更新 | 纠正大误分类 |
+
+**关键原则**：
+- **无归档目录**——永远不删，自然沉底
+- **无定时任务**——查询时现算分数，复用时更新分类
+- **自我进化**——常用的经验自动归类到更细的 domain
+- **O(log n)**——SQLite 索引查询，万条也毫秒级
+
+**关键原则**：
+- **分层注入** —— Constitution 直灌，Playbook/Lessons 检索后注入
+- **经验衰减** —— Lessons 按分数自然沉底，不主动归档
+- **失败分类** —— 环境失败不惩罚，策略/质量失败才触发降级
+- **四级递进** —— Observe → Warn → Constrained → Dormant，避免误杀
+- **自我细化** —— Lessons 被复用时动态细化分类，无需人工维护
+- **不看也得看** —— Constitution 直灌 prompt
+- **不写也得写** —— 失败回调强制触发，不能跳过
+
+---
+
+## 3. 核心数据结构
+
+### 3.1 BroodTask（虫巢任务）
+
+```python
+@dataclass
+class BroodTask:
+    task_id: str                           # 任务自身唯一 ID（原 brood_id，重命名避免歧义）
+    thread_id: str
+    goal: str
+    executor_level_required: Literal["L0", "L1", "L2", "L3"]  # v2.2: 4 层
+    domain: Literal["code", "research", "desktop", "memory", "review", "file", "general"]
+
+    # 执行绑定
+    hive_binding: Optional[str] = None    # 绑定的虫巢容器（资源层）
+    parent_brood_id: Optional[str] = None  # 所属虫群工作组（L1）（原 brood_id，重命名避免与 task_id 冲突）
+    depends_on: List[str] = field(default_factory=list)
+
+    # 审查门
+    review_gate: Literal["none", "light", "strict"] = "none"
+
+    # 状态
+    state: Literal["queued", "ready", "running", "blocked", "review", "done", "failed", "aborted"] = "queued"
+
+    # 赛马相关
+    trial_group_id: Optional[str] = None  # 赛马分组
+    vision_ref: Optional[str] = None       # 愿景判尺引用
+    race_mode: Literal["none", "control", "experiment"] = "none"
+    convergence_required: bool = False
+    winner_take_scope: Literal["result", "strategy", "promotion"] = "result"
+
+    # 硬规则触发条件（v2.2 新增）
+    requires_external_exec: bool = False   # 需要外部执行
+    has_multiple_paths: bool = False       # 存在多可行路径
+    is_high_risk: bool = False             # 高风险
+    has_high_failure_rate: bool = False    # 历史失败率高
+```
+
+### 3.2 ContextPacket（上下文包）
+
+```python
+@dataclass
+class ContextPacket:
+    persona: PersonaContext      # 人格上下文
+    vision: Optional[VisionContext] = None  # 愿景上下文（v2 强化）
+    thread: Optional[ThreadContext] = None  # 线程上下文
+    session: Optional[SessionContext] = None  # 会话上下文
+    handoff: Optional[HandoffDigest] = None   # 交接摘要
+    retrieved: List[RetrievedMemory] = field(default_factory=list)  # 检索记忆
+    user_input: UserInputContext  # 用户输入
+
+    # v2 扩展：Trial 场景
+    trial_group_id: Optional[str] = None
+    candidate_winners: List[str] = field(default_factory=list)
+    eliminated_branches: List[str] = field(default_factory=list)
+```
+
+### 3.3 存储架构（分阶段演进）
+
+虫群系统的存储需求复杂多样，采用**分阶段演进策略**：
+
+| 数据类型 | Phase 1-2 | Phase 3+ |
+|----------|-----------|----------|
+| **消息原文** | SQLite | **PostgreSQL**（主从、分区） |
+| **向量检索** | Chroma（本地） | **pgvector**（一体化）或 Pinecone |
+| **战功/Ledger** | SQLite | **PostgreSQL**（时序表） |
+| **基因库** | YAML（内存缓存） | **SQLite**（热数据）+ YAML（备份） |
+| **基因版本** | YAML | **Git 版本控制** |
+
+#### Phase 1-2：SQLite + Chroma（当前）
+
+**选择理由**：
+- **SQLite**：Python 原生支持，零配置，事务安全，单文件便于备份
+- **Chroma**：本地嵌入向量检索，无需外部服务，API 简单
+
+```
+storage/
+├── greywind.db              # SQLite 主库
+│   ├── messages             # 消息表（原文 + 元数据）
+│   ├── brood_logs           # Brood 协作记录
+│   ├── kill_marks           # 战功记录
+│   └── ledger               # 晋升/降级/赛马审计
+│
+├── chroma/                  # Chroma 向量库
+│   ├── message_embeddings   # 消息语义向量
+│   └── summary_embeddings   # 摘要向量
+│
+└── gene_pool/               # YAML 基因库（见 5.3 目录结构）
+    └── *.yaml               # 启动加载，运行时内存缓存
+```
+
+#### Phase 3：PostgreSQL + pgvector（生产）
+
+**迁移触发条件**：
+- 消息量 > 100万条
+- 并发写入 > 10 QPS
+- 需要多机部署
+
+**架构**：
+```
+PostgreSQL（主从）
+├── 关系数据
+│   ├── messages（分区表，按时间）
+│   ├── broods
+│   ├── units
+│   └── ledger
+│
+└── pgvector 扩展
+    └── message_embeddings（向量索引，余弦相似度）
+```
+
+**不推荐 MySQL/MongoDB 的原因**：
+- **MySQL**：JSON 查询能力弱于 PG，向量需外部服务
+- **MongoDB**：弱事务（晋升/降级需要强一致性），层级关系用关系型更自然
+
+#### Phase 4：专用存储（超大规模）
+
+```
+混合架构
+├── PostgreSQL（关系数据：基因、战功、配置）
+├── ClickHouse（时序分析：消息趋势、进化统计）
+├── Redis（热缓存：活跃 Brood、在线 Unit）
+└── 专用向量库（Milvus/Pinecone：语义检索）
+```
+
+---
+
+## 4. 系统架构
+
+### 4.1 模块交互图
+
+```
+用户输入: "帮我写个爬虫抓取豆瓣 Top250"
+           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Channel: Trunk（主频道）                                    │
+│  [用户可见：原始输入]                                         │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Overmind（主脑 / 主宰）L3                                    │
+│  "战略判断：复杂任务，触发赛马"                               │
+│  → 创建 Trial Group: crawler-race-001                        │
+│  → 从活跃小主脑池中选择 2 个适配者参赛                        │
+│    （Submind-CodeA: 擅长 requests 系，战功 12）                │
+│    （Submind-CodeB: 擅长 browser 系，战功 8）                  │
+└──────────────┬───────────────────────────────────────────────┘
+               ↓
+    ┌──────────┴──────────┐
+    ↓                     ↓
+┌──────────────────┐ ┌──────────────────┐
+│ Submind-CodeA    │ │ Submind-CodeB    │
+│ (常驻，战功12)    │ │ (常驻，战功8)     │
+│ 方案A: requests   │ │ 方案B: playwright│
+└───────┬──────────┘ └───────┬──────────┘
+        ↓                     ↓
+┌──────────────────┐ ┌──────────────────┐
+│ Trial Channel A  │ │ Trial Channel B  │
+│ [用户可见]        │ │ [用户可见]        │
+│ 中间对话流显示    │ │ 中间对话流显示    │
+└───────┬──────────┘ └───────┬──────────┘
+        │                     │
+        ↓                     ↓
+   [执行过程...]         [执行过程...]
+        │                     │
+        ↓                     ↓
+┌──────────────────┐ ┌──────────────────┐
+│ 结果A            │ │ 结果B            │
+│ 成功率 95%       │ │ 成功率 98%       │
+│ 耗时 30s         │ │ 耗时 36s         │
+└──────────────────┘ └──────────────────┘
+               │
+               ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Vision Arbiter（愿景分身 / 虫巢领主）                        │
+│  "比较结果：方案B成功率更高，符合愿景"                        │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Evolution Master（进化大师 / 阿巴瑟）                        │
+│  "复盘本次赛马：                                              │
+│   ▸ 失败基因：方案A 的反爬处理策略不足（落盘 Lessons）        │
+│   ▸ 优秀基因：方案B 的动态等待策略值得提取（升级 Playbook）   │
+│   ▸ 落盘：CodeA 错题本追加反爬失败模式                        │
+│   ▸ 落盘：CodeB 流程文件更新 browser 系最佳实践"              │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Overmind（收敛决策）                                         │
+│  "选择方案B 作为本次交付结果"                                 │
+│  → Submind-CodeB 战功 +1（累计 9），本次表现记录入 Ledger     │
+│  → Submind-CodeA 战功不变，失败记录入 Ledger（非惩罚）        │
+│  ⚠ 不做即时晋升/休眠——战功渐进积累，达到阈值才触发变更：     │
+│    · 战功积累 → 允许协调更大的 Brood 集群                     │
+│    · 连续优胜 → 扩大领域管辖范围                              │
+│    · 连续失败 → 缩小管辖范围 → 最终才考虑休眠                 │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Channel: Trunk（主频道）                                    │
+│  [用户可见：最终结果 + 进化简报]                              │
+│  "任务完成。采用 playwright 方案，成功率 98%。                │
+│   进化大师已提取本次优秀策略，落盘至基因库。"                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 场景二：同 Session 内 Brood 协作（多 Unit 同频道）
+
+```
+用户输入: "帮我做一个用户注册页面，要前后端都写好"
+           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Overmind（主脑）L3                                          │
+│  "判断：中等任务，无需赛马，单路执行"                         │
+│  → 选择 Submind-FullStack（常驻，战功 15，擅长全栈）          │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Submind-FullStack（小主脑）L2                                │
+│  "分解任务，组建 Brood，分配角色"                             │
+│  → 组建 Brood: register-page-001                             │
+│  → 从 Unit 池中选择 3 个 Unit：                               │
+│    · Unit-Frontend（前端虫，擅长 React）                      │
+│    · Unit-Backend（后端虫，擅长 API 设计）                    │
+│    · Unit-Reviewer（审核虫，负责代码审查）                    │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Brood Channel: register-page-001（同一频道内协作）           │
+│                                                              │
+│  ── Phase 1: 接口对齐 ──                                     │
+│  [Submind] @全员 先对齐接口，后端先出 API 契约               │
+│  [Unit-Backend] POST /api/register 契约：                    │
+│    { email, password, name } → { user_id, token }            │
+│    错误码：409 已存在 / 422 格式错误                          │
+│  [Unit-Frontend] 收到，我按这个契约写表单和错误处理           │
+│                                                              │
+│  ── Phase 2: 并行开发 ──                                     │
+│  [Unit-Backend] API 实现完成，含输入校验 + 密码哈希           │
+│  [Unit-Frontend] 注册页完成，含表单验证 + 错误提示 + loading  │
+│                                                              │
+│  ── Phase 3: 交叉审查 ──                                     │
+│  [Submind] @Unit-Reviewer 审查两边代码                       │
+│  [Unit-Reviewer] 审查结果：                                  │
+│    · 后端 P1: 缺少 rate limiting → Unit-Backend 修复         │
+│    · 前端 P2: 密码强度提示可优化 → 标记不修                  │
+│  [Unit-Backend] rate limiting 已加                           │
+│                                                              │
+│  ── Phase 4: 集成验证 ──                                     │
+│  [Submind] 前后端联调，验证完整注册流程                      │
+│  [Submind] ✅ 注册流程通过，交付主脑                         │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Evolution Master（进化大师）                                 │
+│  "复盘：                                                     │
+│   ▸ 优秀基因：先对齐接口再并行开发的模式高效                 │
+│   ▸ 失败基因：后端首版遗漏 rate limiting                     │
+│   ▸ 落盘：后端虫 Playbook 追加'注册/登录必查 rate limiting'  │
+│   ▸ 落盘：Brood 协作模板更新'接口先行'为默认策略"            │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Channel: Trunk（主频道）                                    │
+│  "注册页面完成。前端 React 表单 + 后端 API，已通过审查。     │
+│   Submind-FullStack 战功 +1，Unit-Backend/Frontend 各 +1。"  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**同 Session 协作要点**：
+- 所有 Unit 在同一个 Brood Channel 内通信，Submind 作为协调者
+- Submind 决定协作节奏：接口对齐 → 并行开发 → 交叉审查 → 集成验证
+- Unit 之间可直接对话（如 Frontend 直接问 Backend 接口细节），不必经过 Submind
+- Submind 负责关键决策点（如审查结果的处理、是否需要返工）
+- 所有消息持久化到 Brood Channel，用户可在左侧导航栏点击查看
+
+### 4.3 场景三：跨 Session / 跨频道协作（多 Submind 跨域配合）
+
+```
+用户输入: "帮我做一个完整的电影推荐系统：爬数据、建后端、做前端"
+           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Overmind（主脑）L3                                          │
+│  "判断：大型任务，跨多个领域，需要多 Submind 协作"            │
+│  → 任务分解为 3 个子目标，分配给 3 个活跃 Submind：           │
+│    · 子目标 A: 爬虫 → Submind-Crawler（战功 12，擅长数据采集）│
+│    · 子目标 B: 后端 → Submind-Backend（战功 18，擅长 API）    │
+│    · 子目标 C: 前端 → Submind-Frontend（战功 10，擅长 React） │
+│  → 定义依赖链：A → B → C（爬虫产出 → 后端消费 → 前端展示）  │
+│  → 创建 Coordination Channel（跨域协调频道）                  │
+└──────────────┬───────────────────────────────────────────────┘
+               ↓
+    ┌──────────┼──────────┐
+    ↓          ↓          ↓
+┌────────┐ ┌────────┐ ┌────────┐
+│ Hive A │ │ Hive B │ │ Hive C │
+│ 爬虫域 │ │ 后端域 │ │ 前端域 │
+└───┬────┘ └───┬────┘ └───┬────┘
+    ↓          ↓          ↓
+
+═══════════════════════════════════════════════════════════════
+  Coordination Channel（跨域协调频道 — 仅 Submind 级别可见）
+═══════════════════════════════════════════════════════════════
+
+── Phase 1: 契约对齐（所有 Submind 同步） ──
+
+[Overmind] @全员 先对齐数据契约，再各自开工
+[Submind-Crawler] 爬虫产出格式：
+  movies.json: [{ title, year, rating, genres, poster_url, summary }]
+  预计 250 条，30 分钟完成
+[Submind-Backend] 收到，我按这个 schema 建表 + API：
+  GET /api/movies?genre=&sort=&page=
+  GET /api/movies/:id
+  GET /api/movies/:id/similar
+[Submind-Frontend] 收到，我需要的接口：列表页、详情页、推荐卡片
+  确认 API 契约满足需求
+
+── Phase 2: 并行执行（各自在独立 Hive 中工作） ──
+
+┌─────────────────────────────────────────────────────────────┐
+│  Hive A: Submind-Crawler 的工作频道                          │
+│  [Submind-Crawler] 组建 Brood，选择 Unit-Spider + Unit-Parser│
+│  [Unit-Spider] 抓取豆瓣 Top250 页面...                       │
+│  [Unit-Parser] 解析 HTML，提取结构化数据...                   │
+│  [Submind-Crawler] ✅ 250 条数据就绪，通知后端               │
+└─────────────────────────────────────────────────────────────┘
+
+  → 通过 Coordination Channel 发送交接信号 →
+
+┌─────────────────────────────────────────────────────────────┐
+│  Hive B: Submind-Backend 的工作频道                           │
+│  [Submind-Backend] 收到数据，开始建表导入                     │
+│  [Unit-Backend-API] 实现 3 个 API endpoint...                │
+│  [Unit-Backend-DB] 导入 250 条数据，建索引...                │
+│  [Submind-Backend] ✅ API 就绪，通知前端                     │
+└─────────────────────────────────────────────────────────────┘
+
+  → 通过 Coordination Channel 发送交接信号 →
+
+┌─────────────────────────────────────────────────────────────┐
+│  Hive C: Submind-Frontend 的工作频道                          │
+│  [Submind-Frontend] 收到 API 地址，开始对接                   │
+│  [Unit-Frontend-Page] 列表页 + 详情页...                     │
+│  [Unit-Frontend-Component] 推荐卡片 + 筛选组件...            │
+│  [Submind-Frontend] ✅ 前端就绪，提请集成验证                │
+└─────────────────────────────────────────────────────────────┘
+
+── Phase 3: 集成验证（回到 Coordination Channel） ──
+
+[Overmind] 三个域都就绪，启动端到端集成验证
+[Submind-Backend] 集成测试：爬虫数据 → API → 前端渲染，通过
+[Submind-Frontend] UI 验收：列表筛选、详情跳转、推荐卡片，通过
+
+── Phase 4: 复盘 ──
+
+┌─────────────────────────────────────────────────────────────┐
+│  Evolution Master（进化大师）                                 │
+│  "跨域复盘：                                                 │
+│   ▸ 优秀基因：契约先行 + 依赖链异步交接模式高效               │
+│     → 提取为 Playbook：'跨域协作契约先行模板'                 │
+│   ▸ 优秀基因：Crawler 用动态等待避免反爬                     │
+│     → 落盘 Crawler Playbook                                   │
+│   ▸ 待改进：Backend 建表时未考虑推荐算法的查询模式            │
+│     → 落盘 Backend 错题本：'建表前先确认下游查询模式'          │
+│   ▸ Brood 协作模板更新：跨域任务默认走 Coordination Channel"  │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Overmind（收敛）                                             │
+│  → Submind-Crawler 战功 +1（按时高质量交付）                  │
+│  → Submind-Backend 战功 +1（API 稳定，但建表有瑕疵，记录）   │
+│  → Submind-Frontend 战功 +1（按时交付，UI 完整）              │
+└──────────────────────────┬──────────────────────────────────┘
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Channel: Trunk（主频道）                                    │
+│  "电影推荐系统完成：250 部电影数据 + 3 个 API + 列表/详情页。│
+│   三个 Submind 协作完成，进化大师已提取跨域协作最佳实践。"    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**跨 Session 协作要点**：
+- 每个 Submind 在**独立的 Hive Container** 中工作，环境隔离，互不干扰
+- **Coordination Channel** 是跨域协调的唯一通道，仅 Submind 级别以上可发言
+- 通信内容是**契约和交接信号**（数据 schema、API 地址、完成通知），不是细节对话
+- **依赖链由 Overmind 定义**：A→B→C，上游完成后通过 Coordination Channel 通知下游
+- 各 Hive 内部的 Brood 协作对其他 Hive **不可见**（信息隔离，减少噪音）
+- 集成验证回到 Coordination Channel，由 Overmind 统一发起
+- 进化大师对**整个跨域项目**做复盘，不只是单个 Submind
+
+**三种场景对比**：
+
+| 维度 | 赛马（场景一） | 同 Session 协作（场景二） | 跨 Session 协作（场景三） |
+|------|---------------|-------------------------|-------------------------|
+| **目的** | 择优：多路径竞争，选最佳 | 分工：多角色配合完成一个任务 | 编排：多域串并联完成大型任务 |
+| **Submind 关系** | 竞争（互不知道对方方案） | 1 个 Submind 统筹多 Unit | 多个 Submind 平行协作 |
+| **通信模式** | 隔离（各自独立频道） | 同一 Brood Channel 内直接对话 | Coordination Channel + 各自 Hive |
+| **Unit 可见性** | 各分支内部可见 | 同 Brood 内互相可见 | 仅 Hive 内可见，跨域不可见 |
+| **Overmind 角色** | 触发赛马 + 收敛选择 | 分配任务 + 验收结果 | 定义依赖链 + 协调交接 + 集成验证 |
+| **进化大师** | 复盘：失败/优秀基因落盘 | 复盘：协作模式落盘 | 复盘：跨域协作模板落盘 |
+| **适用场景** | 技术路径不确定 | 单域内多角色协作 | 大型跨域项目 |
+
+### 4.4 与现有模块的交互
+
+| 现有模块 | 交互方式 |
+|----------|----------|
+| **Voice Pipeline** | 用户语音 → Overmind 入口（通过 Trunk Channel），虫群执行结果 → TTS 播报 |
+| **Context Runtime** | 虫巢意识网复用 thread/session 机制，所有节点通过 ContextPacket 消费上下文 |
+| **Execution Provider** | Unit（前端虫/后端虫等）通过 Browser/Desktop Provider 执行具体操作，Brood 内直接协作 |
+| **Memory** | 战功记录写入 SQLite，基因库存储分层（Constitution/Playbook/Lessons），消息原文存 SQLite，向量检索用 Chroma |
+| **WebSocket** | Trunk 默认广播到前端，Trial/Hive/Ledger 按需订阅 |
+
+---
+
+## 5. 实现文件清单
+
+### 5.1 核心模块（v2.2 层级）
+
+| 文件 | 职责 |
+|------|------|
+| `src/greywind/hive/overmind.py` | 主脑（L3）：战略决策、硬规则赛马触发、收敛仲裁 |
+| `src/greywind/hive/evolution_master.py` | 进化大师（L3）：基因进化设计、策略优化、试验管理，有受限独立意志 |
+| `src/greywind/hive/submind.py` | 小主脑（L2）：战术调度、任务分解、Brood 协调 |
+| `src/greywind/hive/submind_registry.py` | 小主脑注册表：常驻/试验/休眠三态管理 |
+| `src/greywind/hive/vision_arbiter.py` | 愿景判尺：愿景边界维护、赛马比较标准 |
+| `src/greywind/hive/trial_race.py` | 赛马引擎：固定 2 路 Trial、隔离环境 |
+| `src/greywind/hive/convergence_engine.py` | 收敛引擎：硬门槛筛选 + 软评分比较 |
+| `src/greywind/hive/hive_container.py` | 虫巢容器（资源层）：Session 环境、资源配置 |
+| `src/greywind/hive/brood.py` | 虫群工作组（L1）：动态组建、内部协作、任务分配 |
+| `src/greywind/hive/unit.py` | 战斗单位（L0）：前端虫/后端虫/设计虫/审核虫 + ToolAction |
+| `src/greywind/hive/tool_action.py` | 原子任务封装（原 Drone）：文件/浏览器/代码操作 |
+| `src/greywind/hive/evolution_engine.py` | 进化引擎：四级惩罚、战功统计（由进化大师主导） |
+| `src/greywind/hive/gene_seed.py` | 基因种子：三层基因库（Constitution/Playbook/Lessons） |
+| `src/greywind/hive/synapse_net.py` | 虫巢意识网：ContextPacket 分发 |
+| `src/greywind/hive/kill_mark.py` | 战功记录：任务评估、用户反馈 |
+| `src/greywind/hive/trunk_protocol.py` | 主干协议：领导仪表盘视角、频道路由 |
+| `src/greywind/hive/execution_guard.py` | 执行守护：运行时经验检查 |
+| `src/greywind/hive/failure_capture.py` | 失败捕获：即时落盘 Lessons |
+| `src/greywind/hive/lessons_bank.py` | 教训库：L3 层，30 天时效管理 |
+
+### 5.2 修改文件
+
+| 文件 | 修改内容 |
+|------|----------|
+| `src/greywind/persona/voice_pipeline.py` | 集成虫群入口（用户输入 → Overmind） |
+| `src/greywind/context_runtime/prompt_assembler.py` | 支持三层基因注入（Constitution/Playbook/Lessons） |
+| `src/greywind/server/ws_handler.py` | 支持 Trunk 默认广播 + Trial/Hive/Ledger 按需订阅 |
+| `src/greywind/server/service_context.py` | 添加 HiveSystem 实例创建 |
+| `src/greywind/config/models.py` | 新增 HiveConfig、TrialConfig（硬规则阈值） |
+| `conf.yaml` | 新增 hive 配置段：赛马触发规则、基因库路径、惩罚阈值 |
+
+### 5.3 基因库目录（v2.2 层级）
+
+```
+characters/gene_pool/
+├── README.md                    # 基因库说明
+├── constitution/                # L1: 极稳定规则（原 L4_overmind 核心）
+│   ├── security.yaml            # 安全规范
+│   ├── coding_standards.yaml    # 编码规范
+│   └── review_baseline.yaml     # 审查底线
+│
+├── playbook/                    # L2: 领域经验（可版本化）
+│   ├── designer/                # 设计虫
+│   │   ├── ui_design.yaml
+│   │   ├── ux_research.yaml
+│   │   └── design_system.yaml
+│   ├── frontend/                # 前端虫
+│   │   ├── react.yaml
+│   │   ├── vue.yaml
+│   │   ├── css_architecture.yaml
+│   │   └── failure_patterns/
+│   ├── backend/                 # 后端虫
+│   │   ├── api_design.yaml
+│   │   ├── database.yaml
+│   │   └── security.yaml
+│   ├── reviewer/                # 审核虫
+│   │   ├── code_review.yaml
+│   │   └── anti_patterns/
+│   └── common/                  # 通用 Unit 技能
+│       ├── scout.yaml           # 侦察/搜索
+│       ├── analyzer.yaml        # 分析/审查
+│       └── coordinator.yaml     # 通信/协调
+│
+├── lessons/                     # L3: 近期教训（SQLite 平铺 + 自然衰减）
+│   ├── lessons.db               # SQLite 主库（单文件）
+│   └── README.md                # 查询/更新接口说明
+│
+├── registry/                    # 注册表（YAML）
+│   ├── submind_registry.yaml    # Submind 常驻/试验/休眠状态
+│   ├── brood_templates.yaml     # 优秀 Brood 配置模板
+│   └── unit_manifest.yaml       # Unit 类型清单
+│
+└── ledger/                      # 进化记录
+    ├── promotion_log.yaml
+    ├── demotion_log.yaml
+    ├── trial_log.yaml
+    └── audit_log.yaml
+```
+
+---
+
+## 6. Phase 计划（瘦身版）
+
+### Phase E0 — 接口锁定
+
+**目标**：冻结核心接口，避免后续重构
+
+**交付物**：
+- [ ] ContextPacket 类型定义
+- [ ] BroodTask 类型定义
+- [ ] Unit / Brood / Submind / Overmind 抽象接口
+- [ ] Hive 容器接口（仅资源管理，无决策逻辑）
+
+### Phase E1 — 单路跑通 + 基础 Brood
+
+**目标**：实现最简单的多 Agent 协作链路（单路，无赛马）
+
+**核心链路**：
+```
+用户输入 → Trunk → Overmind → Submind → Brood (2-3 个 Unit) → Review → 结果回 Trunk
+```
+
+**交付物**：
+- [ ] Trunk 频道基础（领导仪表盘视角）
+- [ ] Overmind 单路决策（不做赛马判断）
+- [ ] 一个常驻 Submind（通用型）
+- [ ] Brood 基础：动态组建、内部协作
+- [ ] 2-3 个基础 Unit（前端虫、后端虫、审核虫）
+- [ ] 消息持久化（SQLite）：原文存储、基础检索
+- [ ] WebSocket 单频道广播（Trunk）
+
+**明确不做**：
+- ❌ 赛马（进 E2）
+- ❌ 复杂度判断（进 E2）
+- ❌ 基因库分层（进 E3）
+- ❌ 晋升/降级（进 E3）
+- ❌ 向量检索（进 E4）
+
+### Phase E2 — 条件赛马
+
+**目标**：在 E1 链路基础上增加赛马能力
+
+**交付物**：
+- [ ] 硬规则复杂度判断（4 个触发条件）
+- [ ] 固定 2 路赛马实现
+- [ ] Trial Panel（右侧详情面板）
+- [ ] 隔离环境（独立频道/状态）
+- [ ] 硬门槛 + 软评分收敛逻辑
+- [ ] Vision Arbiter（愿景判尺）
+
+### Phase E3 — 基因库 + 强制落盘 + 生命周期
+
+**目标**：经验沉淀机制和 Submind 生命周期管理
+
+**交付物**：
+- [ ] 基因库三层结构（Constitution / Playbook / Lessons）
+- [ ] Lessons 时效机制（30 天衰减）
+- [ ] 强制落盘：启动加载、执行检查、失败写入
+- [ ] Submind 三态管理（常驻/试验/休眠）
+- [ ] 四级失败惩罚（Observe → Warn → Constrained → Dormant）
+- [ ] Kill-mark 战功记录（内部评估，无排行榜）
+
+### Phase E4 — 增强记忆 + Dashboard
+
+**目标**：向量检索和可视化面板
+
+**交付物**：
+- [ ] Chroma 向量检索集成
+- [ ] 事件驱动摘要（阶段摘要、Session 摘要）
+- [ ] Ledger View 完整面板
+- [ ] 简单可视化 Dashboard
+- [ ] PostgreSQL 迁移（消息量 > 100 万时）
+
+---
+
+**核心原则**：
+- E1 必须**完全跑通单路链路**才能进 E2
+- 赛马是**可选增强**，不是默认行为
+- 进化机制（晋升/降级/基因传播）在系统稳定后再引入
+
+---
+
+## 7. 待讨论要点（v2.2 精简版）
+
+### 7.1 架构层面（Q1-Q4）
+
+| 编号 | 问题 | 选项 | 当前倾向 |
+|------|------|------|----------|
+| Q1 | 晋升范围：全局有效还是领域内有效？ | A. 全局<br>B. 领域本地<br>C. 混合 | **C**（领域内快，全局难） |
+| Q2 | Lessons 衰减策略：30 天是否过短？ | A. 30 天<br>B. 60 天<br>C. 90 天 | **A**（先激进，后可调） |
+| Q3 | Overmind 实例：一个 Thread 是否总映射一个 Overmind？ | A. 一对一<br>B. 一对多<br>C. 多对一 | **A** |
+| Q4 | 四级惩罚的 Constrained 模式具体限制？ | A. 仅低风险任务<br>B. 必须人工确认<br>C. 限制工具范围 | **A** |
+
+### 7.2 命名层面（Q5-Q6）
+
+| 编号 | 问题 | 选项 | 备注 |
+|------|------|------|------|
+| Q5 | 代码命名是否全英文？ | A. 全英文（Coordinator/TaskGroup/Executor）<br>B. 保留 Tyranid 隐喻 | **A**（代码功能性命名） |
+| Q6 | 产品文档是否保留虫族隐喻？ | A. 保留（Overmind/Brood/Unit）<br>B. 全功能性 | **A**（产品侧保留风格） |
+
+### 7.3 实现层面（Q7-Q10）
+
+| 编号 | 问题 | 选项 | 当前倾向 |
+|------|------|------|----------|
+| Q7 | Constitution/Playbook 存储格式 | A. YAML<br>B. JSON<br>C. SQLite | **A→C 分阶段** |
+| Q8 | Lessons 存储格式 | A. JSONL（追加写）<br>B. SQLite<br>C. 内存 | **B**（v2.2 已决定采用 SQLite，见 2.6 节；JSONL 仅作 Phase E1 临时过渡选项） |
+| Q9 | 战功评估算法权重 | 质量/成本/速度/满意度 | 40%/20%/20%/20% |
+| Q10 | 与 Voice Pipeline 集成：虫群入口放哪？ | A. 替换<br>B. 作为 stage<br>C. 独立模块 | **C** |
+
+### 7.4 v2.2 新增问题（Q11-Q15）
+
+| 编号 | 问题 | 选项 | 当前倾向 |
+|------|------|------|----------|
+| Q11 | 硬规则赛马触发阈值：几项满足才触发？ | A. 1 项<br>B. 2 项<br>C. 3 项 | **B** |
+| Q12 | Trial Panel 默认展开条件？ | A. 手动<br>B. 任务复杂度高<br>C. 分支数>1 | **A** |
+| Q13 | Lessons 归档后是否可恢复？ | A. 可查询但不入 prompt<br>B. 完全删除<br>C. 可手动恢复 | **A** |
+| Q14 | Constrained Unit 如何恢复？ | A. 完成 3 个低风险任务<br>B. 时间解锁<br>C. 人工解锁 | **A** |
+| Q15 | 代码命名具体方案？ | A. Overmind→Coordinator<br>B. 保留<br>C. 混合 | **C**（核心概念保留，内部功能性） |
+
+---
+
+## 8. 风险与应对（v2.2）
+
+| 风险 | 可能性 | 影响 | 应对策略 |
+|------|--------|------|----------|
+| Lessons 衰减过快导致经验丢失 | 中 | 中 | 先 30 天激进策略，观察后调整 |
+| 硬规则赛马触发条件不准确 | 中 | 高 | 配置化阈值 + 运行后调参 |
+| 频道折叠导致用户找不到详情 | 低 | 中 | UI 引导 + 首次使用教程 |
+| 基因库三层边界模糊 | 中 | 中 | 严格定义：Constitution 极少更新，Playbook 版本化，Lessons 时效化 |
+| SQLite Lessons 写入性能瓶颈 | 中 | 中 | Phase 1 用 JSONL 追加写，Phase 3 迁移 |
+| 四级惩罚误杀高价值 Unit | 低 | 高 | 失败分类（环境失败不惩罚）+ 同域同约束匹配 |
+| Trial Panel 用户体验 | 中 | 中 | 渐进式展示，简单任务默认折叠 |
+| 层级压缩后职责重叠 | 中 | 高 | 硬边界定义：Hive 不参与决策，Unit 不负责调度 |
+
+---
+
+## 8.5 遗留问题记录（待下轮处理）
+
+以下问题已识别，当前版本暂不修复，留待实现阶段处理：
+
+| 编号 | 问题 | 严重程度 | 修复方向 |
+|------|------|---------|---------|
+| P1-1 | 赛马活跃池只有 1 个合适 Submind 时的降级路径空白 | P1 | 明确三种降级：补位孵化/单路退化/隔离评估 |
+| P1-2 | Lesson 细化只允许变窄导致通用经验对其他域不可见 | P1 | 保留 `origin_domain` 字段，细化时新建而非原地修改 |
+| P1-5 | Unit 遇到跨域阻塞时无法通知下游 Submind 的协调路径断裂 | P1 | 定义"契约变更通知"（Contract Revision Signal）处理流程 |
+| P1-6 | 单主脑模式执行中途 context 超限切换虫巢模式时，中间状态迁移无设计 | P1 | 明确切换只发生在任务开始前；或定义 HandoffDigest 热迁移协议 |
+| P2-1 | 用户满意度的"隐式信号"没有具体定义 | P2 | Phase E4 再补，当前只用显式反馈 👍/👎 |
+| P2-2 | `ExecutionGuard.pattern.matches(task)` 匹配逻辑完全空白 | P2 | 实现阶段定义匹配策略（domain 精确 + 关键词重叠度阈值） |
+
+---
+
+## 9. 最终规则集（v2.2）
+
+1. **Trunk 默认展开，其他频道折叠** —— 领导仪表盘视角，详情面板按需展开
+2. **用户可在 Trunk 参与对话** —— 可 @mention 主脑/小主脑
+3. **简单任务不弹出 Trial Panel** —— 复杂任务或用户主动点开时才展开
+4. **层级压缩为 4 层** —— Overmind/Submind/Brood/Unit，Drone 并入 Unit 的 ToolAction
+5. **Hive 退化为资源容器** —— 不参与决策，仅提供 Session 级环境
+6. **赛马固定两路 + 硬规则触发** —— 满足 2 项以上条件才允许 Trial，不允许动态分支
+7. **收敛两层判据** —— 硬门槛筛选 + 软评分比较
+8. **基因库分层** —— Constitution（直灌）/ Playbook（检索）/ Lessons（时效）
+9. **Lessons 30 天衰减归档** —— 避免 prompt 膨胀
+10. **失败四级递进** —— Observe → Warn → Constrained → Dormant，避免误杀
+11. **失败分类处理** —— 环境失败不惩罚，策略/质量失败才触发降级
+12. **Overmind 是线程级唯一主动权威** —— Vision Arbiter 和 Evolution Master 均不是第二主权
+13. **竞争必须隔离** —— 禁止多分支污染同一状态
+14. **简单任务优先单路** —— 复杂任务才触发条件赛马
+15. **Submind 默认复用** —— 新增必须有明确试验理由
+16. **晋升依赖内部评估** —— 不做竞技排行榜
+17. **失败分支可灭绝** —— 但不应污染主干连续性
+18. **进化必须可审计** —— 所有选择都有 Ledger 记录
+19. **经验强制落盘** —— 不看也得看，不写也得写
+20. **事件驱动摘要** —— 优先按任务节点触发，非固定消息数
+21. **进化大师有受限独立意志** —— 在进化领域可自主判断，但不得绕过主脑调度或对外发言
+22. **进化大师主导基因库** —— Constitution/Playbook 由进化大师维护，Lessons 自动落盘后由进化大师审查升级
+23. **执行模式先于实现** —— 主脑必须先判断任务形态（竞争型/流水线型/独立批量型/单路型），再选择对应执行模式
+24. **串行链禁止并行** —— Chain Mode 中各阶段必须顺序执行，不得因"提速"改为并行，依赖链不可违反
+25. **Chain Mode 的 context 精裁** —— 阶段间只传"改动摘要"，不传完整代码；每个 Submind 只拿自己阶段的 spec + 相关文件
+26. **赛马不适用于已拍板方案** —— 决策已确定、实现路径唯一的任务禁止触发 Trial，避免无效开销
+27. **适存驱动，不显式定义目标函数** —— 生物质消耗产生饥饿压力，生物质收割产生奖励信号，净生物质净值的正负决定领域扩张/收缩/休眠，全局最优从局部 P&L 竞争中自然涌现
+28. **生物质净值是调度决策的核心指标** —— 主脑派发任务时优先选净值高的 Submind，Evolution Master 监控净值曲线提前预警退化
+29. **奖励形状反廉价刷分** —— 高质量完成 > 多次平庸完成，防止 Submind 用大量低难度任务规避高难任务
+30. **基因本源决定身份连续性** —— GeneSeed 渐进演化 = 同一个体；谱系断裂/清空重孵 = 新个体；身份不由实例 ID 决定，由 Lineage 可追溯性决定
+
+---
+
+## 10. 运行模式：单主脑模式 vs 虫巢模式
+
+虫巢系统对外暴露**两种运行模式**，用户无需感知架构差异，系统根据任务复杂度自动切换。
+
+### 10.1 模式对比
+
+| 维度 | 单主脑模式（Solo Mode） | 虫巢模式（Hive Mode） |
+|------|------------------------|----------------------|
+| **适用场景** | 顺序工具链、日常问答、简单自动化 | 复杂软件工程、并行竞争、跨领域协作 |
+| **典型用户** | 小老板、内容创作者、普通消费者 | 开发者、重度自动化用户 |
+| **Agent 数量** | 1（主脑直接操作工具） | 主脑 + 多小主脑 + Unit 群 |
+| **层级** | 无层级，主脑直接调用工具 | 4 层（Overmind / Submind / Brood / Unit） |
+| **赛马机制** | 关闭（失败自动换路径，最多重试一次） | 开启（满足硬规则条件时触发） |
+| **Evolution Master** | 不参与 | 常驻复盘 |
+| **基因库** | 仅 Constitution（宪法层，直灌 prompt） | 三层（Constitution / Playbook / Lessons） |
+| **用户界面** | 单聊天框 + 折叠进度提示 | Trunk 主干 + 多频道详情面板 |
+| **切换条件** | 默认 | 任务满足：① 真正可并行 ② context 超限 ③ 需要专业分工互补盲区 |
+
+**核心设计选择**：单主脑模式不是简化版，而是**正确的默认态**。绝大多数用户任务是顺序工具链，加多个 agent 只增加协调开销，不增加质量。虫巢模式是明确的进阶路径，不是每个任务都需要的架构。
+
+### 10.2 单主脑模式场景示例
+
+**场景：小王的早晨（小型贸易公司老板）**
+
+---
+
+**小王：** 帮我看一下今天有没有和新能源汽车出口相关的重要新闻，顺便看看我关注的几只锂电股（宁德时代、赣锋锂业）今早表现怎么样，给我一个今天要不要调仓的判断。
+
+**灰风：** 好，我来查一下。
+
+> 🔍 正在搜索：新能源汽车出口 最新新闻...
+> 📈 正在获取：CATL、赣锋锂业 今日行情...
+> 📰 正在检索：欧盟关税 锂电 相关政策动态...
+
+今早有三件事值得注意：
+
+**一、欧盟补贴调查进展**
+昨晚欧委会宣布对中国新能源车补贴调查延期 3 个月，短期利空出口预期，但市场反应偏淡，影响已部分消化。
+
+**二、宁德时代（300750）**
+今早低开 1.2%，成交量比昨日低 30%，机构席位没有明显异动。结合欧盟消息，短期承压，但没有恐慌性抛售信号。
+
+**三、赣锋锂业（002460）**
+今早平开，碳酸锂现货价格连续 3 日小幅回升，略有支撑。
+
+**调仓建议：** 当前没有明确的趋势性信号，两只都不是今天高优先级的操作时机。如果持仓已有浮盈，可以考虑赣锋锁定部分；如果是准备建仓，不如再等 1-2 天看欧盟消息是否有后续。
+
+需要我帮你设一个监控，如果今天任一支涨跌超过 2% 就提醒你吗？
+
+---
+
+**小王：** 好，设一下。顺便今晚我在上海有个客户晚饭，帮我查一下从陆家嘴到外滩附近有没有适合商务宴请的粤菜，人均 400 以上，最好包厢。
+
+**灰风：** 好的，监控已设置。
+
+> 📍 正在搜索：外滩 粤菜 商务包厢 人均 400+...
+
+找到三个口碑不错的选项：
+
+| 餐厅 | 人均 | 包厢 | 距外滩 | 备注 |
+|------|------|------|--------|------|
+| 唐阁（外滩茂悦） | ¥680 | ✅ 需提前预订 | 步行 5 分钟 | 米其林一星，商务首选 |
+| 荣府宴 | ¥420 | ✅ 有 6 人包厢 | 步行 8 分钟 | 私密感好，适合谈事 |
+| 滴水洞（外滩店） | ¥380 | ❌ 无包厢 | 步行 3 分钟 | 口味好但不适合商务 |
+
+推荐**荣府宴**，有空包厢、价位合适、安静。需要我帮你打电话预订吗？告诉我几点、几位。
+
+---
+
+**小王：** 7 点，4 个人，定荣府宴。
+
+**灰风：** 好，帮你预订。
+
+> 📞 正在拨打荣府宴（外滩店）预订电话...
+
+已预订：**今晚 19:00，荣府宴外滩店，4 人包厢**，预订人"王先生"，对方让你提前 10 分钟到，包厢号到店时前台告知。
+
+今天还有什么需要？
+
+---
+
+**用户感知**：一个助手，问什么答什么，工具调用在括号里一闪而过。
+
+**系统内部**：主脑串行调用搜索工具、行情 API、地图+点评数据、预订接口，全程无子 agent，上下文一条链跑完。
+
+**切换虫巢模式的条件**：如果小王说"帮我同时分析 A、B 两套仓位调整策略，给我两份独立方案对比"——这时有真正的并行需求，主脑会自动升级到 Hive 模式，启动两路 Trial。
+
+---
+
+## 11. 参考对比
+
+| 维度 | OpenRoom | Cat Cafe | 当皇上 | **GreyWind 虫群 v2.2** |
+|------|----------|----------|--------|------------------------|
+| **Agent 关系** | 双 Agent 固定协作 | 三 Agent 固定协作 | 静态六部 | **4 层动态等级（精简）** |
+| **任务分配** | 浏览器 Agent 判断 | @mention 路由 | 司礼监派发 | **战功驱动的晋升调度** |
+| **用户可见性** | 内部隐藏 | 频道可见 | 内部隐藏 | **Trunk 领导视角 + 详情折叠** |
+| **竞争机制** | 无 | 无 | 无 | **硬规则触发 + 固定 2 路赛马** |
+| **记忆模型** | App 本地存储 | Session Chain | SQLite 独立 | **虫巢意识网 + 分层基因库** |
+| **消息持久化** | 无 | 数据库存储 | 无 | **原文保留 + 事件驱动摘要** |
+| **专家角色** | 粗粒度 | 粗粒度 | 粗粒度 | **Unit + ToolAction（原 Drone）** |
+| **经验沉淀** | 无 | 无 | 无 | **三层基因 + 四级惩罚** |
+| **存储架构** | 简单 JSON | 数据库 | 文件 | **SQLite→PG 分阶段演进** |
+| **失败处理** | 重试 | 三层防线 | 人工介入 | **分类处理 + 四级递进** |
+| **核心隐喻** | 桌面 OS | 猫咖协作 | 明朝官场 | **泰伦虫族 + 星际异虫** |
+| **调度算法** | 固定流程 | 专家判断 | 层级审批 | **战功累进 + 自然选择** |
+
+---
+
+*文档版本：v3.4*
+*修订记录：*
+- *v2.1 → v2.2：压缩层级（6→4）、收紧赛马（硬规则+固定2路）、分层基因库（Constitution/Playbook/Lessons）、频道折叠（Trunk默认展开）、四级失败惩罚、Lessons SQLite平铺+自然衰减+自我细化*
+- *v2.2 → v3.0：术语对齐泰伦虫族/星际争霸异虫设定（术语映射表）、新增进化大师角色（对标诺恩后虫+阿巴瑟，有受限独立意志，主导进化层）、等级体系加虫族对照列、系统架构图加入进化大师节点*
+- *v3.0 → v3.1：新增第 10 章「运行模式」——单主脑模式 vs 虫巢模式双模架构定义、模式切换条件、小老板场景示例（小王早晨）；明确单主脑模式为正确默认态，虫巢模式为进阶路径*
+- *v3.1 → v3.2：新增 2.4「执行模式框架」——三种执行模式（Trial 赛马 / Chain 串行链 / Swarm 并发 Unit 池）定义、任务形态判断规则、Chain Mode 执行规范（context 精裁 + 改动摘要传递）、常见误区；规则集新增第 23-26 条*
+- *v3.2 → v3.3：新增 2.0「阿米巴 CEO 原则」核心哲学（Submind 是域内 CEO 而非小专家工具人，专业化是执行边界不是认知边界）；P0 修复：①进化大师拒绝权改为"反对+Ledger Override 标记"，②Evolution Master 订阅 TrialClosed 事件确保收敛后才落盘；P1 修复：③Lessons 衰减公式改为 (1+frequency) 修复新 Lesson score=0 Bug，④BroodTask 字段 brood_id 重复改为 task_id + parent_brood_id；P2 修复：⑤Q8 倾向更正为 SQLite；新增 8.5「遗留问题记录」*
+- *v3.3 → v3.4：新增 2.4「适存驱动模型」——生物质消耗（饥饿信号）/ 生物质收割（奖励信号）/ 生物质净值（P&L 适存度）/ 基因本源（身份连续性）四个核心概念；不定义显式目标函数，全局最优从局部 P&L 竞争自然涌现；规则集新增第 27-30 条；术语表新增四个术语*
