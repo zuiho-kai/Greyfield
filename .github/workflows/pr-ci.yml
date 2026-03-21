@@ -72,7 +72,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: tests/e2e/package.json
 
+      - name: 缓存 node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/e2e/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json') }}
+
       - name: 安装 E2E 依赖
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
         working-directory: tests/e2e
         run: npm ci
 
