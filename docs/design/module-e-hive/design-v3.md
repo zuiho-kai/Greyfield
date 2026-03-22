@@ -249,11 +249,22 @@ Unit (L0)
 
 **职责**：
 
-1. **赛后复盘**（核心职责）：进化大师订阅 `TrialClosed` 事件，**Overmind 完成收敛、选出胜者之后**，进化大师才触发复盘（不得在收敛前并行写入 Lessons，否则会记录错误的胜负归因）：
-   - 失败基因是什么？（分析失败路径的根因，提取失败模式）
-   - 优秀基因是什么？（分析成功路径的关键策略，提取可复用模式）
-   - 落盘到角色错题本（失败模式 → Lessons L3 层，严重的升级 Playbook）
-   - 落盘到角色流程文件（优秀策略 → Playbook L2 层）
+1. **赛后复盘**（核心职责）：进化大师订阅 `TrialClosed` 事件，**Overmind 完成收敛、选出胜者之后**，进化大师才触发复盘（不得在收敛前并行写入 Lessons，否则会记录错误的胜负归因）。
+
+   复盘强制分两阶段执行，不得合并（参考 Memento-Skills 的 Reflect → Write 双循环）：
+
+   **阶段 A — Reflect（诊断）**：
+   - 失败基因是什么？（分析失败路径根因：是 tool 本身问题？调用序列问题？输入理解问题？）
+   - 优秀基因是什么？（分析成功路径的关键策略，识别可复用模式）
+   - 哪个 Playbook 条目/tool 在这次任务中表现异常（过好或过差）？
+   - **诊断结果必须显式输出，不允许跳过直接写入** — 否则写入的是猜测而非诊断
+
+   **阶段 B — Write（更新）**，必须在阶段 A 完成后才执行：
+   - 失败模式 → Lessons L3 层（即时写入）
+   - 严重失败 / 高频失败 → 升级 Playbook L2 层
+   - 优秀策略 → Playbook L2 层（版本化）
+   - 若诊断发现某外来 tool 存在系统性低效 → 触发 Skill 自合成流程（见职责 8）
+   - 更新 Skill Router 权重（此任务类型下，哪些 Playbook 条目组合命中率最高）
 2. **基因设计**：设计新的 worker 模板、review heuristic、coordination protocol
 3. **策略优化**：分析 SelectionReport，识别可进化的模式，提出改进方案
 4. **试验管理**：主导 Evolution Layer 的 Trial Broods，决定试验参数与评估标准
@@ -278,6 +289,25 @@ Unit (L0)
 - **Constitution（L1 宪法）**：进化大师维护，极少更新，更新需主脑批准
 - **Playbook（L2 战术手册）**：进化大师主导版本化管理，分析 SelectionReport 后提议更新
 - **Lessons（L3 近期教训）**：自动落盘，进化大师负责审查是否升级为 Playbook
+
+**三层概念澄清（避免混淆，参考 Memento-Skills）**：
+
+| 概念 | 本质 | 对应 Memento-Skills |
+|------|------|-------------------|
+| Tool / MCP | 可执行代码（实际能力） | Skill（可执行文件） |
+| Playbook 条目 | tool 调用模式的经验描述 | Skill 的 Reflect 阶段产物 |
+| Lessons | 单次任务的失败/成功记录 | Reflection log |
+| Skill 自合成 | 进化大师生成新 tool | skill-creator 元技能 |
+
+Playbook ≠ tool，Playbook 是"怎么用 tool 的经验"；tool 自合成是真正生成新的可调用能力。不要混为一谈。
+
+**Skill Router（进化大师维护）**：
+
+进化大师除维护基因库外，还维护一个任务→Playbook 的路由映射：
+```
+任务特征（domain + 关键词 + 历史成功率）→ Top-K 候选 Playbook 条目
+```
+Submind 启动时由 Skill Router 预选注入内容，而不是全库盲目检索。Router 权重在每次 Write 阶段后更新。
 
 ### 2.4 适存驱动模型（Fitness Drive）
 
@@ -855,49 +885,52 @@ CREATE TABLE lessons (
 CREATE INDEX idx_domain_lastused ON lessons(domain, last_used);
 ```
 
-**查询策略（继承链 + 自然衰减）**：
+**查询策略（BM25 + embeddings 混合检索，参考 Memento-Skills）**：
+
+> Tier 1-2 可以用纯衰减公式（实现简单），Tier 3+ 升级为混合检索（技能库增大后效果明显更好）。
 
 ```python
 class LessonsBank:
-    def query(self, task_domain: str, task_tags: List[str]) -> List[Lesson]:
-        """查询相关 Lessons"""
+    def query(self, task_description: str, task_domain: str,
+              task_tags: List[str]) -> List[Lesson]:
+        """混合检索：BM25（关键词）+ embeddings（语义）+ 衰减加权"""
 
-        # 1. 提取 domain 继承链
-        # "frontend/react/spa" -> ["frontend/react/spa", "frontend/react", "frontend"]
-        domain_chain = self._get_domain_chain(task_domain)
+        # --- Tier 1-2：纯衰减检索（简单实现） ---
+        # domain_chain = self._get_domain_chain(task_domain)
+        # candidates = self.db.query("SELECT * FROM lessons WHERE domain IN (?)", domain_chain)
+        # return top_k_by_score(candidates, task_domain, task_tags)
 
-        # 2. 按 domain 粗筛（SQLite 索引查询）
-        candidates = self.db.query("""
-            SELECT * FROM lessons
-            WHERE domain IN ({})
-        """.format(','.join('?' * len(domain_chain))), domain_chain)
+        # --- Tier 3+：混合检索 ---
 
-        # 3. 计算综合分数（时效 + 频次 + 标签匹配）
+        # 1. BM25 关键词粗筛（SQLite FTS）
+        bm25_hits = self.fts.search(task_description, top_k=20)
+
+        # 2. Embeddings 语义召回（sqlite-vec 向量库）
+        query_vec = self.embedder.encode(task_description)
+        vec_hits = self.vec_db.search(query_vec, top_k=20)
+
+        # 3. 合并候选集（去重）
+        candidates = {l.id: l for l in bm25_hits + vec_hits}.values()
+
+        # 4. 综合重排：语义相似度 × 时效衰减 × 频次 × domain 匹配
         scored = []
         for lesson in candidates:
-            score = self._calc_score(lesson, task_domain, task_tags)
+            score = self._hybrid_score(lesson, task_domain, task_tags, query_vec)
             scored.append((lesson, score))
 
-        # 4. 取 Top-5 注入 prompt
         return sorted(scored, key=lambda x: x[1], reverse=True)[:5]
 
-    def _calc_score(self, lesson, task_domain, task_tags) -> float:
-        """自然衰减公式"""
+    def _hybrid_score(self, lesson, task_domain, task_tags, query_vec) -> float:
         days = (now() - lesson.last_used).days
-        recency = exp(-0.1 * days)                    # 7天衰减到50%
-        frequency = log(1 + lesson.frequency)         # 复用次数对数
-
-        # 精确匹配权重更高
+        recency = exp(-0.1 * days)
+        # ⚠️ 修复：(1 + frequency) 确保新 Lesson（frequency=0）有基础分
+        freq_weight = 1 + log(1 + lesson.frequency)
         domain_match = 3.0 if lesson.domain == task_domain else \
                        2.0 if task_domain.startswith(lesson.domain + "/") else 1.0
+        tag_overlap = len(set(lesson.tags.split(",")) & set(task_tags))
+        semantic_sim = cosine_similarity(query_vec, lesson.embedding)
 
-        # 标签重叠度
-        lesson_tags = set(lesson.tags.split(","))
-        tag_overlap = len(lesson_tags & set(task_tags))
-
-        # ⚠️ 修复：新写入 Lesson frequency=0 时 log(1+0)=0 会导致 score=0 永远查不到
-        # 正确公式：(1 + frequency_log) 确保新 Lesson 有基础分
-        return recency * (1 + frequency) * domain_match * (1 + tag_overlap)
+        return recency * freq_weight * domain_match * (1 + tag_overlap) * (1 + semantic_sim)
 ```
 
 **惰性重分类（复用时更新）**：
