@@ -825,11 +825,13 @@ Module E 当前处于**规划阶段**，不在当前活跃开发范围内（当�
 - 进化大师完整职责（复盘落盘 + Playbook 更新 + 退化预警）
 - Gene Essence（Submind 身份连续性靠 GeneSeed 谱系）
 - 基因本源传承（Submind 进化积累的 Lessons 随谱系传递）
+- **专化生物形态结晶**：当某类任务的 Playbook 足够成熟，进化大师将 CEO 级 Submind 蒸馏为专化形态（窄认知边界 + 低 token 消耗），后续同类任务直接孵化专化形态
 
 验收标准：
 - 系统在无人干预下，自然淘汰了至少一个净值持续为负的 Submind
 - 进化大师产出的 Playbook 被后续任务实际命中并采用
 - GeneSeed 谱系记录可查，能追溯 Submind 的进化轨迹
+- 至少一个任务域产生了专化生物形态（可与 CEO 级执行对比 token 消耗）
 
 ---
 
