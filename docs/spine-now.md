@@ -747,7 +747,42 @@ Step 1-6 全部落地，验收标准基本达成：
 - B 屏幕感知 — 继续深化（当前已基本可用）
 - C 浏览器操控 — 让灰风能帮你动手
 
-19. 一句话总结
+19. Module E 公告栏 — 冻结范围
+
+19.1 一句话定位
+
+让灰风能不依赖用户输入，主动向用户推送一条文字公告，以 overlay 形式展示后自动消失。
+
+19.2 必须有的能力
+
+- 后端可主动向前端推送公告文本（通过现有 WebSocket 通道）
+- 新增 `announcement` 消息类型：`{"type": "announcement", "payload": {"text": "...", "duration_ms": 5000}}`
+- 前端以 overlay div 展示，到时自动淡出消失
+- 不新建 Electron 窗口，复用现有渲染层
+
+19.3 必须有的体验
+
+- 公告出现在 Live2D 角色旁，不遮挡角色主体
+- 自动淡出，无需用户操作
+- 不影响语音/对话主链路正常工作
+
+19.4 明确不做
+
+- 不持久化公告历史
+- 不支持用户点击/交互
+- 不支持图片、富文本、多媒体
+- 不支持公告队列（同时只显示一条）
+- 不支持公告触发条件配置（当前只做手动 API 触发）
+
+19.5 新增/修改文件
+
+- `src/greywind/server/announcer.py`（新增）
+- `src/greywind/server/ws_handler.py`（修改，注册 announcement 路由）
+- `frontend/desktop/renderer/announcement-overlay.js`（新增）
+- `frontend/desktop/renderer/socket-client.js`（修改，处理 announcement 消息）
+- `frontend/desktop/renderer/index.html`（修改，添加挂载点）
+
+20. 一句话总结
 
 Spine Now 不是在实现灰风的全部。
 Spine Now 只是在制造一个真正能开口、能连续、能活下来的灰风雏形。

@@ -5,6 +5,7 @@ from loguru import logger
 from greywind.config.models import AppConfig, CharacterConfig
 from greywind.config.loader import load_config, load_character
 from greywind.memory.store_json import JSONMemoryStore
+from greywind.server.announcer import Announcer
 from greywind.context_runtime.session_manager import SessionManager
 from greywind.context_runtime.thread_resolver import ThreadResolver
 from greywind.context_runtime.prompt_assembler import PromptAssembler
@@ -29,6 +30,8 @@ class ServiceContext:
         self.assembler = PromptAssembler()
         self.memory = JSONMemoryStore()
         self.memory.load()
+        # 公告推送器 — 由 ws_handler 在连接建立/断开时注册/注销 send_fn
+        self.announcer = Announcer()
         self.llm = self._create_llm()
         self.tts = self._create_tts()
         self.asr = self._try_create("ASR", self._create_asr)

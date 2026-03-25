@@ -48,6 +48,9 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
         except Exception:
             pass
 
+    # 注册公告推送回调（必须在 proactive_task 启动前，确保主动任务可以推送公告）
+    ctx.announcer.register(send_msg_safe)
+
     # 如果屏幕感知已启用，启动主动说话循环
     if pipeline.screen_sense and pipeline.screen_sense.enabled:
         proactive_task = asyncio.create_task(
@@ -171,6 +174,7 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
 
     except WebSocketDisconnect:
         logger.info("WebSocket 连接断开")
+        ctx.announcer.unregister()
         if proactive_task:
             proactive_task.cancel()
         try:
@@ -179,6 +183,7 @@ async def handle_websocket(ws: WebSocket, ctx: ServiceContext):
             logger.debug(f"disconnect cleanup error: {e}")
     except Exception as e:
         logger.error(f"WebSocket 错误: {e}")
+        ctx.announcer.unregister()
         if proactive_task:
             proactive_task.cancel()
 
